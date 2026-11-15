@@ -3,6 +3,7 @@
 #include "app/I18n.h"
 #include "ui/DrawPrimitives.h"
 #include "ui/Palette.h"
+#include "ui/TribalArt.h"
 
 namespace kb::ui
 {
@@ -411,6 +412,15 @@ namespace kb::ui
             const auto diameter = juce::jmin (platterArea.getWidth(), platterArea.getHeight()) * 0.96f;
             L.platter = Rectangle<float> (diameter, diameter).withCentre (platterArea.getCentre());
 
+            // Zonas amarillas libres a los costados del plato y en el encabezado.
+            const auto leftZone  = platterArea.withRight (L.platter.getX()).reduced (unit * 1.2f, unit * 1.0f);
+            const auto rightZone = platterArea.withLeft (L.platter.getRight()).reduced (unit * 1.2f, unit * 1.0f);
+            L.artOuter = L.mirrored ? rightZone : leftZone;
+            L.artInner = L.mirrored ? leftZone : rightZone;
+            L.artHeader = L.mirrored ? L.header.withLeft (L.keyUp.getRight() + unit * 2.0f).withTrimmedRight (unit * 16.0f)
+                                     : L.header.withRight (L.keyLock.getX() - unit * 2.0f).withTrimmedLeft (unit * 16.0f);
+            L.artHeader = L.artHeader.reduced (0.0f, unit * 0.5f);
+
             r.removeFromTop (unit * 2.0f);
             auto transport = L.mirrored ? r.removeFromRight (r.getWidth() * 0.44f) : r.removeFromLeft (r.getWidth() * 0.44f);
             if (L.mirrored) r.removeFromRight (unit * 2.0f); else r.removeFromLeft (unit * 2.0f);
@@ -521,6 +531,36 @@ namespace kb::ui
         grad.addColour (0.35, palette::chassis);
         g.setGradientFill (grad);
         g.fillPath (chassisPath);
+        // Trama tribal muy suave en todo el chasis.
+        {
+            juce::Graphics::ScopedSaveState save (g);
+            g.reduceClipRegion (chassisPath);
+            g.setColour (juce::Colours::black.withAlpha (0.07f));
+            g.fillPath (tribal::texture (chassis, unit * 9.0f));
+        }
+
+        // Tribales negros tipo grafiti en las zonas libres de cada deck, con una
+        // sombra suave que los "despega" del amarillo.
+        auto paintTribal = [&] (const juce::Path& p)
+        {
+            g.setColour (chassisShadow.darker (0.3f).withAlpha (0.55f));
+            g.fillPath (p, juce::AffineTransform::translation (unit * 0.35f, unit * 0.45f));
+            g.setColour (juce::Colours::black.withAlpha (0.9f));
+            g.fillPath (p);
+        };
+        for (const auto& L : deckLayouts)
+        {
+            for (auto zone : { L.artOuter, L.artInner })
+            {
+                if (zone.getWidth() < unit * 6.0f || zone.getHeight() < unit * 12.0f)
+                    continue;
+                const auto w = juce::jmin (zone.getWidth(), zone.getHeight() * 0.62f);
+                paintTribal (tribal::flame (zone.withSizeKeepingCentre (w, zone.getHeight())));
+            }
+            if (L.artHeader.getWidth() > unit * 20.0f)
+                paintTribal (tribal::band (L.artHeader));
+        }
+
         g.setColour (juce::Colours::white.withAlpha (0.35f));
         g.drawRoundedRectangle (chassis.reduced (unit * 0.4f), unit * 2.8f, juce::jmax (1.0f, unit * 0.25f));
         g.setColour (chassisShadow.darker (0.4f));

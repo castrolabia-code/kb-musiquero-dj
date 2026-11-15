@@ -87,6 +87,7 @@ namespace kb::app
 
             juce::LookAndFeel::setDefaultLookAndFeel (nullptr);
             lookAndFeel.reset();
+            ui::KbLookAndFeel::releaseFonts();
 
             if (settings != nullptr)
                 settings->flush();

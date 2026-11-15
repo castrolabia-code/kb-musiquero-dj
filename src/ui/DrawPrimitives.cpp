@@ -20,9 +20,10 @@ namespace kb::ui
         void text (Graphics& g, const juce::String& s, Rectangle<float> r, float height,
                    Colour c, Justification j, bool bold)
         {
+            // Letras grandes (pedido del usuario): +25 % sobre el tamaño de diseño.
             g.setColour (c);
-            g.setFont (KbLookAndFeel::labelFont (height, bold));
-            g.drawFittedText (s, r.toNearestInt(), j, 1, 0.8f);
+            g.setFont (KbLookAndFeel::labelFont (height * 1.25f, bold));
+            g.drawFittedText (s, r.toNearestInt().expanded (0, juce::roundToInt (height * 0.3f)), j, 1, 0.75f);
         }
 
         /** Perilla con arco de valor naranja (sección 6). value01 en [0, 1]. */

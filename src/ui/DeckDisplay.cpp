@@ -306,6 +306,7 @@ namespace kb::ui
             juce::Graphics::ScopedSaveState save (g);
             g.reduceClipRegion (area.toNearestInt());
             const auto dest = area.toNearestInt();
+            g.setOpacity (1.0f);
             g.drawImage (detailImage, dest.getX(), dest.getY(), dest.getWidth(), dest.getHeight(),
                          srcX, 0, srcW, detailImage.getHeight());
         }
@@ -415,6 +416,7 @@ namespace kb::ui
         if (overviewImage.isNull() || overviewTrack != t->getId() || overviewBins != t->getOverviewBinsReady()
             || ! juce::exactlyEqual (overviewScale, scale) || overviewWidth != w)
             renderOverviewCache (area, scale);
+        g.setOpacity (1.0f);
         g.drawImage (overviewImage, area, juce::RectanglePlacement::stretchToFit);
 
         const auto len = t->getLengthSeconds();

@@ -89,6 +89,12 @@ namespace kb::app
         juce::TooltipWindow tooltipWindow { this, 700 };   // ayuda al pasar el mouse (0,7 s)
         std::unique_ptr<juce::VBlankAttachment> vblank;
         double lastMeterTime = 0.0;
+
+        // Marco amarillo redondeado con tribales alrededor de todo (cacheado).
+        juce::Image frameImage;
+        float frameScale = 0.0f;
+        int frameThickness() const;
+        void renderFrame (float scale);
         int dropTarget = -1;
         int tick = 0;
 

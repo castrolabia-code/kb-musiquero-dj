@@ -15,6 +15,8 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 | Decodificadores de JUCE (MP3, FLAC, Ogg Vorbis, WAV, AIFF) | (JUCE) | Formatos de audio | Incluidos en JUCE (FLAC/Vorbis: BSD) | ✅ | Las patentes de MP3 vencieron en 2017. |
 | **Signalsmith Stretch** | 1.4.0 | Key Lock (cambiar tempo sin cambiar tono) y key shift | MIT | ✅ | Incluir el aviso de copyright (© Geraint Luff / Signalsmith Audio Ltd) en "Créditos" (Fase 9). |
 | **Signalsmith Linear** | 0.6.4 | FFT/STFT que usa Signalsmith Stretch | MIT | ✅ | Incluir el aviso de copyright (© Signalsmith Audio) en "Créditos". |
+| **Orbitron** (Black, Bold) | 2018 (theleagueof/orbitron) | Logo y títulos | SIL OFL 1.1 | ✅ | Embebida en el ejecutable; texto de la licencia en `assets/fonts/OFL-Orbitron.txt` (se incluye con el instalador). No se vende la fuente por separado. |
+| **Rajdhani** (SemiBold, Bold) | Google Fonts | Toda la interfaz | SIL OFL 1.1 | ✅ | Igual que Orbitron: `assets/fonts/OFL-Rajdhani.txt`. **Eurostile NO** (comercial de Linotype). |
 | **Catch2** | 3.16.1 | Pruebas unitarias | BSL-1.0 | ✅ | Solo se usa en desarrollo; no se distribuye con el producto. |
 
 ## Opcionales (desactivadas por defecto)
@@ -29,7 +31,6 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 |---|---|---|---|---|---|
 | TagLib | 6 | Tags y carátulas | LGPL-2.1 **o** MPL-1.1 | ✅ ⏳ | Se enlaza como **DLL** (LGPL): el usuario debe poder reemplazarla; incluir texto de licencia y ofrecer el código de TagLib. |
 | SQLite | 6 | Base de datos de la biblioteca | Dominio público | ✅ ⏳ | Sin obligaciones. |
-| Orbitron / Rajdhani | 7 | Tipografía del skin | SIL OFL 1.1 | ✅ ⏳ | Se pueden embeber; incluir el texto de la OFL; no vender la fuente por separado. **Eurostile NO** (comercial de Linotype, requiere compra). |
 | Inno Setup | 9 | Instalador | Licencia de Inno Setup (permite uso comercial) | ✅ ⏳ | Solo herramienta de build. |
 
 ## Descartadas

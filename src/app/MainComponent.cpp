@@ -4,6 +4,7 @@
 #include "engine/AudioFileFormats.h"
 #include "analysis/KeyDetector.h"
 #include "ui/Palette.h"
+#include "ui/TribalArt.h"
 
 namespace kb::app
 {
@@ -77,24 +78,92 @@ namespace kb::app
         I18n::getInstance().removeListener (this);
     }
 
+    int MainComponent::frameThickness() const
+    {
+        return juce::jmax (12, juce::roundToInt (getHeight() * 0.022));
+    }
+
     void MainComponent::paint (juce::Graphics& g)
     {
-        g.fillAll (ui::palette::panelDark);
+        const auto scale = g.getInternalContext().getPhysicalPixelScaleFactor();
+        if (frameImage.isNull() || ! juce::exactlyEqual (scale, frameScale)
+            || frameImage.getWidth() != juce::roundToInt ((float) getWidth() * scale))
+            renderFrame (scale);
+        g.drawImage (frameImage, getLocalBounds().toFloat());
+    }
+
+    void MainComponent::renderFrame (float scale)
+    {
+        using namespace ui::palette;
+        frameScale = scale;
+        frameImage = juce::Image (juce::Image::RGB, juce::jmax (1, juce::roundToInt ((float) getWidth() * scale)),
+                                  juce::jmax (1, juce::roundToInt ((float) getHeight() * scale)), true);
+        juce::Graphics g (frameImage);
+        g.addTransform (juce::AffineTransform::scale (scale));
+
+        const auto b = getLocalBounds().toFloat();
+        const auto f = (float) frameThickness();
+        const auto outerR = f * 2.2f;
+        const auto inner = b.reduced (f);
+
+        g.fillAll (panelDark);
+
+        // Marco amarillo con volumen (degradé + bisel).
+        juce::Path frame;
+        frame.addRoundedRectangle (b.reduced (1.0f), outerR);
+        juce::Path hole;
+        hole.addRoundedRectangle (inner.expanded (1.0f), outerR * 0.55f);
+        frame.addPath (hole);
+        frame.setUsingNonZeroWinding (false);
+
+        juce::ColourGradient grad (chassisLight, 0.0f, 0.0f, chassisShadow, 0.0f, b.getBottom(), false);
+        grad.addColour (0.4, chassis);
+        g.setGradientFill (grad);
+        g.fillPath (frame);
+
+        // Tribales negros sobre el marco: bandas en los cuatro lados y esquineros.
+        {
+            juce::Graphics::ScopedSaveState save (g);
+            g.reduceClipRegion (frame);
+            g.setColour (juce::Colours::black.withAlpha (0.86f));
+            const auto bandH = f * 0.8f;
+            const auto margin = outerR * 1.6f;
+            g.fillPath (ui::tribal::band ({ margin, (f - bandH) * 0.5f, b.getWidth() - 2.0f * margin, bandH }));
+            g.fillPath (ui::tribal::band ({ margin, b.getBottom() - f + (f - bandH) * 0.5f, b.getWidth() - 2.0f * margin, bandH }));
+
+            const auto side = ui::tribal::band ({ 0.0f, 0.0f, b.getHeight() - 2.0f * margin, bandH });
+            g.fillPath (side, juce::AffineTransform::rotation (juce::MathConstants<float>::halfPi)
+                                  .translated ((f + bandH) * 0.5f, margin));
+            g.fillPath (side, juce::AffineTransform::rotation (juce::MathConstants<float>::halfPi)
+                                  .translated (b.getRight() - (f - bandH) * 0.5f, margin));
+
+            const auto cs = outerR * 1.5f;
+            g.fillPath (ui::tribal::corner ({ 0.0f, 0.0f, cs, cs }, 0));
+            g.fillPath (ui::tribal::corner ({ b.getRight() - cs, 0.0f, cs, cs }, 1));
+            g.fillPath (ui::tribal::corner ({ b.getRight() - cs, b.getBottom() - cs, cs, cs }, 2));
+            g.fillPath (ui::tribal::corner ({ 0.0f, b.getBottom() - cs, cs, cs }, 3));
+        }
+
+        g.setColour (juce::Colours::white.withAlpha (0.45f));
+        g.drawRoundedRectangle (b.reduced (2.0f), outerR, 1.5f);
+        g.setColour (chassisShadow.darker (0.6f));
+        g.drawRoundedRectangle (inner.expanded (1.0f), outerR * 0.55f, 2.0f);
     }
 
     void MainComponent::resized()
     {
         // Proporciones del layout de referencia. En la Fase 7 se suma el modo
         // "Biblioteca grande", que achica el controlador.
-        auto b = getLocalBounds();
+        frameImage = {};
+        auto b = getLocalBounds().reduced (frameThickness());
 
         statusBar.setBounds (b.removeFromBottom (juce::jlimit (18, 30, b.getHeight() / 40)));
 
         const auto avail = b.getHeight();
-        topBar.setBounds     (b.removeFromTop (juce::roundToInt (avail * 0.06)));
-        controller.setBounds (b.removeFromTop (juce::roundToInt (avail * 0.47)));
+        topBar.setBounds     (b.removeFromTop (juce::roundToInt (avail * 0.08)));
+        controller.setBounds (b.removeFromTop (juce::roundToInt (avail * 0.46)));
 
-        auto waves = b.removeFromTop (juce::roundToInt (avail * 0.21)).reduced (2, 0);
+        auto waves = b.removeFromTop (juce::roundToInt (avail * 0.20)).reduced (2, 0);
         deckDisplays[0].setBounds (waves.removeFromTop (waves.getHeight() / 2));
         deckDisplays[1].setBounds (waves);
 

@@ -28,5 +28,11 @@ namespace kb::ui
         LevelMeter meterL { false, 40 }, meterR { false, 40 };
         bool limiting = false;
         float limitHold = 0.0f;
+
+        // Logo neón 3D cacheado (se regenera al cambiar el tamaño).
+        juce::Image logo;
+        float logoScale = 0.0f;
+        juce::Rectangle<float> logoArea, brandArea;
+        void renderLogo (float scale);
     };
 } // namespace kb::ui

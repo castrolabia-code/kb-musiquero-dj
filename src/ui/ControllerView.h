@@ -103,6 +103,7 @@ namespace kb::ui
         {
             juce::Rectangle<float> area, tempoLabel, tempoSlot, tempoRange, header, platter, sync, cue, pause, play;
             juce::Rectangle<float> keyLock, keyDown, keyUp;
+            juce::Rectangle<float> artInner, artOuter, artHeader;   // zonas amarillas libres para los tribales
             std::array<juce::Rectangle<float>, 4> modes, pads;
             bool mirrored = false;
         };
