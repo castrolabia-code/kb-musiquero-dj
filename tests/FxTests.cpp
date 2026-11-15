@@ -168,7 +168,7 @@ TEST_CASE ("FX: Brake termina en silencio", "[fx]")
     CHECK (peak (s.l, (size_t) (0.7 * kSr), (size_t) (1.5 * kSr)) < 0.001f);   // después: silencio
 }
 
-TEST_CASE ("FX: Echo deja sonar la cola al apagarlo y después se desactiva", "[fx]")
+TEST_CASE ("FX: Echo deja sonar la cola al apagarlo y despues se desactiva", "[fx]")
 {
     fx::FxUnit u;
     u.prepare (kSr, 256);
@@ -235,7 +235,7 @@ TEST_CASE ("FX: ruteo en el motor (deck 1, deck 2 o master)", "[fx][engine]")
     CHECK (engine.getDeckBpm (0) == Approx (120.0));
 }
 
-TEST_CASE ("FX: ningún efecto reserva memoria en el hilo de audio", "[fx][realtime]")
+TEST_CASE ("FX: ningun efecto reserva memoria en el hilo de audio", "[fx][realtime]")
 {
     AudioEngine engine;
     test::prepareUnity (engine, kSr, 256);
