@@ -3,6 +3,25 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.3.0] — Fase 2: Mixer completo y salidas
+
+### Agregado
+- **GAIN/TRIM** por canal (±12 dB).
+- **EQ de 3 bandas tipo isolator** (cruces Linkwitz-Riley de 24 dB/oct en 250 Hz y 3 kHz): plano al centro (±0,05 dB medido), +6 dB al máximo y **kill** (banda eliminada, más de 40 dB) con la perilla toda a la izquierda.
+- **FILTER/BASS** combinado: pasa-bajos a la izquierda (hasta 60 Hz), pasa-altos a la derecha (hasta 8 kHz), sin efecto al centro. Filtro de variable de estado que se puede barrer rápido sin clicks.
+- **Limitador de seguridad** en el master (anticipación de 2 ms, techo −0,3 dBFS): la salida nunca satura. LED **LIMIT** en la barra superior.
+- **Auriculares**: CUE por canal (pre-fader), perilla PHONES, **CUE MIX** (cue ↔ master) y limitador propio. El volumen MASTER no afecta lo que se escucha en auriculares.
+- **Ruteo de 4 salidas**: master a 1-2 o 3-4 y auriculares al otro par. Si la placa tiene 2 salidas, el master nunca se pierde.
+- **SPLIT**: master mono en el canal izquierdo y auriculares mono en el derecho (botón en el mixer y en Opciones).
+- **Crossfader**: curvas suave / corte / scratch e inversión.
+- **Vúmetros LED**: por canal (en el mixer) y master estéreo (barra superior) con pico + RMS, retención de pico, LED de clip (click para apagarlo), escala en dBFS y degradé verde → amarillo → naranja → rojo con glow, a 60 fps sincronizados con la pantalla. Balística: ataque instantáneo y caída de 18 dB/s.
+- **Opciones → Mixer**: curva e inversión del crossfader, salida del master, SPLIT y aviso si la placa tiene solo 2 salidas. Se guardan entre sesiones.
+- Perillas bipolares (EQ, GAIN, FILTER, CUE MIX) con el arco naranja desde el centro.
+- Pruebas: EQ (plano, kill, +6 dB), trim, filtro (cortes y barrido estable), limitador (nunca supera el techo; transparente por debajo), ruteo, CUE, CUE MIX, SPLIT, curvas del crossfader, vúmetros y balística, y cero allocations con todo el mixer en movimiento.
+
+### Cambiado
+- La salida ya no es idéntica bit a bit a la pista: el EQ isolator cambia la fase (como cualquier mixer) y el limitador agrega 2 ms de latencia. El nivel con todo al centro sigue siendo exactamente el mismo.
+
 ## [0.2.0] — Fase 1: Motor de audio mínimo
 
 ### Agregado

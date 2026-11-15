@@ -15,9 +15,10 @@ namespace kb::ui::draw
     void text (juce::Graphics& g, const juce::String& s, juce::Rectangle<float> r, float height,
                juce::Colour c, juce::Justification j = juce::Justification::centred, bool bold = true);
 
-    /** Perilla con arco de valor naranja. value01 en [0, 1]. Etiqueta debajo. */
+    /** Perilla con arco de valor naranja. value01 en [0, 1]. Etiqueta debajo.
+        bipolar: el arco se dibuja desde el centro (perillas con 0 dB al medio). */
     void knob (juce::Graphics& g, juce::Point<float> centre, float radius, float value01,
-               const juce::String& label, float textHeight);
+               const juce::String& label, float textHeight, bool bipolar = false);
 
     /** Botón con glow. 'lit' = encendido. */
     void button (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour colour, const juce::String& label,

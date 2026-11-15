@@ -15,34 +15,6 @@ namespace kb::ui
     using namespace palette;
 
     // =========================================================================
-    //  Barra superior
-    // =========================================================================
-    TopBarPlaceholder::TopBarPlaceholder() { setOpaque (true); }
-
-    void TopBarPlaceholder::paint (Graphics& g)
-    {
-        const auto b = getLocalBounds().toFloat();
-        const auto h = b.getHeight();
-
-        g.setGradientFill (juce::ColourGradient (panelLight, 0.0f, 0.0f, panelDark, 0.0f, h, false));
-        g.fillRect (b);
-        g.setColour (chassis.withAlpha (0.55f));
-        g.fillRect (b.withTop (b.getBottom() - juce::jmax (1.0f, h * 0.04f)));
-
-        auto area = b.reduced (h * 0.4f, h * 0.12f);
-        const auto sideW = area.getWidth() * 0.3f;
-
-        draw::text (g, tr ("app.logo"), area.removeFromLeft (sideW), h * 0.52f, chassis, Justification::centredLeft);
-        draw::text (g, tr ("app.brand"), area.removeFromRight (sideW), h * 0.34f, textSecondary, Justification::centredRight);
-
-        // Vúmetro master (L / R)
-        const auto meterArea = area.reduced (area.getWidth() * 0.08f, h * 0.1f);
-        const auto rowH = meterArea.getHeight() * 0.42f;
-        draw::meter (g, meterArea.withHeight (rowH), false, 40);
-        draw::meter (g, meterArea.withTrimmedTop (meterArea.getHeight() - rowH), false, 40);
-    }
-
-    // =========================================================================
     //  Biblioteca
     // =========================================================================
     LibraryPlaceholder::LibraryPlaceholder() { setOpaque (true); }

@@ -26,7 +26,7 @@ namespace kb::ui
         }
 
         /** Perilla con arco de valor naranja (sección 6). value01 en [0, 1]. */
-        void knob (Graphics& g, Point<float> c, float r, float value01, const juce::String& label, float textH)
+        void knob (Graphics& g, Point<float> c, float r, float value01, const juce::String& label, float textH, bool bipolar)
         {
             // Sombra
             g.setColour (juce::Colours::black.withAlpha (0.45f));
@@ -41,8 +41,11 @@ namespace kb::ui
             g.strokePath (track, juce::PathStrokeType (strokeW, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
             const auto angle = kArcStart + (kArcEnd - kArcStart) * juce::jlimit (0.0f, 1.0f, value01);
+            // Bipolar (EQ, GAIN, FILTER): el arco nace en el centro (12 en punto).
+            const auto from = bipolar ? 0.0f : kArcStart;
             juce::Path value;
-            value.addCentredArc (c.x, c.y, arcR, arcR, 0.0f, kArcStart, angle, true);
+            if (std::abs (angle - from) > 0.01f)
+                value.addCentredArc (c.x, c.y, arcR, arcR, 0.0f, std::min (from, angle), std::max (from, angle), true);
             g.setColour (orange);
             g.strokePath (value, juce::PathStrokeType (strokeW, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 

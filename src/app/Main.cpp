@@ -37,6 +37,10 @@ namespace kb::app
             juce::LookAndFeel::setDefaultLookAndFeel (lookAndFeel.get());
 
             engine = std::make_unique<engine::AudioEngine>();
+            engine->setCrossfaderCurve ((engine::CrossfaderCurve) settings->getCrossfaderCurve());
+            engine->setCrossfaderReverse (settings->getCrossfaderReverse());
+            engine->setMasterOutputPair (settings->getMasterOutputPair());
+            engine->setSplit (settings->getSplit());
             audio  = std::make_unique<AudioDeviceService> (*engine, *settings);
             const auto audioError = audio->initialise();
 
@@ -65,6 +69,12 @@ namespace kb::app
         {
             mainWindow.reset();
             player.reset();     // cancela cargas en curso
+
+            if (engine != nullptr && settings != nullptr)
+            {
+                // SPLIT también se cambia desde el mixer: se guarda el estado final.
+                settings->setSplit (engine->getSplit());
+            }
             audio.reset();      // guarda el estado del dispositivo y cierra el audio
             engine.reset();
 

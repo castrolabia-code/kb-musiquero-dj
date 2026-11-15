@@ -3,11 +3,13 @@
 //  OptionsComponent: ventana de Opciones con pestañas.
 //    * Audio:   tipo de driver (WASAPI compartido / exclusivo / ASIO),
 //               dispositivo, sample rate, buffer y salidas activas (hasta 4).
+//    * Mixer:   curva e inversión del crossfader, ruteo de salidas y SPLIT.
 //    * General: idioma de la interfaz (se aplica en vivo).
 // =============================================================================
 #include <juce_audio_utils/juce_audio_utils.h>
 
 #include "app/I18n.h"
+#include "engine/AudioEngine.h"
 
 namespace kb::app
 {
@@ -18,9 +20,9 @@ namespace kb::app
                                    private I18n::Listener
     {
     public:
-        enum Tab { audioTab = 0, generalTab = 1 };
+        enum Tab { audioTab = 0, mixerTab = 1, generalTab = 2 };
 
-        OptionsComponent (AudioDeviceService& audio, AppSettings& settings, Tab initialTab);
+        OptionsComponent (AudioDeviceService& audio, AppSettings& settings, engine::AudioEngine& engine, Tab initialTab);
         ~OptionsComponent() override;
 
         void showTab (Tab tab);
@@ -31,12 +33,14 @@ namespace kb::app
 
     private:
         class AudioPage;
+        class MixerPage;
         class GeneralPage;
 
         void languageChanged() override;
 
         juce::TabbedComponent tabs { juce::TabbedButtonBar::TabsAtTop };
         AudioPage*   audioPage   = nullptr;   // propiedad de 'tabs'
+        MixerPage*   mixerPage   = nullptr;   // propiedad de 'tabs'
         GeneralPage* generalPage = nullptr;   // propiedad de 'tabs'
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OptionsComponent)

@@ -38,6 +38,8 @@ target_sources(KBMusiqueroDJ PRIVATE
     ../ui/Controls.h        ../ui/Controls.cpp
     ../ui/ControllerView.h  ../ui/ControllerView.cpp
     ../ui/DeckDisplay.h     ../ui/DeckDisplay.cpp
+    ../ui/LevelMeter.h      ../ui/LevelMeter.cpp
+    ../ui/TopBar.h          ../ui/TopBar.cpp
     ../ui/KbLookAndFeel.h   ../ui/KbLookAndFeel.cpp
     ../ui/SkinPlaceholders.h ../ui/SkinPlaceholders.cpp)
 

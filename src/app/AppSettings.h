@@ -33,6 +33,16 @@ namespace kb::app
         std::unique_ptr<juce::XmlElement> getAudioDeviceState() const;
         void setAudioDeviceState (const juce::XmlElement* state);
 
+        // --- Mixer y salidas -------------------------------------------------------------
+        int  getCrossfaderCurve() const;     // 0 suave, 1 corte, 2 scratch
+        void setCrossfaderCurve (int curve);
+        bool getCrossfaderReverse() const;
+        void setCrossfaderReverse (bool reverse);
+        int  getMasterOutputPair() const;    // 0 = salidas 1-2, 1 = salidas 3-4
+        void setMasterOutputPair (int pair);
+        bool getSplit() const;
+        void setSplit (bool split);
+
         /** Escribe a disco inmediatamente (por defecto se guarda con demora). */
         bool flush();
 

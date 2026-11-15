@@ -21,6 +21,9 @@ namespace kb::ui
     public:
         GlowButton (juce::String labelKey, juce::Colour colour, bool round);
 
+        /** Tamaño de letra relativo al alto del botón (por defecto 0.2 redondo / 0.36 rectangular). */
+        void setTextScale (float s) { textScale = s; repaint(); }
+
         void setLit (bool shouldBeLit);
         bool isLit() const noexcept { return lit; }
 
@@ -34,6 +37,7 @@ namespace kb::ui
         juce::String labelKey;
         juce::Colour colour;
         bool round;
+        float textScale = -1.0f;
         bool lit = false;
         bool wasDown = false;
     };
@@ -55,6 +59,8 @@ namespace kb::ui
 
         /** Radio de la perilla y alto de la etiqueta, en píxeles. */
         void setGeometry (float radius, float labelHeight);
+        /** Arco desde el centro (EQ, GAIN, FILTER). */
+        void setBipolar (bool b) { bipolar = b; repaint(); }
         /** Tamaño que necesita el componente para la geometría dada. */
         juce::Rectangle<float> boundsForCentre (juce::Point<float> centre) const;
 
@@ -63,5 +69,6 @@ namespace kb::ui
     private:
         juce::String labelKey;
         float radius = 12.0f, labelHeight = 8.0f;
+        bool bipolar = false;
     };
 } // namespace kb::ui

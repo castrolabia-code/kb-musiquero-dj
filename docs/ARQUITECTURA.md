@@ -1,6 +1,6 @@
 # Arquitectura — KB - MUSIQUERO DJ
 
-Documento vivo: se actualiza al cerrar cada fase. Última actualización: **Fase 1**.
+Documento vivo: se actualiza al cerrar cada fase. Última actualización: **Fase 2**.
 
 ## 1. Vista general
 
@@ -94,11 +94,37 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
   el principal entra desde 0. Probado midiendo el mayor salto entre muestras.
 - **CUE estilo CDJ**: ver comentario de `engine/Deck.h` y pruebas `[cue]`.
 
-### Mixer (Fase 1)
+### Mixer (Fase 2)
 
-`salida = (deckA · fader(volA) · xfA + deckB · fader(volB) · xfB) · fader(master)`, con
-`fader(p) = p²` y crossfader de potencia constante (`cos/sin`). Recorte de seguridad a ±1.0 (se
-cuenta en `getClippedSamples()`) hasta el limitador de la Fase 2.
+```
+ Deck ─▶ ChannelStrip: GAIN (±12 dB) ─▶ EQ isolator ─▶ FILTER ─▶ vúmetro de canal
+                                                       │
+                       ┌───────────────────────────────┴─────────────┐
+                       ▼ fader(vol) · crossfader                     ▼ CUE (pre-fader, 0/1 suavizado)
+                    MASTER bus ─▶ · fader(master) ─▶ Limiter ─▶ vúmetros master ─▶ par del master
+                       │                                             │
+                       └────────── (antes del volumen MASTER) ──▶ CUE MIX ─▶ · fader(phones) ─▶ Limiter ─▶ par de auriculares
+```
+
+- `fader(p) = p²` (0,5 → −12 dB). Todas las ganancias se suavizan 20 ms.
+- **EQ isolator** (`dsp/ThreeBandIsolator`): LR4 en 250 Hz y 3 kHz + pasa-todo de compensación en
+  los graves: la suma es plana. Perilla: 0 = kill, 0,5 = 0 dB, 1 = +6 dB.
+- **Filtro** (`dsp/DjFilter`): SVF TPT (Zavalishin/Simper), Q = 1, coeficientes cada 16 muestras,
+  fundido con la señal seca en la zona central.
+- **Limitador** (`dsp/Limiter`): mínimo deslizante + promedio en la ventana de anticipación (2 ms) ⇒
+  la ganancia aplicada a cada muestra es siempre ≤ la necesaria: nunca supera −0,3 dBFS.
+- **Crossfader**: suave (potencia constante), corte (10 %), scratch (2 %), inversión.
+- **Ruteo**: `masterPair` 0/1 elige 1-2 o 3-4; auriculares al otro. SPLIT: L = master mono,
+  R = auriculares mono en el par del master. Sin salidas 3-4, el master cae a 1-2.
+
+### Medición
+
+- `MeterSource` (motor, lock-free): el audio acumula pico, suma de cuadrados y clip; la UI lee y
+  reinicia a 60 Hz (`VBlankAttachment`), sin perder picos entre cuadros.
+- `MeterBallistics` (lógica pura, probada): pico instantáneo con caída de 18 dB/s, RMS con ataque de
+  50 ms, retención 1,5 s, clip 2 s.
+- `ui/LevelMeter`: escala no lineal en dBFS, solo repinta cuando cambia algún LED.
+- Clip del master = el bus habría pasado 0 dBFS antes del limitador.
 
 ## 4. Audio y dispositivos (Windows)
 
@@ -161,3 +187,7 @@ cuenta en `getClippedSamples()`) hasta el limitador de la Fase 2.
 | D9 | Conversión de sample rate al cargar (r8brain), no en tiempo real | Máxima calidad sin costo en el callback. El tempo/pitch (Fase 3) se hará sobre la pista ya convertida. |
 | D10 | Fundidos de 3 ms con cabezal "ghost" | Elimina clicks en todos los cambios sin perder respuesta (3 ms es inaudible como demora). |
 | D11 | M4A con Media Foundation propio (no `WindowsMediaAudioFormat` de JUCE) | API moderna, AAC confiable, salida float directa. |
+| D12 | EQ tipo isolator (LR4) en vez de shelving/peaking | Permite kill real de cada banda, como los mixers de club. |
+| D13 | Limitador brickwall siempre activo en master y auriculares | Prioridad: nunca saturar parlantes ni oídos. Costo: 2 ms de latencia. |
+| D14 | El CUE MIX toma el master antes del volumen MASTER | Bajar los parlantes no apaga el master en los auriculares (comportamiento de mixer de club). |
+| D15 | Kill = perilla toda a la izquierda (sin botones de kill aparte) | El layout de referencia no tiene botones de kill; MIDI (Fase 8) podrá mapear kills a botones. |

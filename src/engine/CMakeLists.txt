@@ -9,6 +9,13 @@ add_library(kb_engine STATIC
     TrackBuffer.h       TrackBuffer.cpp
     TrackLoader.h       TrackLoader.cpp
     AudioFileFormats.h  AudioFileFormats.cpp
+    ChannelStrip.h      ChannelStrip.cpp
+    MeterSource.h
+    MeterBallistics.h
+    dsp/Biquad.h
+    dsp/ThreeBandIsolator.h  dsp/ThreeBandIsolator.cpp
+    dsp/DjFilter.h           dsp/DjFilter.cpp
+    dsp/Limiter.h            dsp/Limiter.cpp
     LockFreeQueue.h
     RealtimeChecks.h)
 add_library(kb::engine ALIAS kb_engine)

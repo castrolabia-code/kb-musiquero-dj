@@ -44,6 +44,74 @@ namespace kb::ui
         masterKnob.setDoubleClickReturnValue (true, 0.85);
         masterKnob.onValueChange = [this] { if (onMaster) onMaster ((float) masterKnob.getValue()); };
         addAndMakeVisible (masterKnob);
+
+        // --- Tiras de canal (Fase 2) --------------------------------------------------
+        static const char* stripKeys[] = { "mixer.gain", "mixer.high", "mixer.mid", "mixer.low", "mixer.filter" };
+        for (int d = 0; d < 2; ++d)
+        {
+            for (int k = 0; k < 5; ++k)
+            {
+                auto knob = std::make_unique<KbKnob> (stripKeys[k]);
+                knob->setBipolar (true);
+                knob->setDoubleClickReturnValue (true, 0.5);
+                knob->setValue (0.5, juce::dontSendNotification);
+                auto* raw = knob.get();
+                knob->onValueChange = [this, d, k, raw]
+                {
+                    const auto v = (float) raw->getValue();
+                    if (k == 0)      { if (onTrim)   onTrim (d, v); }
+                    else if (k == 4) { if (onFilter) onFilter (d, v); }
+                    else             { if (onEq)     onEq (d, 3 - k, v); }   // HIGH=2, MID=1, LOW=0
+                };
+                addAndMakeVisible (*knob);
+                stripKnobs[(size_t) d][(size_t) k] = std::move (knob);
+            }
+
+            auto cue = std::make_unique<GlowButton> ("mixer.cue", cyan, false);
+            auto* rawCue = cue.get();
+            cue->onPress = [this, d, rawCue]
+            {
+                rawCue->setLit (! rawCue->isLit());
+                if (onChannelCue) onChannelCue (d, rawCue->isLit());
+            };
+            addAndMakeVisible (*cue);
+            channelCueButtons[(size_t) d] = std::move (cue);
+
+            channelMeters[(size_t) d] = std::make_unique<LevelMeter> (true, 16);
+            addAndMakeVisible (*channelMeters[(size_t) d]);
+        }
+
+        phonesKnob.setDoubleClickReturnValue (true, 0.7);
+        phonesKnob.onValueChange = [this] { if (onPhones) onPhones ((float) phonesKnob.getValue()); };
+        cueMixKnob.setBipolar (true);
+        cueMixKnob.setDoubleClickReturnValue (true, 0.0);
+        cueMixKnob.onValueChange = [this] { if (onCueMix) onCueMix ((float) cueMixKnob.getValue()); };
+        splitButton.onPress = [this]
+        {
+            splitButton.setLit (! splitButton.isLit());
+            if (onSplit) onSplit (splitButton.isLit());
+        };
+        addAndMakeVisible (phonesKnob);
+        addAndMakeVisible (cueMixKnob);
+        addAndMakeVisible (splitButton);
+    }
+
+    void ControllerView::setTrim (int d, float v)   { if (juce::isPositiveAndBelow (d, 2)) stripKnobs[(size_t) d][0]->setValue (v, juce::dontSendNotification); }
+    void ControllerView::setFilter (int d, float v) { if (juce::isPositiveAndBelow (d, 2)) stripKnobs[(size_t) d][4]->setValue (v, juce::dontSendNotification); }
+    void ControllerView::setEq (int d, int band, float v)
+    {
+        if (juce::isPositiveAndBelow (d, 2) && juce::isPositiveAndBelow (band, 3))
+            stripKnobs[(size_t) d][(size_t) (3 - band)]->setValue (v, juce::dontSendNotification);
+    }
+    void ControllerView::setChannelCue (int d, bool on) { if (juce::isPositiveAndBelow (d, 2)) channelCueButtons[(size_t) d]->setLit (on); }
+    void ControllerView::setPhones (float v)  { phonesKnob.setValue (v, juce::dontSendNotification); }
+    void ControllerView::setCueMix (float v)  { cueMixKnob.setValue (v, juce::dontSendNotification); }
+    void ControllerView::setSplit (bool on)   { splitButton.setLit (on); }
+
+    void ControllerView::pushChannelMeter (int d, const engine::MeterSource::Reading& r, float dt)
+    {
+        if (juce::isPositiveAndBelow (d, 2))
+            channelMeters[(size_t) d]->push (r, dt);
     }
 
     // =========================================================================
@@ -104,6 +172,28 @@ namespace kb::ui
         crossfader.setBounds (mixer.crossfader.toNearestInt());
         masterKnob.setGeometry (mixer.masterRadius, unit * 2.6f * 0.8f);
         masterKnob.setBounds (masterKnob.boundsForCentre (mixer.masterCentre).toNearestInt());
+
+        const auto labelH = unit * 2.6f * 0.8f;
+        for (int d = 0; d < 2; ++d)
+        {
+            for (int k = 0; k < 5; ++k)
+            {
+                auto& knob = *stripKnobs[(size_t) d][(size_t) k];
+                knob.setGeometry (mixer.eqRadius, labelH);
+                knob.setBounds (knob.boundsForCentre (mixer.eqCentres[(size_t) d][(size_t) k]).toNearestInt());
+            }
+            channelCueButtons[(size_t) d]->setBounds (mixer.cueButtons[(size_t) d].expanded (mixer.cueButtons[(size_t) d].getHeight() * 0.1f).toNearestInt());
+            channelCueButtons[(size_t) d]->setTextScale (0.5f);
+        }
+        channelMeters[0]->setBounds (mixer.meterL.toNearestInt());
+        channelMeters[1]->setBounds (mixer.meterR.toNearestInt());
+
+        for (auto* k : { &phonesKnob, &cueMixKnob })
+            k->setGeometry (mixer.smallRadius, unit * 2.6f * 0.7f);
+        phonesKnob.setBounds (phonesKnob.boundsForCentre (mixer.phonesCentre).toNearestInt());
+        cueMixKnob.setBounds (cueMixKnob.boundsForCentre (mixer.cueMixCentre).toNearestInt());
+        splitButton.setBounds (mixer.split.toNearestInt());
+        splitButton.setTextScale (0.5f);
     }
 
     void ControllerView::computeLayout()
@@ -200,12 +290,15 @@ namespace kb::ui
         M.masterRadius = juce::jmin (masterArea.getHeight() * 0.26f, centre.getWidth() * 0.18f);
         M.masterCentre = { masterArea.getCentreX(), masterArea.getCentreY() - unit };
 
-        auto phonesArea = centre.removeFromBottom (centre.getHeight() * 0.28f);
-        M.smallRadius  = juce::jmin (phonesArea.getHeight() * 0.2f, centre.getWidth() * 0.13f);
-        M.phonesCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.27f, phonesArea.getCentreY() - unit };
-        M.cueMixCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.73f, phonesArea.getCentreY() - unit };
+        auto phonesArea = centre.removeFromBottom (centre.getHeight() * 0.36f);
+        auto splitArea  = phonesArea.removeFromBottom (phonesArea.getHeight() * 0.3f);
+        M.split = splitArea.withSizeKeepingCentre (juce::jmin (splitArea.getWidth() * 0.6f, unit * 12.0f),
+                                                   juce::jmin (splitArea.getHeight() * 0.8f, unit * 4.5f));
+        M.smallRadius  = juce::jmin (phonesArea.getHeight() * 0.24f, centre.getWidth() * 0.13f);
+        M.phonesCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.27f, phonesArea.getCentreY() - unit * 1.2f };
+        M.cueMixCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.73f, phonesArea.getCentreY() - unit * 1.2f };
 
-        auto meters = centre.reduced (centre.getWidth() * 0.28f, unit * 1.0f);
+        auto meters = centre.reduced (centre.getWidth() * 0.28f, unit * 1.0f).withTrimmedBottom (unit * 3.2f);
         const auto mW = meters.getWidth() * 0.4f;
         M.meterL = meters.withWidth (mW);
         M.meterR = meters.withTrimmedLeft (meters.getWidth() - mW);
@@ -330,19 +423,9 @@ namespace kb::ui
         const auto textH = unit * 2.6f;
         draw::text (g, tr ("mixer.title"), M.title, unit * 3.6f, textPrimary);
 
-        // EQ / gain / filtro (Fase 2)
-        const char* eqKeys[] = { "mixer.gain", "mixer.high", "mixer.mid", "mixer.low", "mixer.filter" };
-        for (int ch = 0; ch < 2; ++ch)
-        {
-            for (int i = 0; i < 5; ++i)
-                draw::knob (g, M.eqCentres[(size_t) ch][(size_t) i], M.eqRadius, 0.5f, tr (eqKeys[i]), textH * 0.8f);
-            draw::button (g, M.cueButtons[(size_t) ch], cyan, tr ("mixer.cue"), false, false, textH * 0.8f);
-        }
-
-        // Auriculares (Fase 2) y vúmetros (Fase 2)
-        draw::knob (g, M.phonesCentre, M.smallRadius, 0.5f, tr ("mixer.headphones"), textH * 0.7f);
-        draw::knob (g, M.cueMixCentre, M.smallRadius, 0.5f, tr ("mixer.cueMix"), textH * 0.7f);
-        draw::meter (g, M.meterL, true, 16);
-        draw::meter (g, M.meterR, true, 16);
+        // GAIN, EQ, FILTER, CUE, PHONES, CUE MIX, SPLIT y vúmetros son componentes.
+        // Etiquetas de los vúmetros de canal.
+        draw::text (g, "1", M.meterL.withY (M.meterL.getBottom() + unit * 0.3f).withHeight (textH), textH * 0.8f, textSecondary);
+        draw::text (g, "2", M.meterR.withY (M.meterR.getBottom() + unit * 0.3f).withHeight (textH), textH * 0.8f, textSecondary);
     }
 } // namespace kb::ui

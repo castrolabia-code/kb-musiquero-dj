@@ -7,11 +7,7 @@ namespace kb::engine
 {
     static constexpr double kParamSmoothingSeconds = 0.02;   // 20 ms: sin "zipper noise"
 
-    AudioEngine::AudioEngine()
-    {
-        for (auto& v : channelVolume)
-            v.store (1.0f);
-    }
+    AudioEngine::AudioEngine() = default;
 
     AudioEngine::~AudioEngine() = default;
 
@@ -27,11 +23,30 @@ namespace kb::engine
 
     void AudioEngine::crossfaderGains (float position, float& gainA, float& gainB) noexcept
     {
-        // Potencia constante (curva "suave"): al centro ambos a -3 dB.
-        // Las curvas cut/scratch e inversión llegan en la Fase 2.
-        const auto x = (juce::jlimit (-1.0f, 1.0f, position) + 1.0f) * 0.5f;
-        gainA = std::cos (x * juce::MathConstants<float>::halfPi);
-        gainB = std::sin (x * juce::MathConstants<float>::halfPi);
+        crossfaderGains (position, CrossfaderCurve::smooth, false, gainA, gainB);
+    }
+
+    void AudioEngine::crossfaderGains (float position, CrossfaderCurve curve, bool reverse,
+                                       float& gainA, float& gainB) noexcept
+    {
+        auto x = (juce::jlimit (-1.0f, 1.0f, position) + 1.0f) * 0.5f;   // 0 = deck 1, 1 = deck 2
+        if (reverse)
+            x = 1.0f - x;   // inversión ("hamster")
+
+        if (curve == CrossfaderCurve::smooth)
+        {
+            // Potencia constante: al centro ambos a -3 dB.
+            gainA = std::cos (x * juce::MathConstants<float>::halfPi);
+            gainB = std::sin (x * juce::MathConstants<float>::halfPi);
+        }
+        else
+        {
+            // Corte: los dos al máximo; cada uno cae solo en la punta opuesta.
+            const auto w = curve == CrossfaderCurve::cut ? 0.10f : 0.02f;
+            gainA = juce::jlimit (0.0f, 1.0f, (1.0f - x) / w);
+            gainB = juce::jlimit (0.0f, 1.0f, x / w);
+        }
+
         if (gainA < 1.0e-6f) gainA = 0.0f;
         if (gainB < 1.0e-6f) gainB = 0.0f;
     }
@@ -48,19 +63,29 @@ namespace kb::engine
         const auto block    = std::max (config.maxBlockSize, 1);
 
         // Reserva única: process() trabaja siempre dentro de este buffer.
-        deckBuffers.setSize (kNumDecks * 2, block, false, true, false);
-        deckBuffers.clear();
+        work.setSize (numBuses, block, false, true, false);
+        work.clear();
 
         for (auto& d : decks)
             d.prepare (config.sampleRate);
+        for (auto& s : strips)
+            s.prepare (config.sampleRate);
+        masterLimiter.prepare (config.sampleRate);
+        phonesLimiter.prepare (config.sampleRate);
 
         for (int i = 0; i < kNumDecks; ++i)
         {
-            smoothedDeckGain[(size_t) i].reset (config.sampleRate, kParamSmoothingSeconds);
-            smoothedDeckGain[(size_t) i].setCurrentAndTargetValue (0.0f);
+            for (auto* sv : { &smoothedDeckGain[(size_t) i], &smoothedCueGain[(size_t) i] })
+            {
+                sv->reset (config.sampleRate, kParamSmoothingSeconds);
+                sv->setCurrentAndTargetValue (0.0f);
+            }
         }
-        smoothedMaster.reset (config.sampleRate, kParamSmoothingSeconds);
-        smoothedMaster.setCurrentAndTargetValue (faderGain (masterVolume.load()));
+        for (auto* sv : { &smoothedMaster, &smoothedPhones, &smoothedMixCue, &smoothedMixMaster })
+        {
+            sv->reset (config.sampleRate, kParamSmoothingSeconds);
+            sv->setCurrentAndTargetValue (0.0f);
+        }
 
         sampleRate.store (config.sampleRate, std::memory_order_relaxed);
         maxBlockSize.store (block, std::memory_order_relaxed);
@@ -72,7 +97,7 @@ namespace kb::engine
     void AudioEngine::release()
     {
         prepared.store (false, std::memory_order_release);
-        deckBuffers.setSize (0, 0);
+        work.setSize (0, 0);
     }
 
     // =========================================================================
@@ -116,19 +141,63 @@ namespace kb::engine
             send ({ Command::Type::seek, (std::int8_t) deck, nullptr, seconds });
     }
 
-    void AudioEngine::setChannelVolume (int deck, float p) noexcept
+    namespace
     {
-        if (juce::isPositiveAndBelow (deck, kNumDecks))
-            channelVolume[(size_t) deck].store (juce::jlimit (0.0f, 1.0f, p), std::memory_order_relaxed);
+        void store01 (std::atomic<float>& a, float v) noexcept { a.store (juce::jlimit (0.0f, 1.0f, v), std::memory_order_relaxed); }
+        float load (const std::atomic<float>& a) noexcept      { return a.load (std::memory_order_relaxed); }
     }
 
-    float AudioEngine::getChannelVolume (int deck) const noexcept
+    void  AudioEngine::setChannelVolume (int d, float p) noexcept { if (juce::isPositiveAndBelow (d, kNumDecks)) store01 (channel[(size_t) d].volume, p); }
+    float AudioEngine::getChannelVolume (int d) const noexcept    { return juce::isPositiveAndBelow (d, kNumDecks) ? load (channel[(size_t) d].volume) : 0.0f; }
+    void  AudioEngine::setTrim (int d, float p) noexcept          { if (juce::isPositiveAndBelow (d, kNumDecks)) store01 (channel[(size_t) d].trim, p); }
+    float AudioEngine::getTrim (int d) const noexcept             { return juce::isPositiveAndBelow (d, kNumDecks) ? load (channel[(size_t) d].trim) : 0.5f; }
+    void  AudioEngine::setFilter (int d, float p) noexcept        { if (juce::isPositiveAndBelow (d, kNumDecks)) store01 (channel[(size_t) d].filter, p); }
+    float AudioEngine::getFilter (int d) const noexcept           { return juce::isPositiveAndBelow (d, kNumDecks) ? load (channel[(size_t) d].filter) : 0.5f; }
+
+    void AudioEngine::setEq (int d, EqBand band, float p) noexcept
     {
-        return juce::isPositiveAndBelow (deck, kNumDecks) ? channelVolume[(size_t) deck].load (std::memory_order_relaxed) : 0.0f;
+        if (! juce::isPositiveAndBelow (d, kNumDecks))
+            return;
+        auto& c = channel[(size_t) d];
+        store01 (band == EqBand::low ? c.low : band == EqBand::mid ? c.mid : c.high, p);
     }
 
-    void AudioEngine::setCrossfader (float p) noexcept      { crossfader.store (juce::jlimit (-1.0f, 1.0f, p), std::memory_order_relaxed); }
-    void AudioEngine::setMasterVolume (float p) noexcept    { masterVolume.store (juce::jlimit (0.0f, 1.0f, p), std::memory_order_relaxed); }
+    float AudioEngine::getEq (int d, EqBand band) const noexcept
+    {
+        if (! juce::isPositiveAndBelow (d, kNumDecks))
+            return 0.5f;
+        const auto& c = channel[(size_t) d];
+        return load (band == EqBand::low ? c.low : band == EqBand::mid ? c.mid : c.high);
+    }
+
+    void AudioEngine::setChannelCue (int d, bool on) noexcept
+    {
+        if (juce::isPositiveAndBelow (d, kNumDecks))
+            channel[(size_t) d].cue.store (on, std::memory_order_relaxed);
+    }
+
+    bool AudioEngine::getChannelCue (int d) const noexcept
+    {
+        return juce::isPositiveAndBelow (d, kNumDecks) && channel[(size_t) d].cue.load (std::memory_order_relaxed);
+    }
+
+    void AudioEngine::setCrossfader (float p) noexcept       { crossfader.store (juce::jlimit (-1.0f, 1.0f, p), std::memory_order_relaxed); }
+    void AudioEngine::setMasterVolume (float p) noexcept     { store01 (masterVolume, p); }
+    void AudioEngine::setHeadphoneVolume (float p) noexcept  { store01 (phonesVolume, p); }
+    void AudioEngine::setCueMix (float p) noexcept           { store01 (cueMix, p); }
+
+    MeterSource::Reading AudioEngine::readMeter (MeterId id) noexcept
+    {
+        switch (id)
+        {
+            case MeterId::channel1:    return strips[0].getMeter().read();
+            case MeterId::channel2:    return strips[1].getMeter().read();
+            case MeterId::masterLeft:  return masterMeters[0].read();
+            case MeterId::masterRight: return masterMeters[1].read();
+            case MeterId::count:       break;
+        }
+        return {};
+    }
 
     void AudioEngine::collectGarbage()
     {
@@ -190,7 +259,7 @@ namespace kb::engine
         if (outputs == nullptr || numSamples <= 0)
             return;
 
-        if (! prepared.load (std::memory_order_acquire) || deckBuffers.getNumSamples() == 0)
+        if (! prepared.load (std::memory_order_acquire) || work.getNumSamples() == 0)
         {
             for (int ch = 0; ch < numOutputChannels; ++ch)
                 if (auto* out = outputs[ch])
@@ -202,7 +271,7 @@ namespace kb::engine
         while (commands.pop (c))
             handleCommand (c);
 
-        const auto block = deckBuffers.getNumSamples();
+        const auto block = work.getNumSamples();
         for (int offset = 0; offset < numSamples; offset += block)
             renderBlock (outputs, numOutputChannels, offset, std::min (block, numSamples - offset));
 
@@ -212,55 +281,127 @@ namespace kb::engine
 
     void AudioEngine::renderBlock (float* const* outputs, int numOutputChannels, int offset, int n) noexcept
     {
-        // 1) Cada deck renderiza su pista.
-        for (int d = 0; d < kNumDecks; ++d)
-            decks[(size_t) d].render (deckBuffers.getWritePointer (d * 2), deckBuffers.getWritePointer (d * 2 + 1), n);
+        auto* W = work.getArrayOfWritePointers();
 
-        // 2) Ganancias objetivo: fader de canal x crossfader, y master.
+        // 1) Decks y tiras de canal (trim, EQ, filtro, vúmetro de canal).
+        for (int d = 0; d < kNumDecks; ++d)
+        {
+            auto* L = W[deck1L + d * 2];
+            auto* R = W[deck1R + d * 2];
+            decks[(size_t) d].render (L, R, n);
+
+            const auto& c = channel[(size_t) d];
+            ChannelStrip::Params p;
+            p.trim   = load (c.trim);
+            p.low    = load (c.low);
+            p.mid    = load (c.mid);
+            p.high   = load (c.high);
+            p.filter = load (c.filter);
+            strips[(size_t) d].process (L, R, n, p);
+        }
+
+        // 2) Ganancias objetivo.
         float xA = 1.0f, xB = 1.0f;
-        crossfaderGains (crossfader.load (std::memory_order_relaxed), xA, xB);
+        crossfaderGains (load (crossfader), (CrossfaderCurve) xfCurve.load (std::memory_order_relaxed),
+                         xfReverse.load (std::memory_order_relaxed), xA, xB);
         const float xfade[kNumDecks] = { xA, xB };
 
         for (int d = 0; d < kNumDecks; ++d)
-            smoothedDeckGain[(size_t) d].setTargetValue (faderGain (channelVolume[(size_t) d].load (std::memory_order_relaxed)) * xfade[d]);
-        smoothedMaster.setTargetValue (faderGain (masterVolume.load (std::memory_order_relaxed)));
+        {
+            const auto& c = channel[(size_t) d];
+            smoothedDeckGain[(size_t) d].setTargetValue (faderGain (load (c.volume)) * xfade[d]);
+            smoothedCueGain[(size_t) d].setTargetValue (c.cue.load (std::memory_order_relaxed) ? 1.0f : 0.0f);
+        }
+        smoothedMaster.setTargetValue (faderGain (load (masterVolume)));
+        smoothedPhones.setTargetValue (faderGain (load (phonesVolume)));
+        const auto mix = load (cueMix);
+        smoothedMixCue.setTargetValue (std::cos (mix * juce::MathConstants<float>::halfPi));
+        smoothedMixMaster.setTargetValue (std::sin (mix * juce::MathConstants<float>::halfPi));
 
-        // 3) Mezcla a master con suavizado por muestra.
-        const auto* aL = deckBuffers.getReadPointer (0);
-        const auto* aR = deckBuffers.getReadPointer (1);
-        const auto* bL = deckBuffers.getReadPointer (2);
-        const auto* bR = deckBuffers.getReadPointer (3);
+        // 3) Buses: master, cue y auriculares.
+        const auto* aL = W[deck1L]; const auto* aR = W[deck1R];
+        const auto* bL = W[deck2L]; const auto* bR = W[deck2R];
+        auto* mL = W[masterL]; auto* mR = W[masterR];
+        auto* pL = W[phonesL]; auto* pR = W[phonesR];
 
-        float* outL = numOutputChannels > 0 ? outputs[0] : nullptr;
-        float* outR = numOutputChannels > 1 ? outputs[1] : nullptr;
-        std::uint64_t clipped = 0;
-
+        float masterPeakBeforeLimiter = 0.0f;
         for (int i = 0; i < n; ++i)
         {
             const auto gA = smoothedDeckGain[0].getNextValue();
             const auto gB = smoothedDeckGain[1].getNextValue();
+            const auto cA = smoothedCueGain[0].getNextValue();
+            const auto cB = smoothedCueGain[1].getNextValue();
             const auto gM = smoothedMaster.getNextValue();
+            const auto gP = smoothedPhones.getNextValue();
+            const auto mc = smoothedMixCue.getNextValue();
+            const auto mm = smoothedMixMaster.getNextValue();
 
-            auto l = (aL[i] * gA + bL[i] * gB) * gM;
-            auto r = (aR[i] * gA + bR[i] * gB) * gM;
+            const auto busL = aL[i] * gA + bL[i] * gB;   // master antes del volumen MASTER
+            const auto busR = aR[i] * gA + bR[i] * gB;
+            const auto cueBusL = aL[i] * cA + bL[i] * cB;
+            const auto cueBusR = aR[i] * cA + bR[i] * cB;
 
-            // Protección mínima hasta el limitador de la Fase 2: nunca más de 0 dBFS.
-            if (std::abs (l) > 1.0f) { l = juce::jlimit (-1.0f, 1.0f, l); ++clipped; }
-            if (std::abs (r) > 1.0f) { r = juce::jlimit (-1.0f, 1.0f, r); ++clipped; }
+            mL[i] = busL * gM;
+            mR[i] = busR * gM;
+            // Auriculares: el master entra antes del volumen MASTER (bajar los
+            // parlantes no apaga el master en los auriculares).
+            pL[i] = (cueBusL * mc + busL * mm) * gP;
+            pR[i] = (cueBusR * mc + busR * mm) * gP;
 
-            if (outR == nullptr)
-                l = 0.5f * (l + r);   // una sola salida: mono
-
-            if (outL != nullptr) outL[offset + i] = l;
-            if (outR != nullptr) outR[offset + i] = r;
+            masterPeakBeforeLimiter = std::max (masterPeakBeforeLimiter, std::max (std::abs (mL[i]), std::abs (mR[i])));
         }
 
-        // Salidas 3-4 (cue de auriculares): Fase 2. Por ahora silencio.
-        for (int ch = 2; ch < numOutputChannels; ++ch)
+        // 4) Limitadores de seguridad y vúmetros del master (post-limitador).
+        const auto minGain = masterLimiter.process (mL, mR, n);
+        phonesLimiter.process (pL, pR, n);
+        limiterReductionDb.store (minGain < 1.0f ? -juce::Decibels::gainToDecibels (minGain) : 0.0f, std::memory_order_relaxed);
+
+        masterMeters[0].addBlock (mL, nullptr, n, 2.0f);
+        masterMeters[1].addBlock (mR, nullptr, n, 2.0f);
+        if (masterPeakBeforeLimiter >= 1.0f)
+        {
+            // Sin el limitador habría saturado: se muestra como CLIP.
+            masterMeters[0].markClip();
+            masterMeters[1].markClip();
+            clippedSamples.fetch_add (1, std::memory_order_relaxed);
+        }
+
+        // 5) Ruteo a las salidas del dispositivo.
+        for (int ch = 0; ch < numOutputChannels; ++ch)
             if (auto* out = outputs[ch])
                 juce::FloatVectorOperations::clear (out + offset, n);
 
-        if (clipped > 0)
-            clippedSamples.fetch_add (clipped, std::memory_order_relaxed);
+        auto out = [&] (int ch) -> float* { return ch < numOutputChannels ? outputs[ch] : nullptr; };
+
+        if (numOutputChannels == 1)
+        {
+            if (auto* o = out (0))
+                for (int i = 0; i < n; ++i)
+                    o[offset + i] = 0.5f * (mL[i] + mR[i]);
+            return;
+        }
+
+        auto mPair = masterPair.load (std::memory_order_relaxed);
+        if (mPair == 1 && numOutputChannels < 4)
+            mPair = 0;   // la placa no tiene salidas 3-4: el master va a 1-2
+        const auto pPair = 1 - mPair;
+
+        if (split.load (std::memory_order_relaxed))
+        {
+            // SPLIT: izquierdo = master mono, derecho = auriculares mono.
+            auto* oL = out (mPair * 2);
+            auto* oR = out (mPair * 2 + 1);
+            for (int i = 0; i < n; ++i)
+            {
+                if (oL != nullptr) oL[offset + i] = 0.5f * (mL[i] + mR[i]);
+                if (oR != nullptr) oR[offset + i] = 0.5f * (pL[i] + pR[i]);
+            }
+            return;
+        }
+
+        if (auto* o = out (mPair * 2))     juce::FloatVectorOperations::copy (o + offset, mL, n);
+        if (auto* o = out (mPair * 2 + 1)) juce::FloatVectorOperations::copy (o + offset, mR, n);
+        if (auto* o = out (pPair * 2))     juce::FloatVectorOperations::copy (o + offset, pL, n);
+        if (auto* o = out (pPair * 2 + 1)) juce::FloatVectorOperations::copy (o + offset, pR, n);
     }
 } // namespace kb::engine

@@ -147,24 +147,33 @@ TEST_CASE ("Mixer: crossfader de potencia constante", "[mixer]")
 // =============================================================================
 //  Reproducción
 // =============================================================================
-TEST_CASE ("Deck: reproduce la pista sin alterarla (ganancia unidad)", "[deck]")
+TEST_CASE ("Deck: reproduce con nivel plano en graves, medios y agudos (EQ al centro)", "[deck][mixer]")
 {
+    // El EQ isolator y el limitador cambian la fase y agregan ~2 ms de retardo
+    // (como cualquier mixer), pero el nivel tiene que ser exactamente el mismo.
+    for (double freq : { 60.0, 250.0, 1000.0, 3000.0, 10000.0 })
+    {
+        DYNAMIC_SECTION (freq << " Hz")
+        {
+            AudioEngine engine;
+            test::prepareUnity (engine);
+            engine.loadTrack (0, test::makeSineTrack (2.0, freq, kSr, 0.5f));
+            engine.play (0);
+
+            const auto out = test::run (engine, 48000);
+            const auto measured = test::rms (out.left.data() + 24000, 24000);
+            CHECK (juce::Decibels::gainToDecibels (measured / (0.5f / std::sqrt (2.0f))) == Approx (0.0f).margin (0.05f));
+        }
+    }
+
     AudioEngine engine;
     test::prepareUnity (engine);
-
-    auto track = test::makeRampTrack (48000);
-    engine.loadTrack (0, track);
+    engine.loadTrack (0, test::makeSineTrack (2.0, 440.0));
     engine.play (0);
-
-    const auto out = test::run (engine, 9600);   // 200 ms
-
-    // Pasados el fundido de entrada y el suavizado (20 ms), la salida es la pista exacta.
+    test::run (engine, 9600);
     const auto st = engine.getDeckStatus (0);
     CHECK (st.playing);
     CHECK (st.positionSeconds == Approx (0.2).margin (1e-6));
-
-    for (int i = 4800; i < 9600; i += 97)
-        CHECK (out.left[(size_t) i] == Approx (track->getReadPointer (0)[i]).margin (1e-6));
 }
 
 TEST_CASE ("Deck: se detiene al final de la pista", "[deck]")

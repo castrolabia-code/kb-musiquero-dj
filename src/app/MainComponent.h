@@ -14,6 +14,7 @@
 #include "ui/ControllerView.h"
 #include "ui/DeckDisplay.h"
 #include "ui/SkinPlaceholders.h"
+#include "ui/TopBar.h"
 
 #include <array>
 #include <memory>
@@ -52,6 +53,7 @@ namespace kb::app
         void timerCallback() override;
 
         void updateStatusBar();
+        void updateMeters();   // 60 fps, sincronizado con la pantalla
         int  deckForDrop (int x, int y) const;
         void setDropTarget (int deck);
         static juce::String describeError (engine::LoadError error);
@@ -59,13 +61,15 @@ namespace kb::app
         AudioDeviceService& audio;
         PlayerController&   player;
 
-        ui::TopBarPlaceholder  topBar;
+        ui::TopBar             topBar;
         ui::ControllerView     controller;
         ui::DeckDisplay        deckDisplays[2] { ui::DeckDisplay (0), ui::DeckDisplay (1) };
         ui::LibraryPlaceholder library;
         ui::StatusBar          statusBar;
 
         std::unique_ptr<juce::FileChooser> chooser;
+        std::unique_ptr<juce::VBlankAttachment> vblank;
+        double lastMeterTime = 0.0;
         int dropTarget = -1;
         int tick = 0;
 

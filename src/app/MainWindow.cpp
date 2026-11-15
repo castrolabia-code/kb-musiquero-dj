@@ -4,6 +4,7 @@
 #include "app/AudioDeviceService.h"
 #include "app/MainComponent.h"
 #include "app/OptionsComponent.h"
+#include "app/PlayerController.h"
 #include "ui/Palette.h"
 
 namespace kb::app
@@ -16,16 +17,18 @@ namespace kb::app
             idLoadDeck1,
             idLoadDeck2,
             idOptionsAudio,
+            idOptionsMixer,
             idOptionsGeneral,
             idLanguageBase = 100,   // + índice del idioma
             idAbout = 200
         };
     }
 
-    MainWindow::MainWindow (AppSettings& s, AudioDeviceService& a, PlayerController& player)
+    MainWindow::MainWindow (AppSettings& s, AudioDeviceService& a, PlayerController& p)
         : juce::DocumentWindow (tr ("app.title"), ui::palette::panelDark, juce::DocumentWindow::allButtons),
           settings (s),
-          audio (a)
+          audio (a),
+          player (p)
     {
         setUsingNativeTitleBar (true);
         mainComponent = new MainComponent (audio, player);
@@ -99,6 +102,7 @@ namespace kb::app
             case 1:
             {
                 menu.addItem (idOptionsAudio, tr ("menu.options.audio"));
+                menu.addItem (idOptionsMixer, tr ("menu.options.mixer"));
                 menu.addItem (idOptionsGeneral, tr ("menu.options.general"));
                 menu.addSeparator();
 
@@ -139,6 +143,10 @@ namespace kb::app
         {
             showOptions (OptionsComponent::audioTab);
         }
+        else if (menuItemID == idOptionsMixer)
+        {
+            showOptions (OptionsComponent::mixerTab);
+        }
         else if (menuItemID == idOptionsGeneral)
         {
             showOptions (OptionsComponent::generalTab);
@@ -174,7 +182,7 @@ namespace kb::app
         }
 
         juce::DialogWindow::LaunchOptions o;
-        o.content.setOwned (new OptionsComponent (audio, settings, (OptionsComponent::Tab) tab));
+        o.content.setOwned (new OptionsComponent (audio, settings, player.getEngine(), (OptionsComponent::Tab) tab));
         o.dialogTitle                  = OptionsComponent::getWindowTitle();
         o.dialogBackgroundColour       = ui::palette::panelDark;
         o.componentToCentreAround      = this;

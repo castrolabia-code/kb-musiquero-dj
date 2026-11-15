@@ -47,7 +47,8 @@ namespace kb::ui
             r = r.reduced (r.getHeight() * 0.03f);
 
         const auto c = highlighted && ! lit ? colour.brighter (0.25f) : colour;
-        draw::button (g, r, c, tr (labelKey), lit || down, round, r.getHeight() * (round ? 0.2f : 0.36f));
+        const auto scale = textScale > 0.0f ? textScale : (round ? 0.2f : 0.36f);
+        draw::button (g, r, c, tr (labelKey), lit || down, round, r.getHeight() * scale);
     }
 
     // =========================================================================
@@ -107,6 +108,6 @@ namespace kb::ui
     {
         const auto arc = radius * 1.32f;
         const juce::Point<float> centre (getWidth() * 0.5f, arc + 3.0f);
-        draw::knob (g, centre, radius, (float) valueToProportionOfLength (getValue()), tr (labelKey), labelHeight);
+        draw::knob (g, centre, radius, (float) valueToProportionOfLength (getValue()), tr (labelKey), labelHeight, bipolar);
     }
 } // namespace kb::ui

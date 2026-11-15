@@ -3,8 +3,8 @@
 //  Placeholders del skin (Fase 0).
 //
 //  Dibujan por código, en vectorial, el MISMO layout que tendrá el skin final
-//  (sección 6): barra superior y biblioteca. (El controlador y los displays de
-//  los decks ya son interactivos: ui/ControllerView y ui/DeckDisplay.)
+//  (sección 6): biblioteca. (El controlador y los displays de
+//  los decks ya son interactivos: ui/ControllerView, ui/DeckDisplay y ui/TopBar.)
 //  Todo se calcula en proporciones del área, así que escala sin pixelado en
 //  1080p, 1440p y 4K.
 //
@@ -15,14 +15,6 @@
 
 namespace kb::ui
 {
-    /** Barra superior: logo, vúmetro master (apagado) y "BY CASTRO LABS". */
-    class TopBarPlaceholder final : public juce::Component
-    {
-    public:
-        TopBarPlaceholder();
-        void paint (juce::Graphics& g) override;
-    };
-
     /** Biblioteca: árbol de carpetas/playlists a la izquierda y columnas de pistas. */
     class LibraryPlaceholder final : public juce::Component
     {

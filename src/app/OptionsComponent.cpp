@@ -63,6 +63,120 @@ namespace kb::app
     };
 
     // =========================================================================
+    //  Pestaña Mixer (crossfader, ruteo de salidas, SPLIT)
+    // =========================================================================
+    class OptionsComponent::MixerPage final : public juce::Component,
+                                              private juce::Timer
+    {
+    public:
+        MixerPage (AudioDeviceService& a, AppSettings& s, engine::AudioEngine& e)
+            : audio (a), settings (s), engine (e)
+        {
+            for (auto* l : { &curveLabel, &masterLabel, &phonesInfo, &warning })
+                addAndMakeVisible (*l);
+            warning.setColour (juce::Label::textColourId, ui::palette::alert);
+            phonesInfo.setColour (juce::Label::textColourId, ui::palette::textSecondary);
+
+            curveLabel.attachToComponent (&curveBox, true);
+            masterLabel.attachToComponent (&masterBox, true);
+
+            curveBox.onChange = [this]
+            {
+                const auto c = curveBox.getSelectedItemIndex();
+                engine.setCrossfaderCurve ((engine::CrossfaderCurve) c);
+                settings.setCrossfaderCurve (c);
+            };
+            reverseToggle.onClick = [this]
+            {
+                engine.setCrossfaderReverse (reverseToggle.getToggleState());
+                settings.setCrossfaderReverse (reverseToggle.getToggleState());
+            };
+            masterBox.onChange = [this]
+            {
+                const auto p = masterBox.getSelectedItemIndex();
+                engine.setMasterOutputPair (p);
+                settings.setMasterOutputPair (p);
+                timerCallback();
+            };
+            splitToggle.onClick = [this]
+            {
+                engine.setSplit (splitToggle.getToggleState());
+                settings.setSplit (splitToggle.getToggleState());
+                timerCallback();
+            };
+
+            for (auto* c : std::initializer_list<juce::Component*> { &curveBox, &reverseToggle, &masterBox, &splitToggle })
+                addAndMakeVisible (c);
+
+            refreshTexts();
+            startTimerHz (4);
+        }
+
+        void refreshTexts()
+        {
+            curveLabel.setText (tr ("options.mixer.curve"), juce::dontSendNotification);
+            masterLabel.setText (tr ("options.mixer.masterOut"), juce::dontSendNotification);
+            reverseToggle.setButtonText (tr ("options.mixer.reverse"));
+            splitToggle.setButtonText (tr ("options.mixer.split"));
+
+            curveBox.clear (juce::dontSendNotification);
+            curveBox.addItem (tr ("options.mixer.curve.smooth"), 1);
+            curveBox.addItem (tr ("options.mixer.curve.cut"), 2);
+            curveBox.addItem (tr ("options.mixer.curve.scratch"), 3);
+            masterBox.clear (juce::dontSendNotification);
+            masterBox.addItem (tr ("options.mixer.pair12"), 1);
+            masterBox.addItem (tr ("options.mixer.pair34"), 2);
+
+            curveBox.setSelectedItemIndex ((int) engine.getCrossfaderCurve(), juce::dontSendNotification);
+            masterBox.setSelectedItemIndex (engine.getMasterOutputPair(), juce::dontSendNotification);
+            reverseToggle.setToggleState (engine.getCrossfaderReverse(), juce::dontSendNotification);
+            timerCallback();
+        }
+
+        void resized() override
+        {
+            auto b = getLocalBounds().reduced (16);
+            b.removeFromLeft (220);   // etiquetas adjuntas
+            curveBox.setBounds (b.removeFromTop (28).withWidth (260));
+            b.removeFromTop (6);
+            reverseToggle.setBounds (b.removeFromTop (26));
+            b.removeFromTop (22);
+            masterBox.setBounds (b.removeFromTop (28).withWidth (260));
+            b.removeFromTop (4);
+            phonesInfo.setBounds (b.removeFromTop (24));
+            b.removeFromTop (10);
+            splitToggle.setBounds (b.removeFromTop (26));
+            b.removeFromTop (10);
+            warning.setBounds (getLocalBounds().reduced (16).withTop (b.getY()).withHeight (60));
+        }
+
+    private:
+        void timerCallback() override
+        {
+            const auto outputs = audio.getStatus().numOutputs;
+            const auto split = engine.getSplit();
+            splitToggle.setToggleState (split, juce::dontSendNotification);   // también se cambia desde el mixer
+
+            const auto phonesPair = engine.getMasterOutputPair() == 0 ? "options.mixer.pair34" : "options.mixer.pair12";
+            phonesInfo.setText (split ? tr ("options.mixer.phonesSplit")
+                                      : tr ("options.mixer.phonesOut", { { "pair", tr (phonesPair) } }),
+                                juce::dontSendNotification);
+
+            juce::String warn;
+            if (outputs > 0 && outputs < 4 && ! split)
+                warn = tr ("options.mixer.twoOutputs");
+            warning.setText (warn, juce::dontSendNotification);
+        }
+
+        AudioDeviceService& audio;
+        AppSettings& settings;
+        engine::AudioEngine& engine;
+        juce::ComboBox curveBox, masterBox;
+        juce::ToggleButton reverseToggle, splitToggle;
+        juce::Label curveLabel, masterLabel, phonesInfo, warning;
+    };
+
+    // =========================================================================
     //  Pestaña General
     // =========================================================================
     class OptionsComponent::GeneralPage final : public juce::Component
@@ -134,13 +248,16 @@ namespace kb::app
     // =========================================================================
     //  OptionsComponent
     // =========================================================================
-    OptionsComponent::OptionsComponent (AudioDeviceService& audio, AppSettings& settings, Tab initialTab)
+    OptionsComponent::OptionsComponent (AudioDeviceService& audio, AppSettings& settings,
+                                        engine::AudioEngine& engine, Tab initialTab)
     {
         audioPage   = new AudioPage (audio);
+        mixerPage   = new MixerPage (audio, settings, engine);
         generalPage = new GeneralPage (settings);
 
         const auto bg = ui::palette::panelDark;
         tabs.addTab (tr ("options.tab.audio"),   bg, audioPage,   true);
+        tabs.addTab (tr ("options.tab.mixer"),   bg, mixerPage,   true);
         tabs.addTab (tr ("options.tab.general"), bg, generalPage, true);
         tabs.setTabBarDepth (32);
         addAndMakeVisible (tabs);
@@ -173,8 +290,10 @@ namespace kb::app
     void OptionsComponent::languageChanged()
     {
         tabs.setTabName (audioTab,   tr ("options.tab.audio"));
+        tabs.setTabName (mixerTab,   tr ("options.tab.mixer"));
         tabs.setTabName (generalTab, tr ("options.tab.general"));
         audioPage->rebuild();
+        mixerPage->refreshTexts();
         generalPage->refreshTexts();
 
         if (auto* window = findParentComponentOfClass<juce::DialogWindow>())

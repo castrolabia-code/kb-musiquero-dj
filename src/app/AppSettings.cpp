@@ -8,6 +8,10 @@ namespace kb::app
         static constexpr const char* windowState  = "ui.mainWindowState";
         static constexpr const char* audioDevice  = "audio.deviceState";
         static constexpr const char* settingsVer  = "settings.version";
+        static constexpr const char* xfCurve      = "mixer.crossfaderCurve";
+        static constexpr const char* xfReverse    = "mixer.crossfaderReverse";
+        static constexpr const char* masterPair   = "routing.masterOutputPair";
+        static constexpr const char* split        = "routing.split";
     }
 
     // Subir este número si cambia el formato de los ajustes (para migraciones).
@@ -84,6 +88,15 @@ namespace kb::app
         else
             file().removeValue (keys::audioDevice);
     }
+
+    int  AppSettings::getCrossfaderCurve() const        { return juce::jlimit (0, 2, file().getIntValue (keys::xfCurve, 0)); }
+    void AppSettings::setCrossfaderCurve (int c)        { file().setValue (keys::xfCurve, juce::jlimit (0, 2, c)); }
+    bool AppSettings::getCrossfaderReverse() const      { return file().getBoolValue (keys::xfReverse, false); }
+    void AppSettings::setCrossfaderReverse (bool r)     { file().setValue (keys::xfReverse, r); }
+    int  AppSettings::getMasterOutputPair() const       { return juce::jlimit (0, 1, file().getIntValue (keys::masterPair, 0)); }
+    void AppSettings::setMasterOutputPair (int p)       { file().setValue (keys::masterPair, juce::jlimit (0, 1, p)); }
+    bool AppSettings::getSplit() const                  { return file().getBoolValue (keys::split, false); }
+    void AppSettings::setSplit (bool s)                 { file().setValue (keys::split, s); }
 
     bool AppSettings::flush()
     {

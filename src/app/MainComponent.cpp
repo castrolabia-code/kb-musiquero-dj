@@ -24,14 +24,32 @@ namespace kb::app
         controller.onVolume     = [&engine] (int d, float v) { engine.setChannelVolume (d, v); };
         controller.onCrossfader = [&engine] (float v) { engine.setCrossfader (v); };
         controller.onMaster     = [&engine] (float v) { engine.setMasterVolume (v); };
+        controller.onTrim       = [&engine] (int d, float v) { engine.setTrim (d, v); };
+        controller.onEq         = [&engine] (int d, int band, float v) { engine.setEq (d, (engine::EqBand) band, v); };
+        controller.onFilter     = [&engine] (int d, float v) { engine.setFilter (d, v); };
+        controller.onChannelCue = [&engine] (int d, bool on) { engine.setChannelCue (d, on); };
+        controller.onPhones     = [&engine] (float v) { engine.setHeadphoneVolume (v); };
+        controller.onCueMix     = [&engine] (float v) { engine.setCueMix (v); };
+        controller.onSplit      = [&engine] (bool on) { engine.setSplit (on); };
 
         for (int d = 0; d < 2; ++d)
         {
             controller.setVolume (d, engine.getChannelVolume (d));
+            controller.setTrim (d, engine.getTrim (d));
+            controller.setFilter (d, engine.getFilter (d));
+            for (int band = 0; band < 3; ++band)
+                controller.setEq (d, band, engine.getEq (d, (engine::EqBand) band));
+            controller.setChannelCue (d, engine.getChannelCue (d));
             deckDisplays[d].onSeek = [this, d] (double seconds) { player.seek (d, seconds); };
         }
         controller.setCrossfader (engine.getCrossfader());
         controller.setMaster (engine.getMasterVolume());
+        controller.setPhones (engine.getHeadphoneVolume());
+        controller.setCueMix (engine.getCueMix());
+        controller.setSplit (engine.getSplit());
+
+        // Vúmetros a 60 fps sincronizados con el refresco de la pantalla.
+        vblank = std::make_unique<juce::VBlankAttachment> (this, [this] { updateMeters(); });
 
         I18n::getInstance().addListener (this);
         player.addListener (this);
@@ -209,8 +227,25 @@ namespace kb::app
             deckDisplays[d].update (track, st, player.isLoading (d));
         }
 
+        // SPLIT también se cambia desde Opciones: reflejarlo en el botón.
+        controller.setSplit (player.getEngine().getSplit());
+
         if (tick % (kUiRefreshHz / 4) == 0)
             updateStatusBar();
+    }
+
+    void MainComponent::updateMeters()
+    {
+        const auto now = juce::Time::getMillisecondCounterHiRes() * 0.001;
+        const auto dt  = lastMeterTime > 0.0 ? (float) juce::jlimit (0.0, 0.1, now - lastMeterTime) : 1.0f / 60.0f;
+        lastMeterTime = now;
+
+        auto& engine = player.getEngine();
+        controller.pushChannelMeter (0, engine.readMeter (engine::MeterId::channel1), dt);
+        controller.pushChannelMeter (1, engine.readMeter (engine::MeterId::channel2), dt);
+        topBar.pushMaster (engine.readMeter (engine::MeterId::masterLeft),
+                           engine.readMeter (engine::MeterId::masterRight),
+                           engine.getMasterLimiterReductionDb(), dt);
     }
 
     void MainComponent::languageChanged()

@@ -7,6 +7,7 @@ add_executable(kb_tests
     AllocationCounter.cpp
     EngineTests.cpp
     LoaderTests.cpp
+    MixerTests.cpp
     I18nTests.cpp)
 
 target_link_libraries(kb_tests PRIVATE

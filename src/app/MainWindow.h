@@ -43,6 +43,7 @@ namespace kb::app
 
         AppSettings&        settings;
         AudioDeviceService& audio;
+        PlayerController&   player;
         MainComponent*      mainComponent = nullptr;   // propiedad de la ventana
         juce::Component::SafePointer<juce::DialogWindow> optionsWindow;
 
