@@ -140,6 +140,9 @@ namespace kb::ui
         {
             juce::Rectangle<float> area, tempoLabel, tempoSlot, tempoRange, header, platter, sync, cue, pause, play;
             juce::Rectangle<float> keyLock, keyDown, keyUp, shift, slip, vinyl;
+            juce::Rectangle<float> number, chCue, chCueLabel;   // "(1)", CUE de auriculares del canal
+            juce::Point<float> sideKnobCentre;                  // MASTER (deck 1) / HEADPHONES (deck 2)
+            float sideKnobRadius = 8.0f;
             juce::Rectangle<float> artInner, artOuter, artHeader;   // zonas amarillas libres para los tribales
             std::array<juce::Rectangle<float>, 4> modes, pads;
             bool mirrored = false;

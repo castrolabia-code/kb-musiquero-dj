@@ -3,6 +3,17 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.7.1] — Rediseño según la imagen de referencia
+
+### Cambiado
+- **Chasis amarillo liso** con volumen, sin tribales; todo el programa dentro del mismo cuerpo amarillo redondeado.
+- **Barra superior amarilla**: logo **KB MUSIQUERO DJ** en negro, vúmetro master dentro de una **caja negra** al centro y **BY CASTRO LABS** a la derecha.
+- **Decks como la referencia**: regla de **TEMPO** impresa sobre el amarillo con fader fino, **plato grande** de vinilo negro con surcos, brillo y **etiqueta central con anillos naranjas** (se ilumina al reproducir), leyendas **PWD + / REV -** y número **(1) / (2)**.
+- **SYNC, CUE, PAUSA y PLAY** rectangulares con borde de neón (cyan, rojo, naranja y verde), con símbolo y texto.
+- Columna de cada deck: botón de **auriculares (CUE)**, **SHIFT** y **VINYL**, perilla **MASTER** (deck 1) / **HEADPHONES** (deck 2), modos **HOT CUE / SAMPLER** con **FX / LOOP** debajo, y **pads cuadrados 2×2** negros con borde celeste (los hot cues grabados se encienden en su color).
+- **Pantalla negra** abajo: las **dos waveforms lado a lado** (deck 1 cyan a la izquierda, deck 2 naranja a la derecha) con la info arriba de cada una, y la biblioteca debajo.
+- **Pie** con el nombre del programa al centro, el estado del audio a la izquierda y la versión a la derecha.
+
 ## [0.7.0] — Fase 4: performance (platos, hot cues, loops, pads y sampler)
 
 ### Agregado

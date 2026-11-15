@@ -19,7 +19,7 @@
 namespace kb::ui
 {
     /** Símbolos que pueden llevar los botones (además del texto). */
-    enum class ButtonIcon { none, play, pause, cue, sync };
+    enum class ButtonIcon { none, play, pause, cue, sync, headphones };
 
     class GlowButton final : public juce::Button
     {
@@ -39,6 +39,9 @@ namespace kb::ui
         void setColour (juce::Colour c) { if (c != colour) { colour = c; repaint(); } }
         /** Barra de avance abajo del botón (0..1); < 0 = sin barra. */
         void setProgress (float p) { if (std::abs (p - progress) > 0.004f) { progress = p; repaint(); } }
+        /** Pad de performance: cuadrado negro con borde de neón grueso (como la referencia). */
+        void setPadStyle (bool p) { padStyle = p; repaint(); }
+        void setIcon (ButtonIcon i) { icon = i; repaint(); }
         /** Click derecho (en vez de apretar el botón). */
         std::function<void()> onRightClick;
         void setLit (bool shouldBeLit);
@@ -56,6 +59,7 @@ namespace kb::ui
 
         juce::String labelKey, labelText, tooltipKey;
         float progress = -1.0f;
+        bool padStyle = false;
         juce::Colour colour;
         bool round;
         ButtonIcon icon;
@@ -68,6 +72,8 @@ namespace kb::ui
     {
     public:
         explicit KbFader (bool vertical);
+        /** Fader de TEMPO: pista negra fina y tapa con línea naranja (la regla se dibuja en el fondo). */
+        void setThinStyle (bool t) { thin = t; repaint(); }
         void paint (juce::Graphics& g) override;
 
         void setTooltipKey (const juce::String& key) { tooltipKey = key; }
@@ -75,6 +81,7 @@ namespace kb::ui
 
     private:
         bool vertical;
+        bool thin = false;
         juce::String tooltipKey;
     };
 
@@ -92,6 +99,8 @@ namespace kb::ui
         void setBipolar (bool b) { bipolar = b; repaint(); }
         /** Dónde va el nombre: 0 debajo (por defecto), -1 a la izquierda, +1 a la derecha. */
         void setLabelSide (int side) { labelSide = side; repaint(); }
+        /** Nombre en negro (perilla sobre el chasis amarillo). */
+        void setOnChassis (bool c) { onChassis = c; repaint(); }
         /** Etiqueta que depende del valor (p. ej. "MIX 10 s"). Si no se define, se usa la clave. */
         void setLabelFormatter (std::function<juce::String (double)> f) { labelFormatter = std::move (f); repaint(); }
         /** Tamaño que necesita el componente para la geometría dada. */
@@ -105,5 +114,6 @@ namespace kb::ui
         float radius = 12.0f, labelHeight = 8.0f;
         bool bipolar = false;
         int labelSide = 0;
+        bool onChassis = false;
     };
 } // namespace kb::ui

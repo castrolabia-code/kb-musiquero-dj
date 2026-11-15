@@ -24,7 +24,7 @@ namespace kb::ui
         void resized() override;
 
     private:
-        juce::Rectangle<float> meterArea, scaleArea, limitArea;
+        juce::Rectangle<float> meterArea, scaleArea, limitArea, boxArea;
         LevelMeter meterL { false, 40 }, meterR { false, 40 };
         bool limiting = false;
         float limitHold = 0.0f;

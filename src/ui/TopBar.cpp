@@ -5,13 +5,15 @@
 #include "ui/KbLookAndFeel.h"
 #include "ui/Palette.h"
 
+#include <tuple>
+
 namespace kb::ui
 {
     using namespace palette;
 
     TopBar::TopBar()
     {
-        setOpaque (true);
+        setOpaque (false);
         meterL.setTooltipKey ("tip.masterMeter");
         meterR.setTooltipKey ("tip.masterMeter");
         addAndMakeVisible (meterL);
@@ -19,8 +21,27 @@ namespace kb::ui
     }
 
     // =========================================================================
-    //  Logo neón 3D: extrusión, resplandor de tubo de neón y relleno con brillo.
+    //  Logo: letras negras sobre el chasis amarillo, con un filo de luz abajo
+    //  (como impresas en relieve), igual que la imagen de referencia.
     // =========================================================================
+    static juce::Path fittedText (const juce::String& text, juce::Rectangle<float> area, float height, bool black,
+                                  juce::Justification just)
+    {
+        juce::GlyphArrangement ga;
+        ga.addLineOfText (KbLookAndFeel::displayFont (height, black), text, 0.0f, 0.0f);
+        juce::Path p;
+        ga.createPath (p);
+        const auto pb = p.getBounds();
+        const auto fit = juce::jmin (area.getHeight() / pb.getHeight(), area.getWidth() / pb.getWidth());
+        const auto w = pb.getWidth() * fit;
+        const auto x = just.testFlags (juce::Justification::right) ? area.getRight() - w
+                     : just.testFlags (juce::Justification::left)  ? area.getX()
+                                                                   : area.getCentreX() - w * 0.5f;
+        p.applyTransform (juce::AffineTransform::translation (-pb.getX(), -pb.getY()).scaled (fit)
+                              .translated (x, area.getCentreY() - pb.getHeight() * fit * 0.5f));
+        return p;
+    }
+
     void TopBar::renderLogo (float scale)
     {
         logoScale = scale;
@@ -29,65 +50,26 @@ namespace kb::ui
         juce::Graphics g (logo);
         g.addTransform (juce::AffineTransform::scale (scale));
 
-        // Texto -> contornos vectoriales en Orbitron Black, en 3 colores: KB / MUSIQUERO / DJ.
-        const auto words = juce::StringArray::fromTokens (tr ("app.logo"), " ", "");
-        const juce::Colour neon[] = { orange, cyan, chassis };
-        const auto textH = logoArea.getHeight() * 0.62f;
-        const auto font = KbLookAndFeel::displayFont (textH);
-
-        juce::Path parts[3];
-        float x = 0.0f;
-        for (int i = 0; i < words.size() && i < 3; ++i)
+        const auto h = logoArea.getHeight();
+        for (auto [text, area, black, just] : { std::tuple (tr ("app.logo"), logoArea.withHeight (h * 0.5f).withY (logoArea.getY() + h * 0.2f), true, juce::Justification (juce::Justification::left)),
+                                                std::tuple (tr ("app.brand"), brandArea.withHeight (h * 0.38f).withY (brandArea.getY() + h * 0.3f), true, juce::Justification (juce::Justification::right)) })
         {
-            juce::GlyphArrangement ga;
-            ga.addLineOfText (font, words[i], x, 0.0f);
-            ga.createPath (parts[i]);
-            x += ga.getBoundingBox (0, -1, true).getWidth() + textH * 0.35f;
-        }
-        juce::Path all;
-        for (auto& p : parts) all.addPath (p);
-        const auto bounds = all.getBounds();
-        const auto fit = juce::jmin (1.0f, (logoArea.getWidth() * 0.96f) / bounds.getWidth());
-        const auto t = juce::AffineTransform::translation (-bounds.getX(), -bounds.getY())
-                           .scaled (fit)
-                           .translated (logoArea.getX(), logoArea.getCentreY() - bounds.getHeight() * fit * 0.5f);
-        for (auto& p : parts) p.applyTransform (t);
-
-        const auto depth = juce::jmax (2, juce::roundToInt (textH * 0.12f));
-        for (int i = 0; i < words.size() && i < 3; ++i)
-        {
-            const auto& p = parts[i];
-            const auto c = neon[i];
-
-            // Extrusión 3D hacia abajo-derecha.
-            for (int k = depth; k >= 1; --k)
-            {
-                g.setColour (c.darker (2.2f).withAlpha (0.95f));
-                g.fillPath (p, juce::AffineTransform::translation ((float) k * 0.55f, (float) k * 0.8f));
-            }
-            // Resplandor de neón (dos capas).
-            juce::DropShadow (c.withAlpha (0.85f), juce::roundToInt (textH * 0.45f), {}).drawForPath (g, p);
-            juce::DropShadow (c.withAlpha (0.9f), juce::roundToInt (textH * 0.15f), {}).drawForPath (g, p);
-            // Relleno: centro casi blanco (tubo encendido) hacia el color.
-            const auto pb = p.getBounds();
-            juce::ColourGradient fill (c.interpolatedWith (juce::Colours::white, 0.7f), 0.0f, pb.getY(),
-                                       c, 0.0f, pb.getBottom(), false);
-            g.setGradientFill (fill);
+            const auto p = fittedText (text, area, h, black, just);
+            g.setColour (juce::Colours::white.withAlpha (0.5f));
+            g.fillPath (p, juce::AffineTransform::translation (0.0f, juce::jmax (1.0f, h * 0.025f)));
+            g.setColour (juce::Colour (0xff0d0d0d));
             g.fillPath (p);
-            g.setColour (juce::Colours::white.withAlpha (0.55f));
-            g.strokePath (p, juce::PathStrokeType (juce::jmax (0.8f, textH * 0.025f)));
-        }
 
-        // "BY CASTRO LABS" con un brillo suave.
-        juce::GlyphArrangement brand;
-        brand.addFittedText (KbLookAndFeel::displayFont (brandArea.getHeight() * 0.32f, false), tr ("app.brand"),
-                             brandArea.getX(), brandArea.getY(), brandArea.getWidth(), brandArea.getHeight(),
-                             juce::Justification::centredRight, 1);
-        juce::Path brandPath;
-        brand.createPath (brandPath);
-        juce::DropShadow (cyan.withAlpha (0.5f), juce::roundToInt (brandArea.getHeight() * 0.2f), {}).drawForPath (g, brandPath);
-        g.setColour (textPrimary);
-        g.fillPath (brandPath);
+            // Línea fina debajo (como la serigrafía de la referencia).
+            const auto pb = p.getBounds();
+            const auto y = logoArea.getY() + h * 0.86f;
+            g.setColour (chassisShadow.darker (0.35f).withAlpha (0.7f));
+            g.fillRect (juce::Rectangle<float> (pb.getX(), y, pb.getWidth() * 1.12f, juce::jmax (1.0f, h * 0.02f))
+                            .withX (just.testFlags (juce::Justification::right) ? pb.getRight() - pb.getWidth() * 1.12f : pb.getX()));
+            g.setColour (juce::Colours::white.withAlpha (0.4f));
+            g.fillRect (juce::Rectangle<float> (pb.getX(), y + juce::jmax (1.0f, h * 0.02f), pb.getWidth() * 1.12f, 1.0f)
+                            .withX (just.testFlags (juce::Justification::right) ? pb.getRight() - pb.getWidth() * 1.12f : pb.getX()));
+        }
     }
 
     juce::String TopBar::getTooltip()
@@ -119,15 +101,17 @@ namespace kb::ui
     {
         const auto b = getLocalBounds().toFloat();
         const auto h = b.getHeight();
-        auto area = b.reduced (h * 0.25f, h * 0.06f);
-        const auto sideW = area.getWidth() * 0.34f;
-        logoArea = area.removeFromLeft (sideW);
-        auto right = area.removeFromRight (sideW * 0.82f);
-        brandArea = right.withTrimmedLeft (h * 1.8f);
+        auto area = b.reduced (h * 0.3f, h * 0.04f);
+        logoArea  = area.removeFromLeft (area.getWidth() * 0.32f);
+        brandArea = area.removeFromRight (area.getWidth() * 0.42f);
         logo = {};
-        limitArea = right.removeFromLeft (h * 1.6f).withSizeKeepingCentre (h * 1.4f, h * 0.42f);
 
-        meterArea = area.reduced (area.getWidth() * 0.06f, 0.0f);
+        // Caja oscura del vúmetro (centro), con el LED LIMIT adentro a la derecha.
+        boxArea = area.withSizeKeepingCentre (area.getWidth() - h * 1.2f, h * 0.86f);
+        auto inner = boxArea.reduced (h * 0.14f, h * 0.08f);
+        limitArea = inner.removeFromRight (h * 1.1f).withSizeKeepingCentre (h * 1.0f, h * 0.34f);
+        inner.removeFromRight (h * 0.12f);
+        meterArea = inner;
         auto m = meterArea;
         scaleArea = m.removeFromBottom (m.getHeight() * 0.3f);
         const auto rowH = m.getHeight() * 0.44f;
@@ -140,10 +124,14 @@ namespace kb::ui
         const auto b = getLocalBounds().toFloat();
         const auto h = b.getHeight();
 
-        g.setGradientFill (juce::ColourGradient (panelLight, 0.0f, 0.0f, panelDark, 0.0f, h, false));
-        g.fillRect (b);
-        g.setColour (chassis.withAlpha (0.55f));
-        g.fillRect (b.withTop (b.getBottom() - juce::jmax (1.0f, h * 0.04f)));
+        juce::ignoreUnused (b);
+        // Caja del vúmetro: negra, hundida en el chasis.
+        g.setColour (juce::Colours::white.withAlpha (0.5f));
+        g.fillRoundedRectangle (boxArea.translated (0.0f, 1.5f), h * 0.1f);
+        g.setColour (juce::Colour (0xff050607));
+        g.fillRoundedRectangle (boxArea, h * 0.1f);
+        g.setColour (juce::Colour (0xff3a3d44));
+        g.drawRoundedRectangle (boxArea.reduced (1.0f), h * 0.1f, 1.0f);
 
         const auto scale = g.getInternalContext().getPhysicalPixelScaleFactor();
         if (logo.isNull() || ! juce::exactlyEqual (scale, logoScale))

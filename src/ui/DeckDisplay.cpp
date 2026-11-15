@@ -53,24 +53,27 @@ namespace kb::ui
     // =========================================================================
     //  Layout
     // =========================================================================
+    // Como la referencia: info del deck arriba, vista general de la canción y la
+    // waveform ampliada (grande) abajo. Cada deck ocupa media pantalla.
     Rectangle<float> DeckDisplay::infoArea() const
     {
-        auto row = getLocalBounds().toFloat().reduced (0.0f, 2.0f);
-        return row.withWidth (juce::jmax (row.getHeight() * 5.0f, row.getWidth() * 0.27f));
-    }
-
-    Rectangle<float> DeckDisplay::detailArea() const
-    {
-        auto row = getLocalBounds().toFloat().reduced (0.0f, 2.0f);
-        row.removeFromLeft (infoArea().getWidth() + 4.0f);
-        return row.withHeight (row.getHeight() * 0.68f);
+        auto b = getLocalBounds().toFloat();
+        return b.withHeight (juce::jmax (36.0f, b.getHeight() * 0.27f));
     }
 
     Rectangle<float> DeckDisplay::overviewArea() const
     {
-        auto row = getLocalBounds().toFloat().reduced (0.0f, 2.0f);
-        row.removeFromLeft (infoArea().getWidth() + 4.0f);
-        return row.withTrimmedTop (row.getHeight() * 0.68f + 2.0f);
+        auto b = getLocalBounds().toFloat();
+        b.removeFromTop (infoArea().getHeight() + 2.0f);
+        return b.withHeight (b.getHeight() * 0.24f);
+    }
+
+    Rectangle<float> DeckDisplay::detailArea() const
+    {
+        auto b = getLocalBounds().toFloat();
+        b.removeFromTop (infoArea().getHeight() + 2.0f);
+        b.removeFromTop (b.getHeight() * 0.24f + 3.0f);
+        return b;
     }
 
     void DeckDisplay::resized()
@@ -151,52 +154,33 @@ namespace kb::ui
 
     void DeckDisplay::paintInfo (juce::Graphics& g, Rectangle<float> info)
     {
+        // Una fila: [carátula] Título / artista ........ BPM · KEY · tempo · tiempo
         const auto colour = deckColour (deck);
         const auto h = info.getHeight();
-        g.setColour (panel);
-        g.fillRoundedRectangle (info, 4.0f);
-        info = info.reduced (h * 0.08f);
+        info = info.reduced (h * 0.04f, h * 0.06f);
 
-        auto art = info.removeFromLeft (info.getHeight() * 0.8f).withSizeKeepingCentre (info.getHeight() * 0.8f, info.getHeight() * 0.8f);
-        g.setColour (panelEdge);
+        auto art = info.removeFromLeft (info.getHeight());
+        g.setGradientFill (juce::ColourGradient (colour.withAlpha (0.55f), art.getX(), art.getY(),
+                                                 panelEdge, art.getRight(), art.getBottom(), false));
         g.fillRoundedRectangle (art, 3.0f);
-        draw::text (g, juce::String (deck + 1), art, art.getHeight() * 0.5f, colour);   // carátula: Fase 6
-        info.removeFromLeft (h * 0.1f);
+        draw::text (g, juce::String (deck + 1), art, art.getHeight() * 0.42f, textPrimary);   // carátula: Fase 6
+        info.removeFromLeft (h * 0.15f);
 
-        // Dos columnas para aprovechar el ancho con letras grandes
-        // (draw::text agranda 1,6x: se pasa ~la mitad del alto de cada fila).
         const auto H = info.getHeight();
-        auto col2 = info.removeFromRight (info.getWidth() * 0.42f);
-        auto col1 = info.withTrimmedRight (H * 0.1f);
         const auto* t = view.track.get();
         const auto len = t != nullptr ? t->getLengthSeconds() : 0.0;
 
-        auto titleRow  = col1.removeFromTop (H * 0.38f);
-        auto artistRow = col1.removeFromTop (H * 0.27f);
-        auto timeRow   = col1;
-        if (t != nullptr)
-        {
-            draw::text (g, t->getInfo().title, titleRow, titleRow.getHeight() * 0.5f, textPrimary, Justification::centredLeft, true);
-            draw::text (g, t->getInfo().artist, artistRow, artistRow.getHeight() * 0.45f, textSecondary, Justification::centredLeft, false);
-        }
-        else
-        {
-            draw::text (g, tr (view.loading ? "wave.loadingShort" : "wave.empty"), titleRow, titleRow.getHeight() * 0.42f,
-                        textPrimary, Justification::centredLeft, false);
-        }
-        draw::text (g, formatTime (view.status.positionSeconds) + "  " + formatTime (len - view.status.positionSeconds, true),
-                    timeRow, timeRow.getHeight() * 0.48f, textPrimary, Justification::centredLeft);
-
-        // --- Columna 2: BPM grande, tonalidad, tempo y Key Lock -----------------------------------
+        // Derecha: BPM grande + tonalidad / tiempos + tempo.
+        auto right = info.removeFromRight (juce::jmin (info.getWidth() * 0.55f, H * 7.4f));
+        auto bpmCol = right.removeFromLeft (right.getWidth() * 0.44f);
         juce::String bpmText = "--";
         if (t != nullptr && t->getBpm() > 0.0)
             bpmText = formatBpm (t->getBpm() * (1.0 + view.tempo / 100.0));
         else if (view.analysing)
             bpmText = "...";
-        auto bpmRow = col2.removeFromTop (H * 0.48f);
-        draw::text (g, tr ("wave.bpm"), bpmRow.removeFromLeft (bpmRow.getHeight() * 1.0f), bpmRow.getHeight() * 0.26f,
-                    colour, Justification::centredLeft);
-        draw::text (g, bpmText, bpmRow, bpmRow.getHeight() * 0.52f, textPrimary, Justification::centredLeft);
+        auto bpmRow = bpmCol.removeFromTop (H * 0.58f);
+        draw::text (g, tr ("wave.bpm"), bpmRow.removeFromLeft (H * 0.8f), H * 0.26f, colour, Justification::centredLeft);
+        draw::text (g, bpmText, bpmRow, H * 0.4f, textPrimary, Justification::centredLeft);
 
         juce::String keyText = view.analysing ? juce::String ("...") : juce::String ("--");
         if (t != nullptr && t->getKey() >= 0)
@@ -207,21 +191,37 @@ namespace kb::ui
             if (shift != 0)
                 keyText << " (" << (shift > 0 ? "+" : "") << shift << ")";
         }
-        auto keyRow = col2.removeFromTop (H * 0.28f);
-        draw::text (g, tr ("wave.key"), keyRow.removeFromLeft (bpmRow.getHeight() * 1.0f), keyRow.getHeight() * 0.4f,
-                    colour, Justification::centredLeft);
-        draw::text (g, keyText, keyRow, keyRow.getHeight() * 0.55f, textPrimary, Justification::centredLeft);
+        draw::text (g, tr ("wave.key"), bpmCol.removeFromLeft (H * 0.8f), H * 0.24f, colour, Justification::centredLeft);
+        draw::text (g, keyText, bpmCol, H * 0.27f, textPrimary, Justification::centredLeft);
 
-        auto tempoRow = col2;
+        auto timeRow = right.removeFromTop (H * 0.58f);
+        draw::text (g, formatTime (view.status.positionSeconds), timeRow, H * 0.33f, textPrimary, Justification::centredRight);
+        auto tempoRow = right;
+        draw::text (g, formatTime (len - view.status.positionSeconds, true), tempoRow.removeFromRight (tempoRow.getWidth() * 0.5f),
+                    H * 0.27f, colour, Justification::centredRight);
         if (view.keyLock)
         {
-            const auto badge = tempoRow.removeFromRight (tempoRow.getHeight() * 2.6f).reduced (0.0f, tempoRow.getHeight() * 0.08f);
+            const auto badge = tempoRow.removeFromRight (H * 0.85f).reduced (H * 0.04f, H * 0.06f);
             g.setColour (orange);
             g.fillRoundedRectangle (badge, 3.0f);
             draw::text (g, tr ("deck.keyLockShort"), badge, badge.getHeight() * 0.5f, panelDark);
         }
         draw::text (g, (view.tempo >= 0.0f ? "+" : "") + juce::String (view.tempo, 2) + "%", tempoRow,
-                    tempoRow.getHeight() * 0.5f, colour, Justification::centredLeft);
+                    H * 0.24f, textSecondary, Justification::centredRight);
+
+        // Izquierda: título y artista.
+        info.removeFromRight (H * 0.2f);
+        auto titleRow = info.removeFromTop (H * 0.58f);
+        if (t != nullptr)
+        {
+            draw::text (g, t->getInfo().title, titleRow, H * 0.36f, textPrimary, Justification::centredLeft, true);
+            draw::text (g, t->getInfo().artist, info, H * 0.27f, textSecondary, Justification::centredLeft, false);
+        }
+        else
+        {
+            draw::text (g, tr (view.loading ? "wave.loadingShort" : "wave.empty"), titleRow, H * 0.32f,
+                        textSecondary, Justification::centredLeft, false);
+        }
     }
 
     // =========================================================================

@@ -4,7 +4,6 @@
 #include "engine/AudioFileFormats.h"
 #include "analysis/KeyDetector.h"
 #include "ui/Palette.h"
-#include "ui/TribalArt.h"
 
 namespace kb::app
 {
@@ -103,7 +102,7 @@ namespace kb::app
 
     int MainComponent::frameThickness() const
     {
-        return juce::jmax (14, juce::roundToInt (getHeight() * 0.028));
+        return juce::jmax (10, juce::roundToInt (getHeight() * 0.016));
     }
 
     void MainComponent::paint (juce::Graphics& g)
@@ -117,6 +116,8 @@ namespace kb::app
 
     void MainComponent::renderFrame (float scale)
     {
+        // Chasis amarillo liso con volumen (como la imagen de referencia) y la
+        // "pantalla" oscura empotrada abajo (waveforms + biblioteca).
         using namespace ui::palette;
         frameScale = scale;
         frameImage = juce::Image (juce::Image::RGB, juce::jmax (1, juce::roundToInt ((float) getWidth() * scale)),
@@ -125,72 +126,62 @@ namespace kb::app
         g.addTransform (juce::AffineTransform::scale (scale));
 
         const auto b = getLocalBounds().toFloat();
-        const auto f = (float) frameThickness();
-        const auto outerR = f * 2.2f;
-        const auto inner = b.reduced (f);
+        const auto m = (float) frameThickness();
+        const auto r = m * 2.4f;
 
-        g.fillAll (panelDark);
+        g.fillAll (juce::Colour (0xff0b0c0e));
 
-        // Marco amarillo con volumen (degradé + bisel).
-        juce::Path frame;
-        frame.addRoundedRectangle (b.reduced (1.0f), outerR);
-        juce::Path hole;
-        hole.addRoundedRectangle (inner.expanded (1.0f), outerR * 0.55f);
-        frame.addPath (hole);
-        frame.setUsingNonZeroWinding (false);
-
+        juce::Path body;
+        body.addRoundedRectangle (b.reduced (1.0f), r);
         juce::ColourGradient grad (chassisLight, 0.0f, 0.0f, chassisShadow, 0.0f, b.getBottom(), false);
-        grad.addColour (0.4, chassis);
+        grad.addColour (0.18, chassis);
+        grad.addColour (0.8, chassis.darker (0.08f));
         g.setGradientFill (grad);
-        g.fillPath (frame);
+        g.fillPath (body);
+        // Brillo de borde (plástico) y contorno.
+        g.setColour (juce::Colours::white.withAlpha (0.5f));
+        g.drawRoundedRectangle (b.reduced (2.5f), r - 1.5f, 1.6f);
+        g.setColour (chassisShadow.darker (0.7f));
+        g.drawRoundedRectangle (b.reduced (1.0f), r, 1.2f);
 
-        // Tribales negros sobre el marco: bandas en los cuatro lados y esquineros.
-        {
-            juce::Graphics::ScopedSaveState save (g);
-            g.reduceClipRegion (frame);
-            g.setColour (juce::Colours::black.withAlpha (0.86f));
-            const auto bandH = f * 0.9f;
-            const auto margin = outerR * 1.6f;
-            g.fillPath (ui::tribal::band ({ margin, (f - bandH) * 0.5f, b.getWidth() - 2.0f * margin, bandH }));
-            g.fillPath (ui::tribal::band ({ margin, b.getBottom() - f + (f - bandH) * 0.5f, b.getWidth() - 2.0f * margin, bandH }));
-
-            const auto side = ui::tribal::band ({ 0.0f, 0.0f, b.getHeight() - 2.0f * margin, bandH });
-            g.fillPath (side, juce::AffineTransform::rotation (juce::MathConstants<float>::halfPi)
-                                  .translated ((f + bandH) * 0.5f, margin));
-            g.fillPath (side, juce::AffineTransform::rotation (juce::MathConstants<float>::halfPi)
-                                  .translated (b.getRight() - (f - bandH) * 0.5f, margin));
-
-            const auto cs = outerR * 1.9f;
-            g.fillPath (ui::tribal::corner ({ 0.0f, 0.0f, cs, cs }, 0));
-            g.fillPath (ui::tribal::corner ({ b.getRight() - cs, 0.0f, cs, cs }, 1));
-            g.fillPath (ui::tribal::corner ({ b.getRight() - cs, b.getBottom() - cs, cs, cs }, 2));
-            g.fillPath (ui::tribal::corner ({ 0.0f, b.getBottom() - cs, cs, cs }, 3));
-        }
-
-        g.setColour (juce::Colours::white.withAlpha (0.45f));
-        g.drawRoundedRectangle (b.reduced (2.0f), outerR, 1.5f);
-        g.setColour (chassisShadow.darker (0.6f));
-        g.drawRoundedRectangle (inner.expanded (1.0f), outerR * 0.55f, 2.0f);
+        // Pantalla empotrada: sombra arriba (hundida) y brillo abajo.
+        const auto screen = screenArea.toFloat();
+        const auto sr = m * 1.4f;
+        g.setColour (juce::Colours::white.withAlpha (0.55f));
+        g.fillRoundedRectangle (screen.translated (0.0f, 1.5f).expanded (1.0f), sr);
+        g.setColour (chassisShadow.darker (0.9f));
+        g.fillRoundedRectangle (screen.expanded (2.0f), sr + 1.0f);
+        g.setColour (juce::Colour (0xff0e1013));
+        g.fillRoundedRectangle (screen, sr);
+        g.setGradientFill (juce::ColourGradient (juce::Colours::black.withAlpha (0.6f), 0.0f, screen.getY(),
+                                                 juce::Colours::transparentBlack, 0.0f, screen.getY() + m, false));
+        g.fillRoundedRectangle (screen.withHeight (m), sr);
     }
 
     void MainComponent::resized()
     {
-        // Proporciones del layout de referencia. En la Fase 7 se suma el modo
-        // "Biblioteca grande", que achica el controlador.
+        // Layout de la imagen de referencia: barra superior amarilla, controlador,
+        // pantalla oscura con las dos waveforms lado a lado y la biblioteca, y pie.
         frameImage = {};
-        auto b = getLocalBounds().reduced (frameThickness());
+        const auto H = getHeight();
+        const auto m = frameThickness();
+        auto b = getLocalBounds().reduced (m + m / 2, m / 2);
 
-        statusBar.setBounds (b.removeFromBottom (juce::jlimit (18, 30, b.getHeight() / 40)));
+        statusBar.setBounds (b.removeFromBottom (juce::jlimit (20, 40, juce::roundToInt (H * 0.034))));
+        topBar.setBounds     (b.removeFromTop (juce::roundToInt (H * 0.075)));
+        controller.setBounds (b.removeFromTop (juce::roundToInt (H * 0.465)));
+        b.removeFromTop (m / 2);
+        b.removeFromBottom (m / 3);
+        screenArea = b;
 
-        const auto avail = b.getHeight();
-        topBar.setBounds     (b.removeFromTop (juce::roundToInt (avail * 0.08)));
-        controller.setBounds (b.removeFromTop (juce::roundToInt (avail * 0.46)));
-
-        auto waves = b.removeFromTop (juce::roundToInt (avail * 0.20)).reduced (2, 0);
-        deckDisplays[0].setBounds (waves.removeFromTop (waves.getHeight() / 2));
+        auto inner = b.reduced (m / 2 + 2);
+        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * 0.5));
+        const auto gap = m / 2;
+        deckDisplays[0].setBounds (waves.removeFromLeft ((waves.getWidth() - gap) / 2));
+        waves.removeFromLeft (gap);
         deckDisplays[1].setBounds (waves);
-
-        libraryView.setBounds (b);
+        inner.removeFromTop (m / 3);
+        libraryView.setBounds (inner);
     }
 
     // =========================================================================

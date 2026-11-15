@@ -78,6 +78,21 @@ namespace kb::ui
             else
                 shape.addRoundedRectangle (r, r.getHeight() * 0.18f);
 
+            if (! round)
+            {
+                // Estilo de la referencia: negro con borde de neón brillante y resplandor;
+                // encendido = relleno del color.
+                juce::DropShadow (colour.withAlpha (lit ? 0.85f : 0.4f), juce::roundToInt (r.getHeight() * (lit ? 0.5f : 0.3f)), {})
+                    .drawForPath (g, shape);
+                g.setGradientFill (juce::ColourGradient (lit ? colour.brighter (0.3f) : juce::Colour (0xff1c1f24), 0.0f, r.getY(),
+                                                         lit ? colour.darker (0.25f) : juce::Colour (0xff0a0b0d), 0.0f, r.getBottom(), false));
+                g.fillPath (shape);
+                g.setColour (lit ? colour.brighter (0.6f) : colour);
+                g.strokePath (shape, juce::PathStrokeType (juce::jmax (1.2f, r.getHeight() * 0.07f)));
+                text (g, label, r.reduced (r.getWidth() * 0.06f, 0.0f), textH, lit ? panelDark : colour);
+                return;
+            }
+
             if (lit)
                 juce::DropShadow (colour.withAlpha (0.65f), juce::roundToInt (r.getHeight() * 0.45f), {}).drawForPath (g, shape);
 
@@ -136,6 +151,18 @@ namespace kb::ui
                         head.addTriangle (tip.translated (0, 0), back1, back2);
                         g.fillPath (head);
                     }
+                    break;
+                }
+
+                case 5: // AURICULARES: vincha + dos copas
+                {
+                    const auto w = juce::jmax (1.2f, s * 0.12f);
+                    juce::Path band;
+                    band.addCentredArc (sq.getCentreX(), sq.getCentreY() + s * 0.05f, s * 0.4f, s * 0.42f, 0.0f,
+                                        -juce::MathConstants<float>::halfPi * 1.05f, juce::MathConstants<float>::halfPi * 1.05f, true);
+                    g.strokePath (band, juce::PathStrokeType (w, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+                    g.fillRoundedRectangle (sq.getX() + s * 0.04f, sq.getCentreY() + s * 0.02f, s * 0.24f, s * 0.42f, s * 0.07f);
+                    g.fillRoundedRectangle (sq.getRight() - s * 0.28f, sq.getCentreY() + s * 0.02f, s * 0.24f, s * 0.42f, s * 0.07f);
                     break;
                 }
 

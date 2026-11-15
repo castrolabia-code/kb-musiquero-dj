@@ -100,6 +100,7 @@ namespace kb::app
 
         // Marco amarillo redondeado con tribales alrededor de todo (cacheado).
         juce::Image frameImage;
+        juce::Rectangle<int> screenArea;
         float frameScale = 0.0f;
         int frameThickness() const;
         void renderFrame (float scale);

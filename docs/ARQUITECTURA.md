@@ -258,3 +258,4 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D31 | Hot cues guardados aparte del análisis en analysis.json | Re-analizar una pista no los borra; pasan a SQLite en la Fase 6. |
 | D32 | Lógica de pads en PerformanceController (app), no en la vista ni en el motor | La vista solo dibuja; el motor solo ejecuta. El mismo controlador servirá para MIDI (Fase 8). |
 | D33 | FX de los pads en Fase 4 = efectos de deck (freno, spin, censor, reversa) | Los efectos de audio (Echo, Reverb...) llegan en la Fase 5 con las unidades de FX. |
+| D34 | Rediseño fiel a la imagen de referencia (v0.7.1) | Pedido del usuario: chasis amarillo liso (sin tribales), logo negro, vúmetro en caja negra, transporte rectangular con borde de neón, pads cuadrados 2×2, MASTER / HEADPHONES y los CUE de auriculares en las columnas de los decks, y pantalla negra con las waveforms lado a lado. El ControllerView es transparente: el chasis lo pinta la ventana. |

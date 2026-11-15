@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.25)
 # La versión del producto vive SOLO acá. La app, el título de la ventana y
 # (en la Fase 9) el instalador la leen desde este valor.
 project(KBMusiqueroDJ
-    VERSION 0.7.0
+    VERSION 0.7.1
     DESCRIPTION "KB - MUSIQUERO DJ by Castro Labs"
     LANGUAGES C CXX)
 

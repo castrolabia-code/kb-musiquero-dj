@@ -49,6 +49,36 @@ namespace kb::ui
         const auto c = highlighted && ! lit ? colour.brighter (0.25f) : colour;
         const auto scale = textScale > 0.0f ? textScale : (round ? 0.25f : 0.46f);
 
+        if (padStyle)
+        {
+            const auto h = r.getHeight();
+            juce::Path shape;
+            shape.addRoundedRectangle (r, h * 0.07f);
+            const auto on = lit || down;
+            juce::DropShadow (c.withAlpha (on ? 0.9f : 0.55f), juce::roundToInt (h * (on ? 0.32f : 0.18f)), {}).drawForPath (g, shape);
+            g.setGradientFill (juce::ColourGradient (on ? c.withAlpha (0.9f) : juce::Colour (0xff161a1f), r.getX(), r.getY(),
+                                                     on ? c.darker (0.45f) : juce::Colour (0xff07080a), r.getRight(), r.getBottom(), false));
+            g.fillPath (shape);
+            g.setColour (on ? c.brighter (0.7f) : c);
+            g.strokePath (shape, juce::PathStrokeType (juce::jmax (2.0f, h * 0.055f)));
+            const auto padText = label();
+            const auto ink = on ? palette::panelDark : c;
+            if (padText.length() <= 2)   // números (cues, beats): arriba a la izquierda, como la referencia
+                draw::text (g, padText, r.reduced (h * 0.1f, h * 0.06f).removeFromTop (h * 0.34f), h * scale * 0.62f, ink,
+                            juce::Justification::centredLeft);
+            else
+                draw::text (g, padText, r.reduced (h * 0.08f, 0.0f), h * scale, ink);
+            if (progress >= 0.0f)
+            {
+                const auto bar = r.reduced (h * 0.12f, 0.0f).removeFromBottom (h * 0.08f).translated (0.0f, -h * 0.1f);
+                g.setColour (palette::panelDark.withAlpha (0.6f));
+                g.fillRoundedRectangle (bar, bar.getHeight() * 0.5f);
+                g.setColour (on ? palette::panelDark : c);
+                g.fillRoundedRectangle (bar.withWidth (bar.getWidth() * juce::jlimit (0.0f, 1.0f, progress)), bar.getHeight() * 0.5f);
+            }
+            return;
+        }
+
         if (icon == ButtonIcon::none)
         {
             draw::button (g, r, c, label(), lit || down, round, r.getHeight() * scale);
@@ -60,6 +90,28 @@ namespace kb::ui
                 g.setColour (lit ? palette::panelDark : c);
                 g.fillRoundedRectangle (bar.withWidth (bar.getWidth() * juce::jlimit (0.0f, 1.0f, progress)), bar.getHeight() * 0.5f);
             }
+            return;
+        }
+
+        if (! round)
+        {
+            // Rectangular: símbolo a la izquierda y texto a la derecha (o solo el símbolo).
+            draw::button (g, r, c, {}, lit || down, false, r.getHeight() * scale);
+            const auto ink = (lit || down) ? palette::panelDark : c;
+            const auto caption = label();
+            auto content = r.reduced (r.getHeight() * 0.2f);
+            if (caption.isEmpty())
+            {
+                draw::icon (g, (int) icon, content.withSizeKeepingCentre (content.getHeight() * 0.9f, content.getHeight() * 0.9f), ink);
+                return;
+            }
+            const auto iconSize = content.getHeight() * 0.62f;
+            const auto textW = juce::jmin (content.getWidth() - iconSize * 1.3f, content.getWidth() * 0.66f);
+            const auto total = iconSize * 1.3f + textW;
+            auto row = content.withSizeKeepingCentre (total, content.getHeight());
+            draw::icon (g, (int) icon, row.removeFromLeft (iconSize).withSizeKeepingCentre (iconSize, iconSize), ink);
+            row.removeFromLeft (iconSize * 0.3f);
+            draw::text (g, caption, row, r.getHeight() * scale, ink, juce::Justification::centredLeft);
             return;
         }
 
@@ -113,8 +165,28 @@ namespace kb::ui
 
     void KbFader::paint (juce::Graphics& g)
     {
-        // La tapa sobresale de la ranura: se reserva medio alto de tapa en cada punta.
         auto r = getLocalBounds().toFloat();
+        if (thin && vertical)
+        {
+            const auto capH = r.getWidth() * 0.38f;
+            r = r.reduced (0.0f, capH * 0.5f + 1.0f);
+            const auto track = r.withSizeKeepingCentre (juce::jmax (3.0f, r.getWidth() * 0.09f), r.getHeight());
+            g.setColour (juce::Colour (0xff050505));
+            g.fillRoundedRectangle (track, track.getWidth() * 0.5f);
+            const auto y = r.getBottom() - r.getHeight() * (float) valueToProportionOfLength (getValue());
+            const auto cap = juce::Rectangle<float> (r.getWidth() * 0.95f, capH).withCentre ({ r.getCentreX(), y });
+            g.setColour (juce::Colours::black.withAlpha (0.45f));
+            g.fillRoundedRectangle (cap.translated (2.0f, 3.0f), capH * 0.18f);
+            g.setGradientFill (juce::ColourGradient (juce::Colour (0xff4a4e55), 0.0f, cap.getY(), juce::Colour (0xff121315), 0.0f, cap.getBottom(), false));
+            g.fillRoundedRectangle (cap, capH * 0.18f);
+            const auto line = cap.withSizeKeepingCentre (cap.getWidth() * 0.86f, juce::jmax (2.0f, capH * 0.12f));
+            g.setColour (palette::orange.withAlpha (0.4f));
+            g.fillRoundedRectangle (line.expanded (0.0f, line.getHeight()), line.getHeight());
+            g.setColour (palette::orange);
+            g.fillRoundedRectangle (line, line.getHeight() * 0.5f);
+            return;
+        }
+        // La tapa sobresale de la ranura: se reserva medio alto de tapa en cada punta.
         const auto capLong  = (vertical ? r.getWidth() : r.getHeight()) * 0.9f;
         const auto capShort = capLong * 0.45f;
         r = vertical ? r.reduced (0.0f, capShort * 0.5f + 2.0f) : r.reduced (capShort * 0.5f + 2.0f, 0.0f);
@@ -175,6 +247,14 @@ namespace kb::ui
             return;
         }
         const juce::Point<float> centre (getWidth() * 0.5f, arc + 3.0f);
+        if (onChassis)
+        {
+            draw::knob (g, centre, radius, (float) valueToProportionOfLength (getValue()), {}, labelHeight, bipolar);
+            draw::text (g, label, juce::Rectangle<float> ((float) getWidth(), labelHeight * 1.3f)
+                                      .withCentre ({ centre.x, centre.y + arc + labelHeight * 0.85f }),
+                        labelHeight, palette::textOnChassis);
+            return;
+        }
         draw::knob (g, centre, radius, (float) valueToProportionOfLength (getValue()), label, labelHeight, bipolar);
     }
 } // namespace kb::ui

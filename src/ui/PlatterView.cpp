@@ -5,6 +5,7 @@
 #include "ui/Palette.h"
 
 #include <cmath>
+#include <utility>
 
 namespace kb::ui
 {
@@ -85,65 +86,66 @@ namespace kb::ui
 
     void PlatterView::paint (juce::Graphics& g)
     {
+        // Vinilo negro con surcos y un brillo fijo (la luz no gira con el disco) y la
+        // etiqueta central con anillos naranjas iluminados, como la referencia.
         const auto platter = getLocalBounds().toFloat();
-        const auto diameter = platter.getWidth();
+        const auto d = platter.getWidth();
         const auto c = platter.getCentre();
-        const auto accent = deckColour (deck);
-        const auto unit = diameter / 60.0f;
+        const auto vinyl = platter.reduced (d * 0.055f);
+        const auto vr = vinyl.getWidth() * 0.5f;
 
-        // --- Anillo luminoso -------------------------------------------------------------
-        const auto ringR = diameter * 0.455f;
-        const auto ringW = juce::jmax (1.5f, diameter * 0.022f);
-        if (playing)
-        {
-            // Glow barato: trazos concéntricos cada vez más transparentes.
-            for (int i = 3; i >= 1; --i)
-            {
-                g.setColour (orange.withAlpha (0.10f * (float) (4 - i)));
-                g.drawEllipse (juce::Rectangle<float> (ringR * 2.0f, ringR * 2.0f).withCentre (c), ringW + unit * (float) i * 1.4f);
-            }
-        }
-        g.setColour (playing ? orange : orange.withAlpha (loaded ? 0.55f : 0.35f));
-        g.drawEllipse (juce::Rectangle<float> (ringR * 2.0f, ringR * 2.0f).withCentre (c), ringW);
-
-        // --- Vinilo -----------------------------------------------------------------------
-        const auto vinyl = platter.reduced (diameter * 0.075f);
-        g.setGradientFill (juce::ColourGradient (panel, c.x, c.y, slot, vinyl.getRight(), c.y, true));
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff1b1c1f), c.x, c.y, juce::Colour (0xff060607), c.x + vr, c.y, true));
         g.fillEllipse (vinyl);
-        g.setColour (juce::Colours::white.withAlpha (0.035f));
-        for (float k = 0.36f; k < 0.98f; k += 0.055f)
+
+        // Surcos.
+        for (float k = 0.4f; k < 0.97f; k += 0.035f)
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.03f + 0.02f * std::sin (k * 40.0f)));
             g.drawEllipse (vinyl.withSizeKeepingCentre (vinyl.getWidth() * k, vinyl.getHeight() * k), 1.0f);
+        }
 
-        // --- Partes que giran ------------------------------------------------------------
+        // Brillos (reflejo de luz arriba-izquierda y abajo-derecha).
+        for (auto [from, to] : { std::pair (-2.35f, -1.45f), std::pair (0.8f, 1.7f) })
+        {
+            juce::Path sheen;
+            sheen.addPieSegment (vinyl.reduced (vr * 0.1f), from, to, 0.55f);
+            g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.10f), c.x, c.y,
+                                                     juce::Colours::white.withAlpha (0.0f), c.x + vr, c.y, true));
+            g.fillPath (sheen);
+        }
+
+        // Marca que gira (muestra la rotación y la posición).
         const auto rot = juce::AffineTransform::rotation ((float) angle, c.x, c.y);
-
-        // Marca de posición (como la del plato de un CDJ).
         juce::Path marker;
-        marker.addRoundedRectangle (c.x - unit * 0.45f, vinyl.getY() + unit, unit * 0.9f, vinyl.getHeight() * 0.17f, unit * 0.4f);
-        g.setColour (playing ? textPrimary : textPrimary.withAlpha (0.8f));
+        marker.addRoundedRectangle (c.x - d * 0.006f, vinyl.getY() + d * 0.02f, d * 0.012f, vr * 0.32f, d * 0.006f);
+        g.setColour (juce::Colours::white.withAlpha (loaded ? 0.75f : 0.35f));
         g.fillPath (marker, rot);
 
-        // Etiqueta central con el número del deck y una marca de color.
-        const auto label = vinyl.withSizeKeepingCentre (vinyl.getWidth() * 0.3f, vinyl.getHeight() * 0.3f);
-        g.setColour (panelDark);
-        g.fillEllipse (label);
-        g.setColour (accent);
-        g.drawEllipse (label, juce::jmax (1.0f, unit * 0.4f));
-
-        juce::Path tick;
-        tick.addCentredArc (c.x, c.y, label.getWidth() * 0.38f, label.getWidth() * 0.38f, 0.0f, -0.5f, 0.5f, true);
-        g.strokePath (tick, juce::PathStrokeType (juce::jmax (1.5f, unit * 0.7f), juce::PathStrokeType::curved,
-                                                  juce::PathStrokeType::rounded), rot);
-
+        // Etiqueta: anillos naranjas iluminados (más brillo reproduciendo).
+        const auto glow = playing ? 1.0f : (loaded ? 0.55f : 0.3f);
+        const auto lr = vr * 0.36f;
+        const auto ring = [&] (float radius, float width, float alpha)
         {
-            juce::Graphics::ScopedSaveState save (g);
-            g.addTransform (rot);
-            draw::text (g, juce::String (deck + 1), label, label.getHeight() * 0.5f, accent);
-        }
-
-        // Reflejo sutil (fijo: la luz no gira con el disco).
-        g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.10f), vinyl.getX(), vinyl.getY(),
-                                                 juce::Colours::transparentWhite, c.x, c.y, false));
-        g.fillEllipse (vinyl);
+            g.setColour (orange.withAlpha (alpha));
+            g.drawEllipse (juce::Rectangle<float> (radius * 2.0f, radius * 2.0f).withCentre (c), width);
+        };
+        juce::Path labelPath;
+        labelPath.addEllipse (juce::Rectangle<float> (lr * 2.0f, lr * 2.0f).withCentre (c));
+        juce::DropShadow (orange.withAlpha (0.75f * glow), juce::roundToInt (lr * 0.55f), {}).drawForPath (g, labelPath);
+        g.setColour (juce::Colour (0xff0b0b0c));
+        g.fillPath (labelPath);
+        ring (lr * 0.92f, lr * 0.16f, glow);
+        ring (lr * 0.92f, lr * 0.32f, 0.25f * glow);
+        ring (lr * 0.58f, lr * 0.2f, glow);
+        g.setColour (orange.withAlpha (glow).brighter (playing ? 0.3f : 0.0f));
+        g.fillEllipse (juce::Rectangle<float> (lr * 0.6f, lr * 0.6f).withCentre (c));
+        g.setColour (juce::Colour (0xff0b0b0c));
+        g.fillEllipse (juce::Rectangle<float> (lr * 0.22f, lr * 0.22f).withCentre (c));
+        // Muesca en la etiqueta (también gira).
+        juce::Path notch;
+        notch.addEllipse (c.x - lr * 0.07f, c.y - lr * 0.82f, lr * 0.14f, lr * 0.14f);
+        g.setColour (juce::Colour (0xff0b0b0c));
+        g.fillPath (notch, rot);
     }
+
 } // namespace kb::ui

@@ -1,4 +1,5 @@
 #include "ui/ControllerView.h"
+#include "ui/KbLookAndFeel.h"
 
 #include <cmath>
 
@@ -18,13 +19,14 @@ namespace kb::ui
 
     ControllerView::ControllerView()
     {
-        setOpaque (true);
+        setOpaque (false);   // el chasis amarillo lo pinta la ventana
 
         for (int d = 0; d < 2; ++d)
         {
-            playButtons[(size_t) d]  = std::make_unique<GlowButton> ("deck.play", play, true, ButtonIcon::play);
-            pauseButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.pause", orange, true, ButtonIcon::pause);
-            cueButtons[(size_t) d]   = std::make_unique<GlowButton> ("deck.cue", alert, true, ButtonIcon::cue);
+            // Transporte rectangular con borde de neón (como la referencia).
+            playButtons[(size_t) d]  = std::make_unique<GlowButton> ("deck.play", play, false, ButtonIcon::play);
+            pauseButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.pause", orange, false, ButtonIcon::pause);
+            cueButtons[(size_t) d]   = std::make_unique<GlowButton> ("deck.cue", alert, false, ButtonIcon::cue);
             volumeFaders[(size_t) d] = std::make_unique<KbFader> (true);
 
             playButtons[(size_t) d]->setTooltipKey ("tip.play");
@@ -69,6 +71,8 @@ namespace kb::ui
         mixTimeKnob.onValueChange = [this] { if (onAutoMixTime) onAutoMixTime (knobToMixSeconds (mixTimeKnob.getValue())); };
         addAndMakeVisible (mixTimeKnob);
 
+        masterKnob.setOnChassis (true);
+        phonesKnob.setOnChassis (true);
         masterKnob.setDoubleClickReturnValue (true, 0.85);
         masterKnob.onValueChange = [this] { if (onMaster) onMaster ((float) masterKnob.getValue()); };
         addAndMakeVisible (masterKnob);
@@ -80,6 +84,7 @@ namespace kb::ui
             addAndMakeVisible (*platters[(size_t) d]);
 
             auto fader = std::make_unique<KbFader> (true);
+            fader->setThinStyle (true);
             fader->setRange (-1.0, 1.0);
             fader->setDoubleClickReturnValue (true, 0.0);
             fader->setTooltipKey ("tip.tempo");
@@ -93,7 +98,7 @@ namespace kb::ui
             addAndMakeVisible (*fader);
             tempoFaders[(size_t) d] = std::move (fader);
 
-            syncButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.sync", cyan, true, ButtonIcon::sync);
+            syncButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.sync", cyan, false, ButtonIcon::sync);
             syncButtons[(size_t) d]->setTooltipKey ("tip.sync");
             syncButtons[(size_t) d]->onPress = [this, d] { if (onSync) onSync (d); };
             addAndMakeVisible (*syncButtons[(size_t) d]);
@@ -148,6 +153,7 @@ namespace kb::ui
                 modeButtons[(size_t) d][(size_t) i] = std::move (mb);
 
                 auto pb = std::make_unique<GlowButton> (juce::String(), cyan, false);
+                pb->setPadStyle (true);
                 pb->setLabelText (juce::String (i + 1));
                 pb->setTooltipKey ("tip.pads");
                 pb->onPress   = [this, d, i] { if (onPad) onPad (d, i, true); };
@@ -170,7 +176,7 @@ namespace kb::ui
             vinylButtons[(size_t) d]->onPress = [this, d] { if (onVinyl) onVinyl (d); };
             for (auto* b : { shiftButtons[(size_t) d].get(), slipButtons[(size_t) d].get(), vinylButtons[(size_t) d].get() })
             {
-                b->setTextScale (0.6f);
+                b->setTextScale (0.56f);
                 addAndMakeVisible (*b);
             }
 
@@ -204,7 +210,8 @@ namespace kb::ui
                 stripKnobs[(size_t) d][(size_t) k] = std::move (knob);
             }
 
-            auto cue = std::make_unique<GlowButton> ("mixer.cue", cyan, false);
+            auto cue = std::make_unique<GlowButton> ("mixer.cue", cyan, false, ButtonIcon::headphones);
+            cue->setLabelText ({});   // solo el ícono de auriculares; "CUE" va impreso debajo
             auto* rawCue = cue.get();
             cue->onPress = [this, d, rawCue]
             {
@@ -441,8 +448,9 @@ namespace kb::ui
         {
             const auto& dl = deckLayouts[(size_t) d];
             platters[(size_t) d]->setBounds (dl.platter.toNearestInt());
-            tempoFaders[(size_t) d]->setBounds (dl.tempoSlot.reduced (unit * 0.8f, unit * 1.0f).toNearestInt());
-            syncButtons[(size_t) d]->setBounds (dl.sync.expanded (dl.sync.getHeight() * 0.08f).toNearestInt());
+            tempoFaders[(size_t) d]->setBounds (dl.tempoSlot.withSizeKeepingCentre (dl.tempoSlot.getWidth() * 0.6f, dl.tempoSlot.getHeight()).toNearestInt());
+            syncButtons[(size_t) d]->setBounds (dl.sync.toNearestInt());
+            syncButtons[(size_t) d]->setTextScale (0.34f);
             rangeButtons[(size_t) d]->setBounds (dl.tempoRange.toNearestInt());
             keyLockButtons[(size_t) d]->setBounds (dl.keyLock.toNearestInt());
             keyDownButtons[(size_t) d]->setBounds (dl.keyDown.toNearestInt());
@@ -453,7 +461,7 @@ namespace kb::ui
             for (int i = 0; i < 4; ++i)
             {
                 modeButtons[(size_t) d][(size_t) i]->setBounds (dl.modes[(size_t) i].expanded (unit * 0.3f).toNearestInt());
-                modeButtons[(size_t) d][(size_t) i]->setTextScale (0.42f);
+                modeButtons[(size_t) d][(size_t) i]->setTextScale (i == 1 || i == 3 ? 0.5f : 0.46f);
                 padButtons[(size_t) d][(size_t) i]->setBounds (dl.pads[(size_t) i].expanded (unit * 0.3f).toNearestInt());
             }
             rangeButtons[(size_t) d]->setTextScale (0.62f);
@@ -462,9 +470,11 @@ namespace kb::ui
         for (int d = 0; d < 2; ++d)
         {
             const auto& dl = deckLayouts[(size_t) d];
-            playButtons[(size_t) d]->setBounds (dl.play.expanded (dl.play.getHeight() * 0.08f).toNearestInt());
-            pauseButtons[(size_t) d]->setBounds (dl.pause.expanded (dl.pause.getHeight() * 0.08f).toNearestInt());
-            cueButtons[(size_t) d]->setBounds (dl.cue.expanded (dl.cue.getHeight() * 0.08f).toNearestInt());
+            playButtons[(size_t) d]->setBounds (dl.play.toNearestInt());
+            pauseButtons[(size_t) d]->setBounds (dl.pause.toNearestInt());
+            cueButtons[(size_t) d]->setBounds (dl.cue.toNearestInt());
+            for (auto* b : { playButtons[(size_t) d].get(), pauseButtons[(size_t) d].get(), cueButtons[(size_t) d].get() })
+                b->setTextScale (0.34f);
             volumeFaders[(size_t) d]->setBounds (mixer.faders[(size_t) d].toNearestInt());
         }
 
@@ -473,7 +483,7 @@ namespace kb::ui
         autoMixButton.setTextScale (0.56f);
         mixTimeKnob.setGeometry (mixer.mixTimeRadius, unit * 3.0f);
         mixTimeKnob.setBounds (mixTimeKnob.boundsForCentre (mixer.mixTimeCentre).toNearestInt());
-        masterKnob.setGeometry (mixer.masterRadius, unit * 2.6f);
+        masterKnob.setGeometry (mixer.masterRadius, unit * 3.0f);
         masterKnob.setBounds (masterKnob.boundsForCentre (mixer.masterCentre).toNearestInt());
 
         const auto labelH = unit * 2.6f;
@@ -486,14 +496,14 @@ namespace kb::ui
                 knob.setLabelSide (d == 0 ? -1 : +1);   // nombre hacia afuera del mixer
                 knob.setBounds (knob.boundsForCentre (mixer.eqCentres[(size_t) d][(size_t) k]).toNearestInt());
             }
-            channelCueButtons[(size_t) d]->setBounds (mixer.cueButtons[(size_t) d].expanded (mixer.cueButtons[(size_t) d].getHeight() * 0.1f).toNearestInt());
+            channelCueButtons[(size_t) d]->setBounds (mixer.cueButtons[(size_t) d].toNearestInt());
             channelCueButtons[(size_t) d]->setTextScale (0.62f);
         }
         channelMeters[0]->setBounds (mixer.meterL.toNearestInt());
         channelMeters[1]->setBounds (mixer.meterR.toNearestInt());
 
-        for (auto* k : { &phonesKnob, &cueMixKnob })
-            k->setGeometry (mixer.smallRadius, unit * 2.4f);
+        phonesKnob.setGeometry (deckLayouts[1].sideKnobRadius, unit * 3.0f);
+        cueMixKnob.setGeometry (mixer.smallRadius, unit * 2.4f);
         phonesKnob.setBounds (phonesKnob.boundsForCentre (mixer.phonesCentre).toNearestInt());
         cueMixKnob.setBounds (cueMixKnob.boundsForCentre (mixer.cueMixCentre).toNearestInt());
         splitButton.setBounds (mixer.split.toNearestInt());
@@ -502,105 +512,123 @@ namespace kb::ui
 
     void ControllerView::computeLayout()
     {
+        // Layout de la imagen de referencia (deck 1; el deck 2 es su espejo):
+        //
+        //   [regla de TEMPO] [  plato grande  "(1)" ] [CUE  SHIFT VINYL | MASTER ]
+        //                                             [HOT CUE] [SAMPLER]
+        //                                             [  FX   ] [ LOOP  ]
+        //                                             [pad 1  ] [pad 2  ]
+        //   [SYNC] [CUE] [PAUSA] [PLAY]               [pad 3  ] [pad 4  ]
         auto b = getLocalBounds().toFloat();
         unit = b.getHeight() / 100.0f;
-        chassis = b.reduced (unit * 1.5f);
+        chassis = b;
 
-        auto inner = chassis.reduced (unit * 3.0f);
-        const auto gap   = unit * 2.0f;
-        const auto deckW = inner.getWidth() * 0.375f;
+        auto inner = b.reduced (unit * 1.0f, unit * 1.5f);
+        const auto gap   = unit * 2.5f;
+        const auto deckW = inner.getWidth() * 0.385f;
 
         const auto deck1 = inner.removeFromLeft (deckW);
         inner.removeFromLeft (gap);
         const auto deck2 = inner.removeFromRight (deckW);
         inner.removeFromRight (gap);
 
-        // --- Decks ---------------------------------------------------------------------
         for (int d = 0; d < 2; ++d)
         {
             auto& L = deckLayouts[(size_t) d];
             L.mirrored = d == 1;
             L.area = d == 0 ? deck1 : deck2;
             auto r = L.area;
-            const auto textH = unit * 3.2f;
+            auto takeOuter = [&L] (Rectangle<float>& from, float w) { return L.mirrored ? from.removeFromRight (w) : from.removeFromLeft (w); };
+            auto takeInner = [&L] (Rectangle<float>& from, float w) { return L.mirrored ? from.removeFromLeft (w) : from.removeFromRight (w); };
 
-            auto tempoCol = L.mirrored ? r.removeFromRight (r.getWidth() * 0.11f) : r.removeFromLeft (r.getWidth() * 0.11f);
-            if (L.mirrored) r.removeFromRight (unit * 1.5f); else r.removeFromLeft (unit * 1.5f);
-            L.tempoLabel = tempoCol.removeFromTop (textH * 1.4f);
-            L.tempoRange = tempoCol.removeFromBottom (unit * 6.5f).reduced (0.0f, unit * 0.3f);
+            // Columna lateral (pads) del lado del mixer.
+            auto side = takeInner (r, r.getWidth() * 0.39f);
+            takeInner (r, unit * 2.0f);
+
+            // Fila de transporte abajo, a lo ancho de la regla de tempo + el plato.
+            auto transport = r.removeFromBottom (unit * 12.0f);
+            r.removeFromBottom (unit * 1.0f);
+
+            // Regla de TEMPO.
+            auto tempoCol = takeOuter (r, r.getWidth() * 0.15f);
+            takeOuter (r, unit * 1.0f);
+            L.tempoRange = tempoCol.removeFromTop (unit * 5.0f).reduced (unit * 0.6f, unit * 0.3f);
+            L.tempoLabel = tempoCol.removeFromBottom (unit * 4.0f);
             L.tempoSlot  = tempoCol.reduced (0.0f, unit * 1.0f);
 
-            L.header = r.removeFromTop (textH * 2.5f);   // alto: "DECK 1" en neón grande
+            // Encima del plato: KEY LOCK, KEY -, KEY +, SLIP (chicos) y el número "(1)".
+            auto top = r.removeFromTop (unit * 6.0f);
+            L.number = takeInner (top, unit * 12.0f);
             {
-                // [KEY LOCK] [KEY -] [KEY +] del lado interior del encabezado (mismo orden visual en ambos decks).
-                auto keys = L.header.withSizeKeepingCentre (L.header.getWidth(), unit * 5.0f);
-                const auto gapKeys = unit * 0.8f;
-                if (! L.mirrored)
+                auto row = top.withSizeKeepingCentre (top.getWidth(), unit * 4.6f);
+                const auto g2 = unit * 0.7f;
+                auto put = [&] (float w) { auto x = takeOuter (row, w); takeOuter (row, g2); return x; };
+                L.keyLock = put (unit * 14.0f);
+                L.keyDown = put (unit * 10.0f);
+                L.keyUp   = put (unit * 10.0f);
+                L.slip    = put (unit * 10.0f);
+            }
+            const auto diameter = juce::jmin (r.getWidth(), r.getHeight());
+            L.platter = Rectangle<float> (diameter, diameter).withCentre (r.getCentre());
+            L.header = {};
+            L.artInner = L.artOuter = L.artHeader = {};
+
+            // SYNC  CUE  PAUSA  PLAY
+            {
+                const auto cellW = transport.getWidth() / 4.0f;
+                Rectangle<float>* cells[] = { &L.sync, &L.cue, &L.pause, &L.play };
+                for (int i = 0; i < 4; ++i)
                 {
-                    L.keyUp   = keys.removeFromRight (unit * 11.0f);  keys.removeFromRight (gapKeys);
-                    L.keyDown = keys.removeFromRight (unit * 11.0f);  keys.removeFromRight (gapKeys);
-                    L.keyLock = keys.removeFromRight (unit * 16.0f);  keys.removeFromRight (gapKeys * 3.0f);
-                    L.vinyl   = keys.removeFromRight (unit * 13.0f);  keys.removeFromRight (gapKeys);
-                    L.slip    = keys.removeFromRight (unit * 11.0f);  keys.removeFromRight (gapKeys);
-                    L.shift   = keys.removeFromRight (unit * 13.0f);
-                }
-                else
-                {
-                    L.keyLock = keys.removeFromLeft (unit * 16.0f);  keys.removeFromLeft (gapKeys);
-                    L.keyDown = keys.removeFromLeft (unit * 11.0f);  keys.removeFromLeft (gapKeys);
-                    L.keyUp   = keys.removeFromLeft (unit * 11.0f);  keys.removeFromLeft (gapKeys * 3.0f);
-                    L.vinyl   = keys.removeFromLeft (unit * 13.0f);  keys.removeFromLeft (gapKeys);
-                    L.slip    = keys.removeFromLeft (unit * 11.0f);  keys.removeFromLeft (gapKeys);
-                    L.shift   = keys.removeFromLeft (unit * 13.0f);
+                    const auto idx = L.mirrored ? 3 - i : i;   // en el deck 2, PLAY queda del lado de afuera
+                    juce::ignoreUnused (idx);
+                    auto cell = transport.withWidth (cellW).withX (transport.getX() + cellW * (float) i);
+                    *cells[L.mirrored ? i : i] = cell.reduced (unit * 0.9f, unit * 1.0f);
                 }
             }
 
-            auto platterArea = r.removeFromTop (r.getHeight() * 0.66f);
-            const auto diameter = juce::jmin (platterArea.getWidth(), platterArea.getHeight()) * 0.96f;
-            L.platter = Rectangle<float> (diameter, diameter).withCentre (platterArea.getCentre());
+            // Columna lateral: [CUE / SHIFT / VINYL | perilla], modos y pads 2x2.
+            auto head = side.removeFromTop (side.getHeight() * 0.27f);
+            auto buttons = L.mirrored ? head.removeFromRight (head.getWidth() * 0.46f) : head.removeFromLeft (head.getWidth() * 0.46f);
+            L.chCue      = buttons.removeFromTop (buttons.getHeight() * 0.36f).reduced (unit * 0.3f, unit * 0.2f);
+            L.chCueLabel = buttons.removeFromTop (unit * 3.2f);
+            auto pills = buttons.reduced (unit * 0.3f, unit * 0.2f);
+            L.shift = pills.removeFromTop (pills.getHeight() * 0.5f).reduced (0.0f, unit * 0.35f);
+            L.vinyl = pills.reduced (0.0f, unit * 0.35f);
+            L.sideKnobRadius = juce::jmin (head.getWidth() * 0.2f, head.getHeight() * 0.26f);
+            L.sideKnobCentre = { head.getCentreX(), head.getY() + L.sideKnobRadius * 1.32f + unit * 0.8f };
 
-            // Zonas amarillas libres a los costados del plato y en el encabezado.
-            const auto leftZone  = platterArea.withRight (L.platter.getX()).reduced (unit * 1.2f, unit * 1.0f);
-            const auto rightZone = platterArea.withLeft (L.platter.getRight()).reduced (unit * 1.2f, unit * 1.0f);
-            L.artOuter = L.mirrored ? rightZone : leftZone;
-            L.artInner = L.mirrored ? leftZone : rightZone;
-            L.artHeader = L.mirrored ? L.header.withLeft (L.keyUp.getRight() + unit * 2.0f).withTrimmedRight (unit * 38.0f)
-                                     : L.header.withRight (L.keyLock.getX() - unit * 2.0f).withTrimmedLeft (unit * 38.0f);
-            L.artHeader = L.artHeader.reduced (0.0f, unit * 0.5f);
+            side.removeFromTop (unit * 1.0f);
+            auto modes = side.removeFromTop (unit * 12.5f);
+            const auto colW = modes.getWidth() / 2.0f;
+            auto modeRow1 = modes.removeFromTop (unit * 7.0f);
+            auto modeRow2 = modes.reduced (0.0f, unit * 0.4f);
+            // Botones de modo: 0 HOT CUE, 1 FX, 2 SAMPLER, 3 LOOP (FX y LOOP abajo, más chicos).
+            L.modes[0] = modeRow1.withWidth (colW).reduced (unit * 0.6f, 0.0f);
+            L.modes[2] = modeRow1.withTrimmedLeft (colW).reduced (unit * 0.6f, 0.0f);
+            L.modes[1] = modeRow2.withWidth (colW).reduced (unit * 2.6f, 0.0f);
+            L.modes[3] = modeRow2.withTrimmedLeft (colW).reduced (unit * 2.6f, 0.0f);
 
-            r.removeFromTop (unit * 2.0f);
-            auto transport = L.mirrored ? r.removeFromRight (r.getWidth() * 0.44f) : r.removeFromLeft (r.getWidth() * 0.44f);
-            if (L.mirrored) r.removeFromRight (unit * 2.0f); else r.removeFromLeft (unit * 2.0f);
-
-            const auto btnD  = juce::jmin (transport.getWidth() / 4.2f, transport.getHeight() * 0.9f);
-            const auto cellW = transport.getWidth() / 4.0f;
-            Rectangle<float>* cells[] = { &L.sync, &L.cue, &L.pause, &L.play };
+            side.removeFromTop (unit * 0.6f);
+            const auto padSide = juce::jmin (side.getWidth() / 2.0f, side.getHeight() / 2.0f);
+            const auto grid = Rectangle<float> (padSide * 2.0f, padSide * 2.0f).withCentre (side.getCentre());
             for (int i = 0; i < 4; ++i)
-            {
-                const auto cell = transport.withWidth (cellW).withX (transport.getX() + cellW * (float) i);
-                *cells[i] = Rectangle<float> (btnD, btnD).withCentre (cell.getCentre());
-            }
-
-            auto modes = r.removeFromTop (r.getHeight() * 0.3f);
-            const auto modeW = modes.getWidth() / 4.0f;
-            for (int i = 0; i < 4; ++i)
-                L.modes[(size_t) i] = modes.withWidth (modeW).withX (modes.getX() + modeW * (float) i).reduced (unit * 0.5f, unit * 0.6f);
-
-            r.removeFromTop (unit * 1.0f);
-            const auto padW = r.getWidth() / 4.0f;
-            for (int i = 0; i < 4; ++i)
-            {
-                auto cell = r.withWidth (padW).withX (r.getX() + padW * (float) i).reduced (unit * 0.6f);
-                const auto side = juce::jmin (cell.getWidth(), cell.getHeight());
-                L.pads[(size_t) i] = cell.withSizeKeepingCentre (cell.getWidth(), side);
-            }
+                L.pads[(size_t) i] = Rectangle<float> (padSide, padSide)
+                                         .withPosition (grid.getX() + padSide * (float) (i % 2), grid.getY() + padSide * (float) (i / 2))
+                                         .reduced (unit * 0.9f);
         }
 
-        // --- Mixer -----------------------------------------------------------------------
+        // --- Mixer (centro) -----------------------------------------------------------------
         auto& M = mixer;
         M.panel = inner;
         auto area = inner.reduced (unit * 1.5f);
         M.title = area.removeFromTop (unit * 5.0f);
+
+        // MASTER (deck 1) y HEADPHONES (deck 2) van en las columnas laterales, como en la referencia.
+        M.masterCentre = deckLayouts[0].sideKnobCentre;
+        M.phonesCentre = deckLayouts[1].sideKnobCentre;
+        M.masterRadius = deckLayouts[0].sideKnobRadius;
+        M.cueButtons[0] = deckLayouts[0].chCue;
+        M.cueButtons[1] = deckLayouts[1].chCue;
 
         auto xfaderArea = area.removeFromBottom (unit * 15.5f);
         // [AUTO MIX] [==== crossfader ====] [perilla MIX]
@@ -618,31 +646,23 @@ namespace kb::ui
         for (int ch = 0; ch < 2; ++ch)
         {
             auto s = strips[ch];
-            auto knobs = s.removeFromTop (s.getHeight() * 0.64f);
+            auto knobs = s.removeFromTop (s.getHeight() * 0.68f);
             const auto rowH = knobs.getHeight() / 5.0f;
             M.eqRadius = juce::jmin (rowH * 0.21f, s.getWidth() * 0.2f) * 1.4f;   // 40 % más grandes
             for (int i = 0; i < 5; ++i)
                 M.eqCentres[(size_t) ch][(size_t) i] = { knobs.getX() + knobs.getWidth() * (ch == 0 ? 0.68f : 0.32f),
                                                          knobs.getY() + rowH * ((float) i + 0.5f) };
-
-            auto cueArea = s.removeFromTop (s.getHeight() * 0.2f);
-            M.cueButtons[(size_t) ch] = cueArea.withSizeKeepingCentre (s.getWidth() * 0.6f, juce::jmin (cueArea.getHeight() * 0.7f, unit * 5.0f));
-            M.faders[(size_t) ch] = s.reduced (s.getWidth() * 0.3f, 0.0f).withTrimmedTop (unit * 0.8f);
+            M.faders[(size_t) ch] = s.reduced (s.getWidth() * 0.3f, 0.0f).withTrimmedTop (unit * 1.2f);
         }
 
-        auto masterArea = centre.removeFromTop (centre.getHeight() * 0.27f);
-        M.masterRadius = juce::jmin (masterArea.getHeight() * 0.19f, centre.getWidth() * 0.18f) * 1.4f;
-        M.masterCentre = { masterArea.getCentreX(), masterArea.getY() + M.masterRadius * 1.32f + unit * 0.4f };
+        auto bottom = centre.removeFromBottom (centre.getHeight() * 0.36f);
+        auto splitArea = bottom.removeFromBottom (bottom.getHeight() * 0.32f);
+        M.split = splitArea.withSizeKeepingCentre (juce::jmin (splitArea.getWidth() * 0.8f, unit * 12.0f),
+                                                   juce::jmin (splitArea.getHeight() * 0.85f, unit * 4.5f));
+        M.smallRadius  = juce::jmin (bottom.getHeight() * 0.22f, centre.getWidth() * 0.2f);
+        M.cueMixCentre = { bottom.getCentreX(), bottom.getY() + M.smallRadius * 1.32f + unit * 0.6f };
 
-        auto phonesArea = centre.removeFromBottom (centre.getHeight() * 0.44f);
-        auto splitArea  = phonesArea.removeFromBottom (phonesArea.getHeight() * 0.3f);
-        M.split = splitArea.withSizeKeepingCentre (juce::jmin (splitArea.getWidth() * 0.6f, unit * 12.0f),
-                                                   juce::jmin (splitArea.getHeight() * 0.8f, unit * 4.5f));
-        M.smallRadius  = juce::jmin (phonesArea.getHeight() * 0.17f, centre.getWidth() * 0.13f) * 1.4f;
-        M.phonesCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.27f, phonesArea.getY() + M.smallRadius * 1.32f + unit * 0.6f };
-        M.cueMixCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.73f, M.phonesCentre.y };
-
-        auto meters = centre.reduced (centre.getWidth() * 0.28f, unit * 1.0f).withTrimmedBottom (unit * 3.2f);
+        auto meters = centre.reduced (centre.getWidth() * 0.26f, unit * 0.5f).withTrimmedBottom (unit * 3.2f);
         const auto mW = meters.getWidth() * 0.4f;
         M.meterL = meters.withWidth (mW);
         M.meterR = meters.withTrimmedLeft (meters.getWidth() - mW);
@@ -657,6 +677,7 @@ namespace kb::ui
         if (background.isNull() || ! juce::exactlyEqual (scale, backgroundScale))
             renderBackground (scale);
 
+        g.setOpacity (1.0f);
         g.drawImage (background, getLocalBounds().toFloat());
         paintDropOverlay (g);
     }
@@ -664,8 +685,8 @@ namespace kb::ui
     void ControllerView::renderBackground (float scale)
     {
         backgroundScale = scale;
-        background = juce::Image (juce::Image::RGB, juce::jmax (1, juce::roundToInt ((float) getWidth() * scale)),
-                                  juce::jmax (1, juce::roundToInt ((float) getHeight() * scale)), false);
+        background = juce::Image (juce::Image::ARGB, juce::jmax (1, juce::roundToInt ((float) getWidth() * scale)),
+                                  juce::jmax (1, juce::roundToInt ((float) getHeight() * scale)), true);
         juce::Graphics g (background);
         g.addTransform (juce::AffineTransform::scale (scale));
         paintBackground (g);
@@ -673,46 +694,7 @@ namespace kb::ui
 
     void ControllerView::paintBackground (Graphics& g) const
     {
-        g.fillAll (panelDark);
-
-        // Chasis amarillo con sombreado 3D (será un render PNG en la Fase 7)
-        juce::Path chassisPath;
-        chassisPath.addRoundedRectangle (chassis, unit * 3.0f);
-        juce::DropShadow (juce::Colours::black.withAlpha (0.7f), juce::roundToInt (unit * 2.5f), { 0, juce::roundToInt (unit) })
-            .drawForPath (g, chassisPath);
-
-        juce::ColourGradient grad (chassisLight, 0.0f, chassis.getY(), chassisShadow, 0.0f, chassis.getBottom(), false);
-        grad.addColour (0.35, palette::chassis);
-        g.setGradientFill (grad);
-        g.fillPath (chassisPath);
-        // Diseño tribal polinesio solo sobre el amarillo de los decks 1 y 2, en negro
-        // con 25 % de opacidad (la mitad del primer intento, pedido del usuario).
-        // Las piezas se superponen: se pintan opacas en una máscara y la máscara se
-        // aplica una sola vez al 50 % (así los cruces no se oscurecen de más).
-        {
-            const auto sc = juce::jmax (1.0f, backgroundScale);
-            const auto bounds = chassis.getSmallestIntegerContainer();
-            juce::Image mask (juce::Image::SingleChannel, juce::jmax (1, juce::roundToInt ((float) bounds.getWidth() * sc)),
-                              juce::jmax (1, juce::roundToInt ((float) bounds.getHeight() * sc)), true);
-            {
-                juce::Graphics mg (mask);
-                mg.addTransform (juce::AffineTransform::translation ((float) -bounds.getX(), (float) -bounds.getY()).scaled (sc));
-                mg.setColour (juce::Colours::white);
-                for (const auto& piece : tribal::polynesian (chassis, unit * 30.0f, 3))
-                    mg.fillPath (piece);
-            }
-            juce::Graphics::ScopedSaveState save (g);
-            g.reduceClipRegion (chassisPath);
-            g.excludeClipRegion (mixer.panel.expanded (unit * 0.5f).getSmallestIntegerContainer());   // solo amarillo
-            g.setColour (juce::Colours::black.withAlpha (0.25f));
-            g.drawImageTransformed (mask, juce::AffineTransform::scale (1.0f / sc).translated ((float) bounds.getX(), (float) bounds.getY()), true);
-        }
-
-        g.setColour (juce::Colours::white.withAlpha (0.35f));
-        g.drawRoundedRectangle (chassis.reduced (unit * 0.4f), unit * 2.8f, juce::jmax (1.0f, unit * 0.25f));
-        g.setColour (chassisShadow.darker (0.4f));
-        g.drawRoundedRectangle (chassis, unit * 3.0f, juce::jmax (1.0f, unit * 0.2f));
-
+        // Transparente: el chasis amarillo lo pinta la ventana (MainComponent).
         for (int d = 0; d < 2; ++d)
             paintDeck (g, deckLayouts[(size_t) d], d);
         paintMixer (g);
@@ -731,44 +713,89 @@ namespace kb::ui
 
     void ControllerView::paintDeck (Graphics& g, const DeckLayout& L, int deckIndex) const
     {
-        const auto textH  = unit * 3.2f;
-        const auto accent = deckColour (deckIndex);
+        const auto ink = textOnChassis;
 
-        // TEMPO (Fase 3)
-        draw::text (g, tr ("deck.tempo"), L.tempoLabel, textH * 0.95f, textOnChassis);
-        g.setColour (panelDark.withAlpha (0.85f));
-        g.fillRoundedRectangle (L.tempoSlot, unit * 1.2f);
-        // Marcas de "-" arriba y "+" abajo (el fader es un componente).
-        draw::text (g, "-", L.tempoSlot.withHeight (unit * 3.0f).translated (0.0f, -unit * 0.2f), unit * 3.0f, textSecondary);
-        draw::text (g, "+", L.tempoSlot.withTrimmedTop (L.tempoSlot.getHeight() - unit * 3.0f), unit * 3.0f, textSecondary);
-
-        // "DECK 1" / "DECK 2" en neón celeste con sombreado 3D.
+        // --- Regla de TEMPO (serigrafía negra sobre el amarillo) --------------------------
         {
-            const auto titleW = unit * 36.0f;
-            const auto title = L.mirrored ? L.header.withLeft (L.header.getRight() - titleW) : L.header.withWidth (titleW);
-            draw::neonText (g, tr ("deck.name", { { "n", juce::String (deckIndex + 1) } }), title.reduced (0.0f, unit * 0.3f),
-                            juce::Colour (0xff5fd7ff), L.mirrored ? Justification::centredRight : Justification::centredLeft);
+            const auto& slotR = L.tempoSlot;
+            const auto capH = slotR.getWidth() * 0.6f * 0.38f;
+            const auto top = slotR.getY() + capH * 0.5f + 1.0f, bottom = slotR.getBottom() - capH * 0.5f - 1.0f;
+            const auto cx = slotR.getCentreX();
+            const auto halfTrack = slotR.getWidth() * 0.6f * 0.5f;
+            for (int i = 0; i <= 16; ++i)
+            {
+                const auto y = top + (bottom - top) * (float) i / 16.0f;
+                const auto major = i % 4 == 0;
+                const auto len = slotR.getWidth() * (major ? 0.36f : 0.22f);
+                g.setColour (ink.withAlpha (major ? 0.95f : 0.7f));
+                const auto thick = juce::jmax (1.0f, unit * (major ? 0.35f : 0.22f));
+                g.fillRect (cx - halfTrack - unit * 0.6f - len, y - thick * 0.5f, len, thick);
+                g.fillRect (cx + halfTrack + unit * 0.6f, y - thick * 0.5f, len, thick);
+            }
+            const auto signH = unit * 4.0f;
+            const auto signX = L.mirrored ? slotR.getRight() - signH : slotR.getX() - unit * 0.6f;
+            draw::text (g, "-", { signX, top - signH * 0.5f, signH, signH }, signH * 0.8f, ink);
+            draw::text (g, "+", { signX, bottom - signH * 0.5f, signH, signH }, signH * 0.8f, ink);
+            draw::text (g, "0", { signX, (top + bottom) * 0.5f - signH * 0.5f, signH, signH }, signH * 0.55f, ink);
+            draw::text (g, tr ("deck.tempo"), L.tempoLabel, unit * 3.0f, ink);
         }
 
-        // Plato / jog wheel (animado en la Fase 4)
-        const auto& platter = L.platter;
-        const auto diameter = platter.getWidth();
-        const auto c = platter.getCentre();
+        // --- Plato: sombra y aro metálico (el vinilo que gira es PlatterView) ------------
+        {
+            const auto& p = L.platter;
+            juce::Path disc;
+            disc.addEllipse (p);
+            juce::DropShadow (juce::Colours::black.withAlpha (0.6f), juce::roundToInt (unit * 3.5f), { juce::roundToInt (unit * 0.6f), juce::roundToInt (unit * 1.4f) })
+                .drawForPath (g, disc);
+            g.setGradientFill (juce::ColourGradient (juce::Colour (0xff4b4f57), p.getX(), p.getY(),
+                                                     juce::Colour (0xff08090a), p.getRight(), p.getBottom(), false));
+            g.fillPath (disc);
+            g.setColour (juce::Colours::white.withAlpha (0.18f));
+            g.drawEllipse (p.reduced (1.0f), juce::jmax (1.0f, unit * 0.3f));
 
-        juce::Path disc;
-        disc.addEllipse (platter);
-        juce::DropShadow (juce::Colours::black.withAlpha (0.65f), juce::roundToInt (unit * 3.0f), { 0, juce::roundToInt (unit) })
-            .drawForPath (g, disc);
-        g.setGradientFill (juce::ColourGradient (panelEdge.brighter (0.6f), platter.getX(), platter.getY(),
-                                                 panelDark, platter.getRight(), platter.getBottom(), false));
-        g.fillPath (disc);
+            // "PWD +" y "REV -" sobre arcos, abajo a cada lado del plato.
+            const auto c = p.getCentre();
+            const auto rr = p.getWidth() * 0.5f + unit * 2.6f;
+            auto arcLabel = [&] (const juce::String& text, float angleDeg)
+            {
+                const auto a = juce::degreesToRadians (angleDeg);
+                juce::Path arc;
+                arc.addCentredArc (c.x, c.y, rr - unit * 1.4f, rr - unit * 1.4f, 0.0f, a - 0.22f, a + 0.22f, true);
+                g.setColour (ink);
+                g.strokePath (arc, juce::PathStrokeType (juce::jmax (1.0f, unit * 0.3f)));
+                juce::GlyphArrangement ga;
+                ga.addLineOfText (KbLookAndFeel::displayFont (unit * 2.6f, false), text, 0.0f, 0.0f);
+                juce::Path tp;
+                ga.createPath (tp);
+                const auto tb = tp.getBounds();
+                const auto pos = c.getPointOnCircumference (rr + unit * 0.6f, a);
+                // Texto tangente al círculo (legible: rotado a lo largo del arco).
+                const auto rot = a + (std::cos (a) < 0.0f ? juce::MathConstants<float>::pi : 0.0f) - juce::MathConstants<float>::halfPi;
+                tp.applyTransform (juce::AffineTransform::translation (-tb.getCentreX(), -tb.getCentreY())
+                                       .rotated (rot + juce::MathConstants<float>::pi * 0.5f)
+                                       .translated (pos));
+                g.fillPath (tp);
+            };
+            arcLabel ("PWD +", 220.0f);
+            arcLabel ("REV -", 140.0f);
+        }
 
-        juce::ignoreUnused (diameter, c, accent);
-        // Anillo, vinilo y etiqueta giratoria: PlatterView.
+        // --- Número del deck "(1)" -----------------------------------------------------------
+        {
+            juce::GlyphArrangement ga;
+            ga.addFittedText (KbLookAndFeel::displayFont (L.number.getHeight() * 0.95f), "(" + juce::String (deckIndex + 1) + ")",
+                              L.number.getX(), L.number.getY(), L.number.getWidth(), L.number.getHeight(),
+                              L.mirrored ? Justification::centredLeft : Justification::centredRight, 1);
+            juce::Path np;
+            ga.createPath (np);
+            g.setColour (juce::Colours::white.withAlpha (0.5f));
+            g.fillPath (np, juce::AffineTransform::translation (0.0f, 1.2f));
+            g.setColour (ink);
+            g.fillPath (np);
+        }
 
-        // SYNC, PLAY y CUE son componentes.
-
-        // Modos de pads, pads, SHIFT, SLIP y VINYL son componentes (Fase 4).
+        // "CUE" impreso debajo del botón de auriculares del canal.
+        draw::text (g, tr ("mixer.cue"), L.chCueLabel, unit * 2.6f, ink);
     }
 
     void ControllerView::paintMixer (Graphics& g) const

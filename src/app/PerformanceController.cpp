@@ -367,8 +367,8 @@ namespace kb::app
                 {
                     const auto idx = i + (m == PadMode::hotCue2 ? 4 : 0);
                     label  = juce::String (idx + 1);
-                    colour = hotCueColour (idx);
                     lit    = st.hotCues[(size_t) idx] >= 0.0;
+                    colour = lit ? hotCueColour (idx) : ui::palette::cyan;   // vacío: celeste como la referencia
                     break;
                 }
                 case PadMode::fx:
