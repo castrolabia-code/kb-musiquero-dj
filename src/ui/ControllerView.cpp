@@ -391,6 +391,7 @@ namespace kb::ui
             {
                 auto& knob = *stripKnobs[(size_t) d][(size_t) k];
                 knob.setGeometry (mixer.eqRadius, labelH);
+                knob.setLabelSide (d == 0 ? -1 : +1);   // nombre hacia afuera del mixer
                 knob.setBounds (knob.boundsForCentre (mixer.eqCentres[(size_t) d][(size_t) k]).toNearestInt());
             }
             channelCueButtons[(size_t) d]->setBounds (mixer.cueButtons[(size_t) d].expanded (mixer.cueButtons[(size_t) d].getHeight() * 0.1f).toNearestInt());
@@ -503,14 +504,14 @@ namespace kb::ui
         auto area = inner.reduced (unit * 1.5f);
         M.title = area.removeFromTop (unit * 5.0f);
 
-        auto xfaderArea = area.removeFromBottom (unit * 13.0f);
+        auto xfaderArea = area.removeFromBottom (unit * 15.5f);
         // [AUTO MIX] [==== crossfader ====] [perilla MIX]
         auto amArea = xfaderArea.removeFromLeft (xfaderArea.getWidth() * 0.25f);
         auto mtArea = xfaderArea.removeFromRight (xfaderArea.getWidth() * 0.28f);
         M.autoMix = amArea.withSizeKeepingCentre (amArea.getWidth() * 0.96f, juce::jmin (amArea.getHeight() * 0.62f, unit * 7.5f));
         M.crossfader = xfaderArea.reduced (unit * 1.2f, unit * 1.2f);
-        M.mixTimeRadius = juce::jmin (mtArea.getHeight() * 0.25f, mtArea.getWidth() * 0.2f);
-        M.mixTimeCentre = { mtArea.getCentreX(), mtArea.getY() + mtArea.getHeight() * 0.38f };
+        M.mixTimeRadius = juce::jmin (mtArea.getHeight() * 0.2f, mtArea.getWidth() * 0.2f) * 1.4f;
+        M.mixTimeCentre = { mtArea.getCentreX(), mtArea.getY() + M.mixTimeRadius * 1.32f + unit * 0.6f };
 
         const auto stripW = area.getWidth() * 0.35f;
         Rectangle<float> strips[2] = { area.removeFromLeft (stripW), area.removeFromRight (stripW) };
@@ -521,26 +522,27 @@ namespace kb::ui
             auto s = strips[ch];
             auto knobs = s.removeFromTop (s.getHeight() * 0.64f);
             const auto rowH = knobs.getHeight() / 5.0f;
-            M.eqRadius = juce::jmin (rowH * 0.21f, s.getWidth() * 0.2f);
+            M.eqRadius = juce::jmin (rowH * 0.21f, s.getWidth() * 0.2f) * 1.4f;   // 40 % más grandes
             for (int i = 0; i < 5; ++i)
-                M.eqCentres[(size_t) ch][(size_t) i] = { knobs.getCentreX(), knobs.getY() + rowH * ((float) i + 0.36f) };
+                M.eqCentres[(size_t) ch][(size_t) i] = { knobs.getX() + knobs.getWidth() * (ch == 0 ? 0.68f : 0.32f),
+                                                         knobs.getY() + rowH * ((float) i + 0.5f) };
 
             auto cueArea = s.removeFromTop (s.getHeight() * 0.2f);
             M.cueButtons[(size_t) ch] = cueArea.withSizeKeepingCentre (s.getWidth() * 0.6f, juce::jmin (cueArea.getHeight() * 0.7f, unit * 5.0f));
             M.faders[(size_t) ch] = s.reduced (s.getWidth() * 0.3f, 0.0f).withTrimmedTop (unit * 0.8f);
         }
 
-        auto masterArea = centre.removeFromTop (centre.getHeight() * 0.2f);
-        M.masterRadius = juce::jmin (masterArea.getHeight() * 0.26f, centre.getWidth() * 0.18f);
-        M.masterCentre = { masterArea.getCentreX(), masterArea.getCentreY() - unit };
+        auto masterArea = centre.removeFromTop (centre.getHeight() * 0.27f);
+        M.masterRadius = juce::jmin (masterArea.getHeight() * 0.19f, centre.getWidth() * 0.18f) * 1.4f;
+        M.masterCentre = { masterArea.getCentreX(), masterArea.getY() + M.masterRadius * 1.32f + unit * 0.4f };
 
-        auto phonesArea = centre.removeFromBottom (centre.getHeight() * 0.36f);
+        auto phonesArea = centre.removeFromBottom (centre.getHeight() * 0.44f);
         auto splitArea  = phonesArea.removeFromBottom (phonesArea.getHeight() * 0.3f);
         M.split = splitArea.withSizeKeepingCentre (juce::jmin (splitArea.getWidth() * 0.6f, unit * 12.0f),
                                                    juce::jmin (splitArea.getHeight() * 0.8f, unit * 4.5f));
-        M.smallRadius  = juce::jmin (phonesArea.getHeight() * 0.24f, centre.getWidth() * 0.13f);
-        M.phonesCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.27f, phonesArea.getCentreY() - unit * 1.2f };
-        M.cueMixCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.73f, phonesArea.getCentreY() - unit * 1.2f };
+        M.smallRadius  = juce::jmin (phonesArea.getHeight() * 0.17f, centre.getWidth() * 0.13f) * 1.4f;
+        M.phonesCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.27f, phonesArea.getY() + M.smallRadius * 1.32f + unit * 0.6f };
+        M.cueMixCentre = { phonesArea.getX() + phonesArea.getWidth() * 0.73f, M.phonesCentre.y };
 
         auto meters = centre.reduced (centre.getWidth() * 0.28f, unit * 1.0f).withTrimmedBottom (unit * 3.2f);
         const auto mW = meters.getWidth() * 0.4f;
@@ -585,37 +587,25 @@ namespace kb::ui
         grad.addColour (0.35, palette::chassis);
         g.setGradientFill (grad);
         g.fillPath (chassisPath);
-        // Trama tribal muy suave en todo el chasis.
+        // Diseño tribal polinesio sobre todo el chasis (decks 1 y 2), negro al 50 %.
+        // Las piezas se superponen: se pintan opacas en una máscara y la máscara se
+        // aplica una sola vez al 50 % (así los cruces no se oscurecen de más).
         {
+            const auto sc = juce::jmax (1.0f, backgroundScale);
+            const auto bounds = chassis.getSmallestIntegerContainer();
+            juce::Image mask (juce::Image::SingleChannel, juce::jmax (1, juce::roundToInt ((float) bounds.getWidth() * sc)),
+                              juce::jmax (1, juce::roundToInt ((float) bounds.getHeight() * sc)), true);
+            {
+                juce::Graphics mg (mask);
+                mg.addTransform (juce::AffineTransform::translation ((float) -bounds.getX(), (float) -bounds.getY()).scaled (sc));
+                mg.setColour (juce::Colours::white);
+                for (const auto& piece : tribal::polynesian (chassis, unit * 30.0f, 3))
+                    mg.fillPath (piece);
+            }
             juce::Graphics::ScopedSaveState save (g);
             g.reduceClipRegion (chassisPath);
-            g.setColour (juce::Colours::black.withAlpha (0.12f));
-            g.fillPath (tribal::texture (chassis, unit * 11.0f));
-        }
-
-        // Tribales negros tipo grafiti en las zonas libres de cada deck, con una
-        // sombra suave que los "despega" del amarillo.
-        auto paintTribal = [&] (const juce::Path& p)
-        {
-            g.setColour (chassisShadow.darker (0.3f).withAlpha (0.55f));
-            g.fillPath (p, juce::AffineTransform::translation (unit * 0.35f, unit * 0.45f));
-            g.setColour (juce::Colours::black.withAlpha (0.9f));
-            g.fillPath (p);
-        };
-        int seed = 1;
-        for (const auto& L : deckLayouts)
-        {
-            // Diseños libres y asimétricos, cada uno distinto, que llenan las zonas libres.
-            for (auto zone : { L.artOuter, L.artInner })
-            {
-                ++seed;
-                if (zone.getWidth() < unit * 6.0f || zone.getHeight() < unit * 12.0f)
-                    continue;
-                paintTribal (tribal::sweep (zone.expanded (unit * 0.8f), seed, (seed % 2) == 0));
-            }
-            // Encabezado: banda tribal fina entre el título y los botones.
-            if (L.artHeader.getWidth() > unit * 14.0f)
-                paintTribal (tribal::band (L.artHeader.withSizeKeepingCentre (L.artHeader.getWidth(), unit * 3.2f)));
+            g.setColour (juce::Colours::black.withAlpha (0.5f));
+            g.drawImageTransformed (mask, juce::AffineTransform::scale (1.0f / sc).translated ((float) bounds.getX(), (float) bounds.getY()), true);
         }
 
         g.setColour (juce::Colours::white.withAlpha (0.35f));

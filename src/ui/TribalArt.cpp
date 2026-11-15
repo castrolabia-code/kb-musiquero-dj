@@ -197,4 +197,134 @@ namespace kb::ui::tribal
         }
         return p;
     }
+    // =========================================================================
+    //  Diseño polinesio de relleno total
+    // =========================================================================
+    namespace
+    {
+        Point<float> polar (Point<float> c, float r, float a) { return { c.x + r * std::sin (a), c.y - r * std::cos (a) }; }
+
+        /** Medialuna: entre un arco de radio r y otro que se mete hasta 'maxW' en el medio. */
+        Path crescent (Point<float> c, float r, float a0, float a1, float maxW)
+        {
+            constexpr int steps = 48;
+            Path p;
+            p.startNewSubPath (polar (c, r, a0));
+            for (int i = 1; i <= steps; ++i)
+                p.lineTo (polar (c, r, a0 + (a1 - a0) * (float) i / steps));
+            for (int i = steps; i >= 0; --i)
+            {
+                const auto t = (float) i / steps;
+                p.lineTo (polar (c, r - maxW * std::sin (kPi * t), a0 + (a1 - a0) * t));
+            }
+            p.closeSubPath();
+            return p;
+        }
+
+        /** Banda de dientes: dos arcos finos y triángulos entre ellos. */
+        void toothArc (std::vector<Path>& out, Point<float> c, float rIn, float rOut, float a0, float a1, int n, float line)
+        {
+            for (auto r : { rIn, rOut })
+            {
+                Path arc;
+                arc.addCentredArc (c.x, c.y, r, r, 0.0f, a0, a1, true);
+                Path stroke;
+                juce::PathStrokeType (line, juce::PathStrokeType::curved, juce::PathStrokeType::rounded).createStrokedPath (stroke, arc);
+                out.push_back (stroke);
+            }
+            const auto gap = (rOut - rIn) * 0.18f;
+            for (int i = 0; i < n; ++i)
+            {
+                const auto t0 = a0 + (a1 - a0) * (float) i / (float) n;
+                const auto t1 = a0 + (a1 - a0) * (float) (i + 1) / (float) n;
+                Path tri;
+                tri.addTriangle (polar (c, rIn + gap * 0.3f, t0), polar (c, rIn + gap * 0.3f, t1),
+                                 polar (c, rOut - gap, (t0 + t1) * 0.5f));
+                out.push_back (tri);
+            }
+        }
+
+        /** Trazo que se afina en las dos puntas, siguiendo una curva cuadrática. */
+        Path swoosh (Point<float> p0, Point<float> ctrl, Point<float> p1, float maxW)
+        {
+            constexpr int steps = 40;
+            juce::Array<Point<float>> left, right;
+            for (int i = 0; i <= steps; ++i)
+            {
+                const auto t = (float) i / steps;
+                const auto u = 1.0f - t;
+                const auto pt = p0 * (u * u) + ctrl * (2.0f * u * t) + p1 * (t * t);
+                auto d = (ctrl - p0) * (2.0f * u) + (p1 - ctrl) * (2.0f * t);
+                const auto len = std::sqrt (d.x * d.x + d.y * d.y);
+                d = len > 0.0f ? d / len : Point<float> (1.0f, 0.0f);
+                const auto w = maxW * 0.5f * std::pow (juce::jmax (0.0f, std::sin (kPi * t)), 0.8f);
+                left.add  ({ pt.x - d.y * w, pt.y + d.x * w });
+                right.add ({ pt.x + d.y * w, pt.y - d.x * w });
+            }
+            Path p;
+            p.startNewSubPath (left[0]);
+            for (int i = 1; i < left.size(); ++i) p.lineTo (left[i]);
+            for (int i = right.size() - 1; i >= 0; --i) p.lineTo (right[i]);
+            p.closeSubPath();
+            return p;
+        }
+    }
+
+    std::vector<Path> polynesian (Rectangle<float> area, float S, int seed)
+    {
+        std::vector<Path> out;
+        juce::Random rng ((juce::int64) seed * 7919 + 17);
+        const auto rows = (int) std::ceil (area.getHeight() / (S * 0.86f)) + 2;
+        const auto cols = (int) std::ceil (area.getWidth() / S) + 2;
+
+        // Centros con algo de desorden (que no parezca una grilla).
+        std::vector<std::vector<Point<float>>> centres ((size_t) rows);
+        std::vector<std::vector<float>> radii ((size_t) rows);
+        for (int i = 0; i < rows; ++i)
+            for (int j = 0; j < cols; ++j)
+            {
+                const auto x = area.getX() + ((float) j - 0.5f + (i % 2) * 0.5f) * S + (rng.nextFloat() - 0.5f) * S * 0.35f;
+                const auto y = area.getY() + ((float) i - 0.5f) * S * 0.86f + (rng.nextFloat() - 0.5f) * S * 0.3f;
+                centres[(size_t) i].push_back ({ x, y });
+                radii[(size_t) i].push_back (S * (0.26f + rng.nextFloat() * 0.12f));
+            }
+
+        for (int i = 0; i < rows; ++i)
+            for (int j = 0; j < cols; ++j)
+            {
+                const auto c = centres[(size_t) i][(size_t) j];
+                const auto R = radii[(size_t) i][(size_t) j];
+                const auto dir = rng.nextBool() ? 1.0f : -1.0f;
+                const auto a = rng.nextFloat() * 2.0f * kPi;
+
+                // Espiral principal, gruesa.
+                out.push_back (koru (c, R, 1.8f + rng.nextFloat() * 0.4f, a, dir, R * 0.34f));
+                // Medialuna que la abraza.
+                const auto span = kPi * (1.0f + rng.nextFloat() * 0.45f);
+                out.push_back (crescent (c, R * 1.5f, a, a + span, R * 0.42f));
+                // Banda de dientes del otro lado.
+                const auto tStart = a + span + 0.25f;
+                toothArc (out, c, R * 1.2f, R * 1.6f, tStart, tStart + kPi * 0.6f, 7, juce::jmax (1.0f, R * 0.09f));
+
+                // Espina larga hacia el vecino de la derecha o de abajo.
+                const auto ni = rng.nextBool() ? i : i + 1;
+                const auto nj = ni == i ? j + 1 : j;
+                if (ni < rows && nj < cols)
+                {
+                    const auto n = centres[(size_t) ni][(size_t) nj];
+                    const auto mid = (c + n) * 0.5f;
+                    const auto d = n - c;
+                    const auto bend = (rng.nextFloat() - 0.5f) * 0.9f;
+                    const Point<float> ctrl (mid.x - d.y * bend, mid.y + d.x * bend);
+                    out.push_back (swoosh (c + d * 0.22f, ctrl, n - d * 0.22f, S * 0.17f));
+                }
+
+                // Relleno: espiral chica y espina en los huecos.
+                const auto f = c + Point<float> (S * 0.5f, S * 0.43f);
+                out.push_back (koru (f, S * 0.12f, 1.6f, rng.nextFloat() * 6.0f, -dir, S * 0.05f));
+                out.push_back (thorn ({ f.x - S * 0.22f, f.y - S * 0.2f }, { f.x - S * 0.14f, f.y - S * 0.25f },
+                                      { f.x + S * 0.2f, f.y - S * 0.36f }, 0.35f * dir));
+            }
+        return out;
+    }
 } // namespace kb::ui::tribal

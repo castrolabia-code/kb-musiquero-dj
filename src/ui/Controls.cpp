@@ -121,6 +121,15 @@ namespace kb::ui
     juce::Rectangle<float> KbKnob::boundsForCentre (juce::Point<float> centre) const
     {
         const auto arc = radius * 1.32f;
+        if (labelSide != 0)
+        {
+            // Perilla a un costado y el nombre al lado (la perilla queda en 'centre').
+            const auto labelW = labelHeight * 4.2f;
+            const auto w = arc * 2.0f + 6.0f + labelW;
+            const auto h = arc * 2.0f + 6.0f;
+            const auto x = labelSide < 0 ? centre.x - arc - 3.0f - labelW : centre.x - arc - 3.0f;
+            return { x, centre.y - h * 0.5f, w, h };
+        }
         const auto w = juce::jmax (radius * 5.0f, arc * 2.0f + 4.0f);
         const auto top = arc + 3.0f;
         const auto h = top + arc + labelHeight * 1.8f;
@@ -130,8 +139,19 @@ namespace kb::ui
     void KbKnob::paint (juce::Graphics& g)
     {
         const auto arc = radius * 1.32f;
+        const auto label = labelFormatter ? labelFormatter (getValue()) : tr (labelKey);
+        if (labelSide != 0)
+        {
+            const auto w = (float) getWidth(), h = (float) getHeight();
+            const juce::Point<float> c (labelSide < 0 ? w - arc - 3.0f : arc + 3.0f, h * 0.5f);
+            draw::knob (g, c, radius, (float) valueToProportionOfLength (getValue()), {}, labelHeight, bipolar);
+            const auto labelArea = labelSide < 0 ? juce::Rectangle<float> (0.0f, 0.0f, w - arc * 2.0f - 8.0f, h)
+                                                 : juce::Rectangle<float> (arc * 2.0f + 8.0f, 0.0f, w - arc * 2.0f - 8.0f, h);
+            draw::text (g, label, labelArea, labelHeight, palette::textSecondary,
+                        labelSide < 0 ? juce::Justification::centredRight : juce::Justification::centredLeft);
+            return;
+        }
         const juce::Point<float> centre (getWidth() * 0.5f, arc + 3.0f);
-        draw::knob (g, centre, radius, (float) valueToProportionOfLength (getValue()),
-                    labelFormatter ? labelFormatter (getValue()) : tr (labelKey), labelHeight, bipolar);
+        draw::knob (g, centre, radius, (float) valueToProportionOfLength (getValue()), label, labelHeight, bipolar);
     }
 } // namespace kb::ui

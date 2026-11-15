@@ -6,6 +6,8 @@
 // =============================================================================
 #include <juce_graphics/juce_graphics.h>
 
+#include <vector>
+
 namespace kb::ui::tribal
 {
     /** Espiral que se afina hacia el centro. dir = +1 horario, -1 antihorario. */
@@ -27,6 +29,13 @@ namespace kb::ui::tribal
 
     /** Esquinero: espiral + espinas que siguen los dos bordes. quadrant: 0 sup-izq, 1 sup-der, 2 inf-der, 3 inf-izq. */
     juce::Path corner (juce::Rectangle<float> area, int quadrant);
+
+    /** Diseño polinesio que cubre todo el rectángulo (espirales grandes, medialunas,
+        bandas con dientes triangulares y espinas que unen las espirales). Devuelve
+        piezas sueltas que se superponen: pintarlas todas opacas dentro de una capa
+        con transparencia (así las uniones no se oscurecen de más). 'cell' = tamaño
+        aproximado de cada espiral grande. */
+    std::vector<juce::Path> polynesian (juce::Rectangle<float> area, float cell, int seed);
 
     /** Trama de fondo (espirales y espinas repetidas) para usar con poca opacidad. */
     juce::Path texture (juce::Rectangle<float> area, float cell);

@@ -79,6 +79,8 @@ namespace kb::ui
 
         /** Arco desde el centro (EQ, GAIN, FILTER). */
         void setBipolar (bool b) { bipolar = b; repaint(); }
+        /** Dónde va el nombre: 0 debajo (por defecto), -1 a la izquierda, +1 a la derecha. */
+        void setLabelSide (int side) { labelSide = side; repaint(); }
         /** Etiqueta que depende del valor (p. ej. "MIX 10 s"). Si no se define, se usa la clave. */
         void setLabelFormatter (std::function<juce::String (double)> f) { labelFormatter = std::move (f); repaint(); }
         /** Tamaño que necesita el componente para la geometría dada. */
@@ -91,5 +93,6 @@ namespace kb::ui
         std::function<juce::String (double)> labelFormatter;
         float radius = 12.0f, labelHeight = 8.0f;
         bool bipolar = false;
+        int labelSide = 0;
     };
 } // namespace kb::ui

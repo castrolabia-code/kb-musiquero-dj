@@ -3,6 +3,12 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.6.1] — Diseño tribal polinesio y perillas más grandes
+
+### Cambiado
+- **Diseño tribal polinesio** (espirales grandes, medialunas, bandas con dientes triangulares y espinas) que cubre **todo el chasis de los decks 1 y 2**, en negro al **50 % de transparencia**. Es un diseño propio generado por código (no usa imágenes de terceros) y se ve nítido en cualquier resolución.
+- **Perillas 40 % más grandes** (GAIN, HIGH, MID, LOW, FILTER, MASTER, PHONES, CUE MIX y MIX). En las tiras de canal el nombre va al costado de la perilla para que entre todo.
+
 ## [0.6.0] — Pedidos del usuario: AUTO MIX, Borrar lista y nuevo diseño
 
 ### Agregado
