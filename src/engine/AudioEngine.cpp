@@ -70,6 +70,7 @@ namespace kb::engine
             d.prepare (config.sampleRate, block);
         for (auto& s : strips)
             s.prepare (config.sampleRate);
+        sampler.prepare (config.sampleRate);
         masterLimiter.prepare (config.sampleRate);
         phonesLimiter.prepare (config.sampleRate);
 
@@ -129,6 +130,75 @@ namespace kb::engine
     }
 
     void AudioEngine::ejectTrack (int deck) { loadTrack (deck, nullptr); }
+
+    // =========================================================================
+    //  Performance (Fase 4)
+    // =========================================================================
+    bool AudioEngine::sendDeck (Command::Type type, int deck, double value, int index)
+    {
+        if (! juce::isPositiveAndBelow (deck, kNumDecks))
+            return false;
+        Command c;
+        c.type  = type;
+        c.deck  = (std::int8_t) deck;
+        c.value = value;
+        c.index = (std::int8_t) index;
+        return send (c);
+    }
+
+    void AudioEngine::hotCue (int d, int i)                    { sendDeck (Command::Type::hotCue, d, 0.0, i); }
+    void AudioEngine::setHotCue (int d, int i, double seconds) { sendDeck (Command::Type::setHotCue, d, seconds, i); }
+    void AudioEngine::autoLoop (int d, double beats)           { sendDeck (Command::Type::autoLoop, d, beats); }
+    void AudioEngine::loopRoll (int d, double beats, bool on)  { sendDeck (Command::Type::loopRoll, d, beats, on ? 1 : 0); }
+    void AudioEngine::loopIn (int d)                           { sendDeck (Command::Type::loopIn, d); }
+    void AudioEngine::loopOut (int d)                          { sendDeck (Command::Type::loopOut, d); }
+    void AudioEngine::loopHalve (int d)                        { sendDeck (Command::Type::loopHalve, d); }
+    void AudioEngine::loopDouble (int d)                       { sendDeck (Command::Type::loopDouble, d); }
+    void AudioEngine::loopExit (int d)                         { sendDeck (Command::Type::loopExit, d); }
+    void AudioEngine::setSlip (int d, bool on)                 { sendDeck (Command::Type::slip, d, 0.0, on ? 1 : 0); }
+    void AudioEngine::setReverse (int d, bool on)              { sendDeck (Command::Type::reverse, d, 0.0, on ? 1 : 0); }
+    void AudioEngine::setDeckEffect (int d, Deck::Effect e, bool on) { sendDeck (Command::Type::effect, d, on ? 1.0 : 0.0, (int) e); }
+    void AudioEngine::scratchBegin (int d)                     { sendDeck (Command::Type::scratchBegin, d); }
+    void AudioEngine::scratchMove (int d, double seconds)      { sendDeck (Command::Type::scratchMove, d, seconds); }
+    void AudioEngine::scratchEnd (int d)                       { sendDeck (Command::Type::scratchEnd, d); }
+    void AudioEngine::nudge (int d, double amount)             { sendDeck (Command::Type::nudge, d, amount); }
+
+    bool AudioEngine::loadSample (int slot, std::shared_ptr<TrackBuffer> sample)
+    {
+        if (! juce::isPositiveAndBelow (slot, Sampler::kNumSlots))
+            return false;
+        Command c;
+        c.type  = Command::Type::sampleLoad;
+        c.index = (std::int8_t) slot;
+        c.track = sample.get();
+        if (! send (c))
+            return false;
+        if (sample != nullptr)
+            liveTracks.push_back (std::move (sample));
+        return true;
+    }
+
+    void AudioEngine::triggerSample (int slot)
+    {
+        if (juce::isPositiveAndBelow (slot, Sampler::kNumSlots))
+        {
+            Command c;
+            c.type = Command::Type::sampleTrigger;
+            c.index = (std::int8_t) slot;
+            send (c);
+        }
+    }
+
+    void AudioEngine::stopSample (int slot)
+    {
+        if (juce::isPositiveAndBelow (slot, Sampler::kNumSlots))
+        {
+            Command c;
+            c.type = Command::Type::sampleStop;
+            c.index = (std::int8_t) slot;
+            send (c);
+        }
+    }
 
     void AudioEngine::play (int deck)       { if (juce::isPositiveAndBelow (deck, kNumDecks)) send ({ Command::Type::play,       (std::int8_t) deck, nullptr, 0.0 }); }
     void AudioEngine::pause (int deck)      { if (juce::isPositiveAndBelow (deck, kNumDecks)) send ({ Command::Type::pause,      (std::int8_t) deck, nullptr, 0.0 }); }
@@ -296,7 +366,10 @@ namespace kb::engine
 
                     // Corrección suave de fase (corrige la deriva en ~2 s, máximo ±1 %).
                     double error = 0.0;
-                    if (deck.isPlaying() && decks[(size_t) (1 - d)].isPlaying() && syncPhaseError (d, ratio, error)
+                    if (deck.isPlaying() && decks[(size_t) (1 - d)].isPlaying()
+                        && ! deck.isManipulated() && ! decks[(size_t) (1 - d)].isManipulated()
+                        && ! deck.isLooping()
+                        && syncPhaseError (d, ratio, error)
                         && std::abs (error) > 0.001 && sr > 0.0)
                     {
                         const auto beatsPerSecond = ts->getBpm() * ratio / 60.0;
@@ -517,6 +590,25 @@ namespace kb::engine
                 break;
             case Command::Type::autoMixStart: beginAutoMix (c.value); break;
             case Command::Type::autoMixStop:  endAutoMix (false);     break;
+            case Command::Type::hotCue:       d.hotCue (c.index);                 break;
+            case Command::Type::setHotCue:    d.setHotCue (c.index, c.value);     break;
+            case Command::Type::autoLoop:     d.autoLoop (c.value);               break;
+            case Command::Type::loopRoll:     d.loopRoll (c.value, c.index != 0); break;
+            case Command::Type::loopIn:       d.loopInPoint();                    break;
+            case Command::Type::loopOut:      d.loopOutPoint();                   break;
+            case Command::Type::loopHalve:    d.loopHalve();                      break;
+            case Command::Type::loopDouble:   d.loopDouble();                     break;
+            case Command::Type::loopExit:     d.loopExit();                       break;
+            case Command::Type::slip:         d.setSlip (c.index != 0);           break;
+            case Command::Type::reverse:      d.setReverse (c.index != 0);        break;
+            case Command::Type::effect:       d.setEffect ((Deck::Effect) c.index, c.value > 0.5); break;
+            case Command::Type::scratchBegin: d.scratchBegin();                   break;
+            case Command::Type::scratchMove:  d.scratchMove (c.value);            break;
+            case Command::Type::scratchEnd:   d.scratchEnd();                     break;
+            case Command::Type::nudge:        d.nudge (c.value);                  break;
+            case Command::Type::sampleLoad:    sampler.load (c.index, c.track);   break;
+            case Command::Type::sampleTrigger: sampler.trigger (c.index);         break;
+            case Command::Type::sampleStop:    sampler.stop (c.index);            break;
         }
     }
 
@@ -530,6 +622,12 @@ namespace kb::engine
                     return;   // cola llena: se reintenta en el próximo bloque
                 d.dropRetired();
             }
+        }
+        while (auto* t = sampler.peekRetired())
+        {
+            if (! released.push (t))
+                return;
+            sampler.dropRetired();
         }
     }
 
@@ -585,6 +683,11 @@ namespace kb::engine
             strips[(size_t) d].process (L, R, n, p);
         }
 
+        // 1b) Sampler (va directo al bus master, antes del volumen MASTER).
+        juce::FloatVectorOperations::clear (W[samplerL], n);
+        juce::FloatVectorOperations::clear (W[samplerR], n);
+        sampler.render (W[samplerL], W[samplerR], n);
+
         // 2) Ganancias objetivo.
         float xA = 1.0f, xB = 1.0f;
         // Durante el AUTO MIX siempre curva suave (con "corte" el pase sería brusco).
@@ -610,6 +713,7 @@ namespace kb::engine
         const auto* bL = W[deck2L]; const auto* bR = W[deck2R];
         auto* mL = W[masterL]; auto* mR = W[masterR];
         auto* pL = W[phonesL]; auto* pR = W[phonesR];
+        const auto* sL = W[samplerL]; const auto* sR = W[samplerR];
 
         float masterPeakBeforeLimiter = 0.0f;
         for (int i = 0; i < n; ++i)
@@ -623,8 +727,8 @@ namespace kb::engine
             const auto mc = smoothedMixCue.getNextValue();
             const auto mm = smoothedMixMaster.getNextValue();
 
-            const auto busL = aL[i] * gA + bL[i] * gB;   // master antes del volumen MASTER
-            const auto busR = aR[i] * gA + bR[i] * gB;
+            const auto busL = aL[i] * gA + bL[i] * gB + sL[i];   // master antes del volumen MASTER
+            const auto busR = aR[i] * gA + bR[i] * gB + sR[i];
             const auto cueBusL = aL[i] * cA + bL[i] * cB;
             const auto cueBusR = aR[i] * cA + bR[i] * cB;
 

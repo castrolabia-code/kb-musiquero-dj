@@ -6,6 +6,7 @@
 add_library(kb_engine STATIC
     AudioEngine.h       AudioEngine.cpp
     Deck.h              Deck.cpp
+    Sampler.h           Sampler.cpp
     TrackBuffer.h       TrackBuffer.cpp
     TrackLoader.h       TrackLoader.cpp
     AudioFileFormats.h  AudioFileFormats.cpp

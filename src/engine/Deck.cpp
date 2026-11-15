@@ -41,7 +41,12 @@ namespace kb::engine
         }
     };
 
-    Deck::Deck() = default;
+    Deck::Deck()
+    {
+        hotCues.fill (-1.0);
+        for (auto& h : pubHotCues)
+            h.store (-1.0, std::memory_order_relaxed);
+    }
     Deck::~Deck() = default;
 
     void Deck::prepare (double sr, int maxBlockSize)
@@ -54,6 +59,12 @@ namespace kb::engine
         main.ratio  = ratioFor (main.track);
         ghost.ratio = ratioFor (ghost.track);
 
+        // Scratch: la posición sigue a la mano con un "resorte" (~12 ms) suavizado (~4 ms).
+        scratchK      = 1.0 / (0.012 * engineSampleRate);
+        scratchSmooth = std::exp (-1.0 / (0.004 * engineSampleRate));
+        brakeStep     = 1.0 / (kBrakeSeconds * engineSampleRate);
+        spinDecay     = std::exp (-1.0 / (0.45 * engineSampleRate));
+
         stretcher = std::make_unique<Stretcher>();
         stretcher->allocate (engineSampleRate, maxBlockSize);
         appliedTranspose = 1000.0f;
@@ -64,15 +75,8 @@ namespace kb::engine
     {
         keyLock  = lock;
         keyShift = shift;
-        const auto active = stretcher != nullptr && (lock || std::abs (shift) > 0.01f);
-        if (active != stretchActive)
-        {
-            // Cambio de modo sonando: fundido entre el modo viejo y el nuevo.
-            startGhost();
-            mainGain = 0.0f;
-            stretchActive = active;
-            needPrime = true;
-        }
+        // El cambio efectivo de modo (con fundido) se hace en render().
+        stretchActive = stretcher != nullptr && (lock || std::abs (shift) > 0.01f);
     }
 
     double Deck::stretchLead() const noexcept
@@ -80,13 +84,13 @@ namespace kb::engine
         if (stretcher == nullptr)
             return 0.0;
         const auto& s = stretcher->engine;
-        return ((double) s.inputLatency() + rate * (double) s.outputLatency()) * main.ratio;
+        return ((double) s.inputLatency() + effRate * (double) s.outputLatency()) * main.ratio;
     }
 
     void Deck::prime() noexcept
     {
         auto& st = *stretcher;
-        const auto length = std::min (st.maxSeek, st.engine.outputSeekLength ((float) rate));
+        const auto length = std::min (st.maxSeek, st.engine.outputSeekLength ((float) effRate));
         const auto decoded = main.track->getDecodedFrames();
         for (int i = 0; i < length; ++i)
             readFrame (*main.track, decoded, main.pos + i * main.ratio, st.seekL[(size_t) i], st.seekR[(size_t) i]);
@@ -102,7 +106,7 @@ namespace kb::engine
 
         // Tono: con Key Lock solo el corrimiento pedido; sin Key Lock (solo key
         // shift) también el cambio de tono natural de la velocidad, como un vinilo.
-        const auto transpose = keyShift + (keyLock ? 0.0f : 12.0f * (float) std::log2 (rate));
+        const auto transpose = keyShift + (keyLock ? 0.0f : 12.0f * (float) std::log2 (effRate));
         if (std::abs (transpose - appliedTranspose) > 0.001f)
         {
             st.engine.setTransposeSemitones (transpose);
@@ -112,7 +116,7 @@ namespace kb::engine
         if (needPrime)
             prime();
 
-        inputFraction += n * rate;
+        inputFraction += n * effRate;
         const auto inCount = std::min (st.maxIn, (int) inputFraction);
         inputFraction -= inCount;
 
@@ -120,12 +124,19 @@ namespace kb::engine
         if (stretchReadPos + inCount * main.ratio + 2.0 >= (double) decoded && ! main.track->isComplete())
             return false;
 
+        // La entrada del stretch también respeta el loop (el stretch suaviza la unión).
         for (int i = 0; i < inCount; ++i)
-            readFrame (*main.track, decoded, stretchReadPos + i * main.ratio, st.inL[(size_t) i], st.inR[(size_t) i]);
-        stretchReadPos += inCount * main.ratio;
+        {
+            if (loopActive && loopValid() && stretchReadPos >= loopOut)
+                stretchReadPos = loopIn + std::fmod (stretchReadPos - loopOut, loopOut - loopIn);
+            readFrame (*main.track, decoded, stretchReadPos, st.inL[(size_t) i], st.inR[(size_t) i]);
+            stretchReadPos += main.ratio;
+        }
 
         st.engine.process (st.in, inCount, st.out, std::min (n, st.maxOut));
         main.pos = stretchReadPos - stretchLead();
+        if (loopActive && loopValid() && main.pos < loopIn && stretchReadPos >= loopIn && stretchReadPos < loopOut)
+            main.pos += loopOut - loopIn;   // lo que se escucha todavía es el final del loop
         return true;
     }
 
@@ -163,7 +174,7 @@ namespace kb::engine
     // =========================================================================
     void Deck::startGhost() noexcept
     {
-        const bool audible = playing && main.track != nullptr && mainGain > 0.0f;
+        const bool audible = (playing || scratching) && main.track != nullptr && mainGain > 0.0f;
         if (! audible)
             return;
 
@@ -171,10 +182,14 @@ namespace kb::engine
         if (ghostRemaining > 0)
             endGhost();
 
+        ++ghostSerial;
         ghost          = main;
+        // El fantasma puede nacer a mitad de bloque (salto de loop): su largo
+        // decodificado se toma acá, no en la foto del comienzo del bloque.
+        ghostDecoded   = main.track->getDecodedFrames();
         ghostRate      = rate;
-        ghostGain      = mainGain;
-        ghostStep      = mainGain / (float) fadeLength;
+        ghostGain      = mainGain * (usingStretch ? 1.0f : motionGain);
+        ghostStep      = ghostGain / (float) fadeLength;
         ghostRemaining = fadeLength;
     }
 
@@ -213,6 +228,13 @@ namespace kb::engine
         mainGain   = 0.0f;
         cuePoint   = 0.0;
         needPrime  = true;
+        hotCues.fill (-1.0);
+        loopActive = rolling = manualInPending = false;
+        loopIn = loopOut = -1.0;
+        slipTracking = false;
+        reverse = scratching = false;
+        effect = Effect::none;
+        bend = bendTarget = 0.0;
         publish();
     }
 
@@ -306,15 +328,361 @@ namespace kb::engine
             return;
 
         const auto length = (double) main.track->getLengthFrames();
-        const auto target = std::floor (juce::jlimit (0.0, length, seconds * main.track->getSampleRate()));
+        jumpTo (std::floor (juce::jlimit (0.0, length, seconds * main.track->getSampleRate())));
+    }
 
-        if (playing)
+    void Deck::jumpTo (double frames) noexcept
+    {
+        if (playing || scratching)
         {
             startGhost();
             mainGain = 0.0f;
         }
-        main.pos = target;
+        if (scratching)
+            scratchTarget += frames - main.pos;
+        main.pos = std::max (0.0, frames);
         needPrime = true;
+    }
+
+    // =========================================================================
+    //  Hot cues
+    // =========================================================================
+    void Deck::hotCue (int index) noexcept
+    {
+        if (main.track == nullptr || ! juce::isPositiveAndBelow (index, kNumHotCues))
+            return;
+
+        auto& cue = hotCues[(size_t) index];
+        if (cue < 0.0)
+        {
+            cue = std::floor (main.pos);   // vacío: se graba acá
+            publish();
+            return;
+        }
+
+        // Saltar fuera del loop activo lo cierra (si no, el loop lo traería de vuelta).
+        if (loopActive && (cue < loopIn || cue >= loopOut))
+            loopActive = false;
+
+        jumpTo (cue);
+        if (! playing)
+            play();
+        cuePreview = false;
+        publish();
+    }
+
+    void Deck::setHotCue (int index, double seconds) noexcept
+    {
+        if (! juce::isPositiveAndBelow (index, kNumHotCues))
+            return;
+        hotCues[(size_t) index] = (seconds < 0.0 || main.track == nullptr) ? -1.0
+                                                                            : std::floor (seconds * main.track->getSampleRate());
+        publish();
+    }
+
+    // =========================================================================
+    //  Loops
+    // =========================================================================
+    double Deck::framesPerBeat() const noexcept
+    {
+        if (main.track == nullptr)
+            return 0.0;
+        const auto bpm = main.track->getBpm() > 0.0 ? main.track->getBpm() : 120.0;
+        return 60.0 / bpm * main.track->getSampleRate();
+    }
+
+    void Deck::setLoop (double inFrames, double beats) noexcept
+    {
+        loopIn     = std::max (0.0, inFrames);
+        loopOut    = loopIn + std::max (16.0, beats * framesPerBeat());
+        loopBeats  = beats;
+        loopActive = true;
+        manualInPending = false;
+        // Si ya pasamos el final (loop achicado), volver adentro con fundido.
+        if (main.pos >= loopOut)
+            jumpTo (loopIn + std::fmod (main.pos - loopIn, loopOut - loopIn));
+    }
+
+    void Deck::autoLoop (double beats) noexcept
+    {
+        if (main.track == nullptr)
+            return;
+        beats = juce::jlimit (kMinLoopBeats, kMaxLoopBeats, beats);
+
+        if (loopActive && ! rolling)
+        {
+            if (std::abs (loopBeats - beats) < 1.0e-9)
+            {
+                loopExit();   // mismo tamaño: el botón apaga el loop
+                return;
+            }
+            setLoop (loopIn, beats);   // otro tamaño: cambia el largo desde el mismo inicio
+            publish();
+            return;
+        }
+
+        // Inicio cuantizado a la grilla (al beat, o a la fracción de beat si el loop es corto).
+        const auto spb  = framesPerBeat();
+        const auto unit = spb * std::min (1.0, beats);
+        auto in = main.pos;
+        if (main.track->getBpm() > 0.0 && unit > 0.0)
+        {
+            const auto first = main.track->getFirstBeatSeconds() * main.track->getSampleRate();
+            in = first + std::floor ((main.pos - first) / unit + 1.0e-6) * unit;
+        }
+        setLoop (in, beats);
+        updateSlip();
+        publish();
+    }
+
+    void Deck::loopRoll (double beats, bool on) noexcept
+    {
+        if (main.track == nullptr)
+            return;
+        if (on)
+        {
+            rolling = false;
+            loopActive = false;
+            rolling = true;
+            updateSlip();   // la posición fantasma arranca ANTES de saltar
+            const auto unit = framesPerBeat() * std::min (1.0, beats);
+            auto in = main.pos;
+            if (main.track->getBpm() > 0.0 && unit > 0.0)
+            {
+                const auto first = main.track->getFirstBeatSeconds() * main.track->getSampleRate();
+                in = first + std::floor ((main.pos - first) / unit + 1.0e-6) * unit;
+            }
+            setLoop (in, juce::jlimit (kMinLoopBeats, kMaxLoopBeats, beats));
+        }
+        else if (rolling)
+        {
+            rolling = false;
+            loopActive = false;
+            updateSlip();   // vuelve a donde habría estado
+        }
+        publish();
+    }
+
+    void Deck::loopInPoint() noexcept
+    {
+        if (main.track == nullptr)
+            return;
+        loopActive = false;
+        loopIn = std::floor (main.pos);
+        loopOut = -1.0;
+        manualInPending = true;
+        updateSlip();
+        publish();
+    }
+
+    void Deck::loopOutPoint() noexcept
+    {
+        if (main.track == nullptr)
+            return;
+        if (loopActive)
+        {
+            loopExit();
+            return;
+        }
+        if (manualInPending && main.pos > loopIn + 16.0)
+        {
+            loopOut = std::floor (main.pos);
+            const auto spb = framesPerBeat();
+            loopBeats = spb > 0.0 ? (loopOut - loopIn) / spb : 0.0;
+            loopActive = true;
+            manualInPending = false;
+            jumpTo (loopIn);
+        }
+        else if (loopValid())
+        {
+            loopActive = true;   // reloop
+            jumpTo (loopIn);
+        }
+        updateSlip();
+        publish();
+    }
+
+    void Deck::loopHalve() noexcept
+    {
+        if (! loopValid())
+            return;
+        const auto len = (loopOut - loopIn) * 0.5;
+        if (len < framesPerBeat() * kMinLoopBeats * 0.99)
+            return;
+        loopOut = loopIn + len;
+        loopBeats *= 0.5;
+        if (loopActive && main.pos >= loopOut)
+            jumpTo (loopIn + std::fmod (main.pos - loopIn, len));
+        publish();
+    }
+
+    void Deck::loopDouble() noexcept
+    {
+        if (! loopValid() || main.track == nullptr)
+            return;
+        const auto len = (loopOut - loopIn) * 2.0;
+        if (len > framesPerBeat() * kMaxLoopBeats * 1.01 || loopIn + len > (double) main.track->getLengthFrames())
+            return;
+        loopOut = loopIn + len;
+        loopBeats *= 2.0;
+        publish();
+    }
+
+    void Deck::loopExit() noexcept
+    {
+        loopActive = false;
+        rolling = false;
+        updateSlip();
+        publish();
+    }
+
+    // =========================================================================
+    //  Slip, reversa y efectos
+    // =========================================================================
+    void Deck::updateSlip() noexcept
+    {
+        const bool needed = rolling || effect == Effect::censor || effect == Effect::backspin
+                            || (slipMode && (scratching || loopActive || reverse));
+        if (needed && ! slipTracking)
+        {
+            slipTracking = true;
+            slipPos = main.pos;
+        }
+        else if (! needed && slipTracking)
+        {
+            slipTracking = false;
+            if (playing)
+                jumpTo (slipPos);
+        }
+    }
+
+    void Deck::setSlip (bool on) noexcept
+    {
+        slipMode = on;
+        updateSlip();
+        publish();
+    }
+
+    void Deck::setReverse (bool on) noexcept
+    {
+        if (reverse == on)
+            return;
+        startGhost();          // fundido entre la dirección vieja y la nueva
+        mainGain = 0.0f;
+        reverse = on;
+        updateSlip();
+        publish();
+    }
+
+    void Deck::setEffect (Effect e, bool on) noexcept
+    {
+        if (main.track == nullptr)
+            return;
+        if (on)
+        {
+            if (! playing || cuePreview)
+                return;
+            if (effect != Effect::none)
+                setEffect (effect, false);
+            effect = e;
+            brakeSpeed = 1.0;
+            spinSpeed = -3.0;   // el backspin arranca a 3x hacia atrás y frena solo
+            if (e == Effect::censor)
+            {
+                startGhost();
+                mainGain = 0.0f;
+            }
+            updateSlip();
+        }
+        else if (effect == e)
+        {
+            effect = Effect::none;
+            // Al soltar: el freno sigue desde donde quedó; backspin y censor vuelven
+            // (slip) a donde la pista habría estado.
+            if (e == Effect::brake || e == Effect::censor)
+            {
+                startGhost();
+                mainGain = 0.0f;
+            }
+            updateSlip();
+        }
+        publish();
+    }
+
+    // =========================================================================
+    //  Plato
+    // =========================================================================
+    void Deck::scratchBegin() noexcept
+    {
+        if (main.track == nullptr || scratching)
+            return;
+        scratching    = true;
+        scratchTarget = main.pos;
+        scratchVel    = playing ? main.ratio * effRate : 0.0;   // la mano frena el disco suavemente
+        cuePreview    = false;
+        updateSlip();
+        publish();
+    }
+
+    void Deck::scratchMove (double seconds) noexcept
+    {
+        if (! scratching || main.track == nullptr)
+            return;
+        const auto length = (double) main.track->getLengthFrames();
+        scratchTarget = juce::jlimit (0.0, std::max (0.0, length), scratchTarget + seconds * main.track->getSampleRate());
+    }
+
+    void Deck::scratchEnd() noexcept
+    {
+        if (! scratching)
+            return;
+        scratching = false;
+        if (! playing)
+            mainGain = std::min (mainGain, 1.0f);
+        needPrime = true;
+        updateSlip();
+        publish();
+    }
+
+    void Deck::nudge (double amount) noexcept
+    {
+        bendTarget = juce::jlimit (-0.3, 0.3, amount);
+    }
+
+    double Deck::nextAdvance() noexcept
+    {
+        if (scratching)
+        {
+            const auto maxV = main.ratio * 8.0;
+            const auto want = juce::jlimit (-maxV, maxV, (scratchTarget - main.pos) * scratchK);
+            scratchVel = scratchVel * scratchSmooth + want * (1.0 - scratchSmooth);
+            return scratchVel;
+        }
+        switch (effect)
+        {
+            case Effect::brake:
+                brakeSpeed = std::max (0.0, brakeSpeed - brakeStep);
+                return main.ratio * effRate * brakeSpeed * (reverse ? -1.0 : 1.0);
+            case Effect::backspin:
+                spinSpeed *= spinDecay;
+                return main.ratio * spinSpeed;
+            case Effect::censor:
+                return -main.ratio * effRate;
+            case Effect::none:
+                break;
+        }
+        return main.ratio * effRate * (reverse ? -1.0 : 1.0);
+    }
+
+    void Deck::wrapLoop (double previousPos, double advance) noexcept
+    {
+        if (! loopActive || ! loopValid())
+            return;
+        const auto len = loopOut - loopIn;
+        if (advance > 0.0 && main.pos >= loopOut && previousPos < loopOut)
+            jumpTo (loopIn + std::fmod (main.pos - loopOut, len));
+        else if (advance < 0.0 && main.pos < loopIn && previousPos >= loopIn)
+            jumpTo (loopOut - std::fmod (loopIn - main.pos, len));
     }
 
     // =========================================================================
@@ -352,7 +720,7 @@ namespace kb::engine
     void Deck::render (float* left, float* right, int numSamples) noexcept
     {
         // Snapshots por bloque (los atómicos se leen una sola vez).
-        std::int64_t mainDecoded = 0, mainLength = 0, ghostDecoded = 0;
+        std::int64_t mainDecoded = 0, mainLength = 0;
         bool mainComplete = false;
         if (main.track != nullptr)
         {
@@ -362,10 +730,30 @@ namespace kb::engine
         }
         if (ghost.track != nullptr)
             ghostDecoded = ghost.track->getDecodedFrames();
+        else
+            ghostDecoded = 0;
 
-        // Key Lock / key shift: el bloque principal sale del time-stretch.
+        // Pitch bend: se desvanece solo si no se sigue empujando el plato.
+        const auto blockSeconds = numSamples / engineSampleRate;
+        bend += (bendTarget - bend) * std::min (1.0, blockSeconds / 0.03);
+        bendTarget *= std::exp (-blockSeconds / 0.15);
+        if (std::abs (bendTarget) < 1.0e-4 && std::abs (bend) < 1.0e-4)
+            bend = bendTarget = 0.0;
+        effRate = rate * (1.0 + bend);
+
+        // Key Lock / key shift: el bloque sale del time-stretch, salvo durante
+        // scratch, reversa o efectos (tienen que sonar como un vinilo).
+        const bool wantStretch = stretchActive && ! isManipulated();
+        if (wantStretch != usingStretch)
+        {
+            startGhost();
+            mainGain = 0.0f;
+            usingStretch = wantStretch;
+            needPrime = true;
+        }
+
         bool stretchedBlock = false;
-        if (stretchActive && playing && main.track != nullptr && numSamples <= stretcher->maxOut
+        if (usingStretch && playing && main.track != nullptr && numSamples <= stretcher->maxOut
             && ! (mainComplete && main.pos >= (double) mainLength))
         {
             stretchedBlock = renderStretched (numSamples, mainDecoded);
@@ -376,9 +764,14 @@ namespace kb::engine
             }
         }
 
+        // Posición "fantasma" del slip: avanza como si nada se hubiera tocado.
+        if (slipTracking && playing)
+            slipPos += numSamples * main.ratio * rate;
+
         for (int n = 0; n < numSamples; ++n)
         {
             float outL = 0.0f, outR = 0.0f;
+            const auto serialAtStart = ghostSerial;
 
             if (stretchedBlock)
             {
@@ -387,17 +780,21 @@ namespace kb::engine
                 if (mainGain < 1.0f)
                     mainGain = std::min (1.0f, mainGain + fadeStep);
             }
-            else if (playing && main.track != nullptr && ! stretchActive)
+            else if ((playing || scratching) && main.track != nullptr && ! usingStretch)
             {
-                if (mainComplete && main.pos >= (double) mainLength)
+                const auto advance = nextAdvance();
+                if (! scratching && advance >= 0.0 && mainComplete && main.pos >= (double) mainLength)
                 {
                     // Fin de la pista.
                     playing    = false;
                     cuePreview = false;
                     mainGain   = 0.0f;
                     main.pos   = (double) mainLength;
+                    effect     = Effect::none;
+                    loopActive = false;
+                    slipTracking = false;
                 }
-                else if (main.pos + 2.0 >= (double) mainDecoded && ! mainComplete)
+                else if (main.pos + 2.0 >= (double) mainDecoded && ! mainComplete && advance >= 0.0)
                 {
                     // Todavía no se decodificó esta parte: esperar sin avanzar y
                     // volver a entrar con fundido cuando llegue el audio.
@@ -405,17 +802,27 @@ namespace kb::engine
                 }
                 else
                 {
+                    // Disco casi quieto (scratch con la mano quieta, fin del freno): silencio
+                    // gradual en vez de un nivel de continua fijo.
+                    const auto speed = std::abs (advance) / main.ratio;
+                    const auto motionTarget = (float) std::min (1.0, speed * 8.0);
+                    motionGain += (motionTarget - motionGain) * 0.005f;
+
                     float l, r;
                     readFrame (*main.track, mainDecoded, main.pos, l, r);
-                    outL += l * mainGain;
-                    outR += r * mainGain;
-                    main.pos += main.ratio * rate;
+                    outL += l * mainGain * motionGain;
+                    outR += r * mainGain * motionGain;
+                    const auto previous = main.pos;
+                    main.pos = std::max (0.0, main.pos + advance);
+                    if (mainComplete)
+                        main.pos = std::min (main.pos, (double) mainLength);
+                    wrapLoop (previous, advance);
                     if (mainGain < 1.0f)
                         mainGain = std::min (1.0f, mainGain + fadeStep);
                 }
             }
 
-            if (ghostRemaining > 0)
+            if (ghostRemaining > 0 && ghostSerial == serialAtStart)
             {
                 float l, r;
                 readFrame (*ghost.track, ghostDecoded, ghost.pos, l, r);
@@ -432,7 +839,7 @@ namespace kb::engine
         }
 
         // Fin de la pista también en modo Key Lock.
-        if (stretchActive && playing && main.track != nullptr && mainComplete && main.pos >= (double) mainLength)
+        if (usingStretch && playing && main.track != nullptr && mainComplete && main.pos >= (double) mainLength)
         {
             playing    = false;
             cuePreview = false;
@@ -454,6 +861,18 @@ namespace kb::engine
         pubCuePreview.store (cuePreview, std::memory_order_relaxed);
         pubPosition.store (main.pos / sr, std::memory_order_relaxed);
         pubCue.store (cuePoint / sr, std::memory_order_relaxed);
+        for (int i = 0; i < kNumHotCues; ++i)
+            pubHotCues[(size_t) i].store (hotCues[(size_t) i] < 0.0 ? -1.0 : hotCues[(size_t) i] / sr, std::memory_order_relaxed);
+        pubLoopActive.store (loopActive, std::memory_order_relaxed);
+        pubLoopIn.store (loopIn < 0.0 ? -1.0 : loopIn / sr, std::memory_order_relaxed);
+        pubLoopOut.store (loopOut < 0.0 ? -1.0 : loopOut / sr, std::memory_order_relaxed);
+        pubSlipMode.store (slipMode, std::memory_order_relaxed);
+        pubSlipping.store (slipTracking, std::memory_order_relaxed);
+        pubSlip.store (slipPos / sr, std::memory_order_relaxed);
+        pubReverse.store (reverse, std::memory_order_relaxed);
+        pubScratching.store (scratching, std::memory_order_relaxed);
+        pubRolling.store (rolling, std::memory_order_relaxed);
+        pubEffect.store ((int) effect, std::memory_order_relaxed);
     }
 
     Deck::Status Deck::getStatus() const noexcept
@@ -464,6 +883,18 @@ namespace kb::engine
         s.cuePreview      = pubCuePreview.load (std::memory_order_relaxed);
         s.positionSeconds = pubPosition.load (std::memory_order_relaxed);
         s.cueSeconds      = pubCue.load (std::memory_order_relaxed);
+        for (int i = 0; i < kNumHotCues; ++i)
+            s.hotCues[(size_t) i] = pubHotCues[(size_t) i].load (std::memory_order_relaxed);
+        s.loopActive     = pubLoopActive.load (std::memory_order_relaxed);
+        s.loopInSeconds  = pubLoopIn.load (std::memory_order_relaxed);
+        s.loopOutSeconds = pubLoopOut.load (std::memory_order_relaxed);
+        s.slipMode       = pubSlipMode.load (std::memory_order_relaxed);
+        s.slipping       = pubSlipping.load (std::memory_order_relaxed);
+        s.slipSeconds    = pubSlip.load (std::memory_order_relaxed);
+        s.reverse        = pubReverse.load (std::memory_order_relaxed);
+        s.scratching     = pubScratching.load (std::memory_order_relaxed);
+        s.rolling        = pubRolling.load (std::memory_order_relaxed);
+        s.effect         = pubEffect.load (std::memory_order_relaxed);
         return s;
     }
 } // namespace kb::engine

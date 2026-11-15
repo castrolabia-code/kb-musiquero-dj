@@ -12,6 +12,7 @@ add_executable(kb_tests
     KeyTests.cpp
     KeyLockTests.cpp
     AutoMixTests.cpp
+    PerformanceTests.cpp
     SyncTests.cpp
     AppCoreTests.cpp
     I18nTests.cpp)

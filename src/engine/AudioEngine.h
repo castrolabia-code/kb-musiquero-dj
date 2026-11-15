@@ -32,6 +32,7 @@
 #include "engine/Deck.h"
 #include "engine/LockFreeQueue.h"
 #include "engine/MeterSource.h"
+#include "engine/Sampler.h"
 #include "engine/RealtimeChecks.h"
 #include "engine/TrackBuffer.h"
 #include "engine/dsp/Limiter.h"
@@ -87,6 +88,35 @@ namespace kb::engine
         void cueDown (int deck);
         void cueUp (int deck);
         void seek (int deck, double seconds);
+
+        // --- Performance (Fase 4) ------------------------------------------------------------
+        void hotCue (int deck, int index);
+        /** Graba (seconds >= 0) o borra (seconds < 0) un hot cue. */
+        void setHotCue (int deck, int index, double seconds);
+        void autoLoop (int deck, double beats);
+        void loopRoll (int deck, double beats, bool on);
+        void loopIn (int deck);
+        void loopOut (int deck);
+        void loopHalve (int deck);
+        void loopDouble (int deck);
+        void loopExit (int deck);
+        void setSlip (int deck, bool on);
+        void setReverse (int deck, bool on);
+        void setDeckEffect (int deck, Deck::Effect effect, bool on);
+        void scratchBegin (int deck);
+        void scratchMove (int deck, double seconds);
+        void scratchEnd (int deck);
+        void nudge (int deck, double amount);
+
+        // --- Sampler (ranuras 0..15: 0-7 deck 1, 8-15 deck 2) ------------------------------
+        bool  loadSample (int slot, std::shared_ptr<TrackBuffer> sample);
+        void  triggerSample (int slot);
+        void  stopSample (int slot);
+        void  setSampleVolume (int slot, float gain01) noexcept   { sampler.setVolume (slot, gain01); }
+        float getSampleVolume (int slot) const noexcept           { return sampler.getVolume (slot); }
+        void  setSampleLooping (int slot, bool loop) noexcept     { sampler.setLooping (slot, loop); }
+        bool  getSampleLooping (int slot) const noexcept          { return sampler.isLooping (slot); }
+        float getSampleProgress (int slot) const noexcept         { return sampler.getProgress (slot); }
 
         // --- Tempo y SYNC ------------------------------------------------------------------
         /** Tempo en % (-50..+50). Moverlo a mano desactiva el SYNC de ese deck. */
@@ -194,15 +224,22 @@ namespace kb::engine
     private:
         struct Command
         {
-            enum class Type : std::uint8_t { load, play, pause, togglePlay, cueDown, cueUp, seek, syncOn, syncOff, autoMixStart, autoMixStop };
+            enum class Type : std::uint8_t
+            {
+                load, play, pause, togglePlay, cueDown, cueUp, seek, syncOn, syncOff, autoMixStart, autoMixStop,
+                hotCue, setHotCue, autoLoop, loopRoll, loopIn, loopOut, loopHalve, loopDouble, loopExit,
+                slip, reverse, effect, scratchBegin, scratchMove, scratchEnd, nudge,
+                sampleLoad, sampleTrigger, sampleStop
+            };
             Type         type  = Type::play;
             std::int8_t  deck  = 0;
             TrackBuffer* track = nullptr;
             double       value = 0.0;
+            std::int8_t  index = 0;    // hot cue, efecto, ranura del sampler o on/off
         };
 
         // Canales del buffer de trabajo
-        enum Bus { deck1L, deck1R, deck2L, deck2R, masterL, masterR, cueL, cueR, phonesL, phonesR, numBuses };
+        enum Bus { deck1L, deck1R, deck2L, deck2R, masterL, masterR, cueL, cueR, phonesL, phonesR, samplerL, samplerR, numBuses };
 
         bool send (const Command& c);
         void handleCommand (const Command& c) noexcept;
@@ -218,6 +255,8 @@ namespace kb::engine
 
         std::array<Deck, kNumDecks>         decks;
         std::array<ChannelStrip, kNumDecks> strips;
+        Sampler sampler;
+        bool sendDeck (Command::Type type, int deck, double value = 0.0, int index = 0);
         dsp::Limiter masterLimiter, phonesLimiter;
         std::array<MeterSource, 2> masterMeters;
 
