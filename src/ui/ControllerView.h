@@ -15,6 +15,7 @@
 #include "ui/Controls.h"
 #include "ui/LevelMeter.h"
 #include "ui/Palette.h"
+#include "ui/PlatterView.h"
 
 #include <array>
 #include <functional>
@@ -41,6 +42,9 @@ namespace kb::ui
         std::function<void (float value)>           onPhones;
         std::function<void (float value)>           onCueMix;
         std::function<void (bool on)>               onSplit;
+        /** Tempo pedido con el fader, en % (+ = más rápido). */
+        std::function<void (int deck, float percent)> onTempo;
+        std::function<void (int deck)>              onSync;
 
         // --- Estado a mostrar -------------------------------------------------------
         struct DeckLights
@@ -64,6 +68,16 @@ namespace kb::ui
         void setCueMix (float value);
         void setSplit (bool on);
 
+        /** Tempo actual en % (lo puede cambiar el SYNC). No pisa al usuario mientras arrastra. */
+        void setTempo (int deck, float percent);
+        void setSyncLit (int deck, bool on);
+        /** Plato: llamar a cada cuadro (60 fps). */
+        void setPlatter (int deck, double positionSeconds, bool playing, bool loaded);
+        /** Fuerza regenerar el fondo cacheado (p. ej. al cambiar el idioma). */
+        void invalidateBackground();
+
+        static constexpr float kTempoRanges[3] = { 8.0f, 16.0f, 50.0f };
+
         /** Vúmetro de canal: llamar a cada cuadro (60 fps). */
         void pushChannelMeter (int deck, const engine::MeterSource::Reading& reading, float dtSeconds);
 
@@ -78,7 +92,7 @@ namespace kb::ui
     private:
         struct DeckLayout
         {
-            juce::Rectangle<float> area, tempoLabel, tempoSlot, header, platter, sync, cue, play;
+            juce::Rectangle<float> area, tempoLabel, tempoSlot, tempoRange, header, platter, sync, cue, play;
             std::array<juce::Rectangle<float>, 4> modes, pads;
             bool mirrored = false;
         };
@@ -95,6 +109,10 @@ namespace kb::ui
         };
 
         void computeLayout();
+        void renderBackground (float scale);
+        void paintBackground (juce::Graphics& g) const;
+        void paintDropOverlay (juce::Graphics& g) const;
+        void updateTempoFader (int deck);
         void paintDeck (juce::Graphics& g, const DeckLayout& d, int deckIndex) const;
         void paintMixer (juce::Graphics& g) const;
 
@@ -115,6 +133,17 @@ namespace kb::ui
         std::array<std::unique_ptr<LevelMeter>, 2> channelMeters;
         KbKnob phonesKnob { "mixer.headphones" }, cueMixKnob { "mixer.cueMix" };
         GlowButton splitButton { "mixer.split", palette::orange, false };
+
+        // Tempo, SYNC y platos (Fase 3)
+        std::array<std::unique_ptr<KbFader>, 2>     tempoFaders;
+        std::array<std::unique_ptr<GlowButton>, 2>  syncButtons, rangeButtons;
+        std::array<std::unique_ptr<PlatterView>, 2> platters;
+        std::array<int, 2>   rangeIndex { 0, 0 };
+        std::array<float, 2> tempoPercent { 0.0f, 0.0f };
+
+        // Fondo estático cacheado (chasis, mixer, etiquetas): repintar es solo copiar.
+        juce::Image background;
+        float backgroundScale = 0.0f;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ControllerView)
     };

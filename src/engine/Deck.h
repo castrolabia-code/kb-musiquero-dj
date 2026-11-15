@@ -47,6 +47,15 @@ namespace kb::engine
         void cueUp() noexcept;
         void seek (double seconds) noexcept;
 
+        /** Velocidad de reproducción (1 = normal, 1.08 = +8 %). Hilo de audio. */
+        void   setRate (double r) noexcept { rate = r; }
+        double getRate() const noexcept    { return rate; }
+
+        // Acceso directo para el hilo de audio (SYNC).
+        const TrackBuffer* getTrack() const noexcept    { return main.track; }
+        bool   isPlaying() const noexcept               { return playing; }
+        double getPositionSecondsRT() const noexcept    { return main.track != nullptr ? main.pos / main.track->getSampleRate() : 0.0; }
+
         /** Escribe n muestras (pisa el contenido) en L y R. */
         void render (float* left, float* right, int numSamples) noexcept;
 
@@ -96,6 +105,8 @@ namespace kb::engine
         Head  ghost;
         float ghostGain      = 0.0f;
         float ghostStep      = 0.0f;
+        double ghostRate     = 1.0;
+        double rate          = 1.0;
         int   ghostRemaining = 0;
 
         std::array<TrackBuffer*, kMaxRetired> retired {};

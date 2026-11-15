@@ -16,6 +16,7 @@ namespace kb::app
             idExit = 1,
             idLoadDeck1,
             idLoadDeck2,
+            idAddToLibrary,
             idOptionsAudio,
             idOptionsMixer,
             idOptionsGeneral,
@@ -24,14 +25,14 @@ namespace kb::app
         };
     }
 
-    MainWindow::MainWindow (AppSettings& s, AudioDeviceService& a, PlayerController& p)
+    MainWindow::MainWindow (AppSettings& s, AudioDeviceService& a, PlayerController& p, TrackLibrary& library)
         : juce::DocumentWindow (tr ("app.title"), ui::palette::panelDark, juce::DocumentWindow::allButtons),
           settings (s),
           audio (a),
           player (p)
     {
         setUsingNativeTitleBar (true);
-        mainComponent = new MainComponent (audio, player);
+        mainComponent = new MainComponent (audio, player, library);
         setContentOwned (mainComponent, false);
         setMenuBar (this);
 
@@ -95,6 +96,7 @@ namespace kb::app
             case 0:
                 menu.addItem (idLoadDeck1, tr ("menu.file.loadDeck", { { "n", "1" } }));
                 menu.addItem (idLoadDeck2, tr ("menu.file.loadDeck", { { "n", "2" } }));
+                menu.addItem (idAddToLibrary, tr ("menu.file.addToLibrary"));
                 menu.addSeparator();
                 menu.addItem (idExit, tr ("menu.file.exit"));
                 break;
@@ -138,6 +140,11 @@ namespace kb::app
         {
             if (mainComponent != nullptr)
                 mainComponent->openLoadDialog (menuItemID == idLoadDeck1 ? 0 : 1);
+        }
+        else if (menuItemID == idAddToLibrary)
+        {
+            if (mainComponent != nullptr)
+                mainComponent->showAddToLibraryMenu();
         }
         else if (menuItemID == idOptionsAudio)
         {

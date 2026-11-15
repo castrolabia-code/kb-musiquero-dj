@@ -4,11 +4,13 @@
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include "app/AnalysisCache.h"
 #include "app/AppSettings.h"
 #include "app/AudioDeviceService.h"
 #include "app/I18n.h"
 #include "app/MainWindow.h"
 #include "app/PlayerController.h"
+#include "app/TrackLibrary.h"
 #include "engine/AudioEngine.h"
 #include "ui/KbLookAndFeel.h"
 
@@ -44,8 +46,11 @@ namespace kb::app
             audio  = std::make_unique<AudioDeviceService> (*engine, *settings);
             const auto audioError = audio->initialise();
 
-            player = std::make_unique<PlayerController> (*engine);
-            mainWindow = std::make_unique<MainWindow> (*settings, *audio, *player);
+            const auto dataDir = AppSettings::getAppDataDirectory();
+            analysisCache = std::make_unique<AnalysisCache> (dataDir.getChildFile ("analysis.json"));
+            library = std::make_unique<TrackLibrary> (*analysisCache, dataDir.getChildFile ("library.json"));
+            player = std::make_unique<PlayerController> (*engine, *analysisCache);
+            mainWindow = std::make_unique<MainWindow> (*settings, *audio, *player, *library);
 
             // Si el audio no abrió, avisar y llevar directo a Opciones > Audio.
             if (audioError.isNotEmpty())
@@ -68,7 +73,9 @@ namespace kb::app
         void shutdown() override
         {
             mainWindow.reset();
-            player.reset();     // cancela cargas en curso
+            player.reset();     // cancela cargas y análisis en curso
+            library.reset();    // guarda la lista
+            analysisCache.reset();   // guarda los BPM analizados
 
             if (engine != nullptr && settings != nullptr)
             {
@@ -127,6 +134,8 @@ namespace kb::app
         std::unique_ptr<ui::KbLookAndFeel>    lookAndFeel;
         std::unique_ptr<engine::AudioEngine>  engine;
         std::unique_ptr<AudioDeviceService>   audio;
+        std::unique_ptr<AnalysisCache>        analysisCache;
+        std::unique_ptr<TrackLibrary>         library;
         std::unique_ptr<PlayerController>     player;
         std::unique_ptr<MainWindow>           mainWindow;
     };

@@ -3,7 +3,7 @@
 //  Placeholders del skin (Fase 0).
 //
 //  Dibujan por código, en vectorial, el MISMO layout que tendrá el skin final
-//  (sección 6): biblioteca. (El controlador y los displays de
+//  (sección 6). Hoy solo queda la barra de estado; el resto ya es real. (El controlador y los displays de
 //  los decks ya son interactivos: ui/ControllerView, ui/DeckDisplay y ui/TopBar.)
 //  Todo se calcula en proporciones del área, así que escala sin pixelado en
 //  1080p, 1440p y 4K.
@@ -15,14 +15,6 @@
 
 namespace kb::ui
 {
-    /** Biblioteca: árbol de carpetas/playlists a la izquierda y columnas de pistas. */
-    class LibraryPlaceholder final : public juce::Component
-    {
-    public:
-        LibraryPlaceholder();
-        void paint (juce::Graphics& g) override;
-    };
-
     /** Barra de estado inferior (dispositivo de audio, latencia, CPU). */
     class StatusBar final : public juce::Component
     {

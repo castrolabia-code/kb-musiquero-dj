@@ -29,14 +29,26 @@ namespace kb::ui
                + juce::String (secs).paddedLeft ('0', 2) + "." + juce::String (t);
     }
 
-    void DeckDisplay::update (std::shared_ptr<engine::TrackBuffer> t, const engine::Deck::Status& st, bool isLoading)
+    juce::String DeckDisplay::formatBpm (double bpm)
     {
-        bool changed = t != track || isLoading != loading || st.playing != status.playing
-                       || std::abs (st.cueSeconds - status.cueSeconds) > 1.0e-3;
+        return juce::String (bpm, 2);
+    }
 
-        track   = std::move (t);
-        status  = st;
-        loading = isLoading;
+    void DeckDisplay::update (std::shared_ptr<engine::TrackBuffer> t, const engine::Deck::Status& st, bool isLoading,
+                              float tempoPercent, bool isAnalysing)
+    {
+        const auto bpm = t != nullptr ? t->getBpm() * (1.0 + tempoPercent / 100.0) : 0.0;
+        bool changed = t != track || isLoading != loading || st.playing != status.playing
+                       || std::abs (st.cueSeconds - status.cueSeconds) > 1.0e-3
+                       || std::abs (bpm - shownBpm) > 0.004 || isAnalysing != analysing
+                       || std::abs (tempoPercent - tempo) > 0.004f;
+
+        track     = std::move (t);
+        status    = st;
+        loading   = isLoading;
+        analysing = isAnalysing;
+        tempo     = tempoPercent;
+        shownBpm  = bpm;
 
         // Solo cuenta como cambio lo que se ve: décimas de segundo, un píxel de
         // playhead o un 1 % más de carga.
@@ -154,7 +166,7 @@ namespace kb::ui
         draw::text (g, juce::String (deck + 1), art, art.getHeight() * 0.5f, colour);   // carátula: Fase 6
         info.removeFromLeft (h * 0.12f);
 
-        const auto lineH = info.getHeight() / 4.0f;
+        const auto lineH = info.getHeight() / 4.25f;
         const auto len = track != nullptr ? track->getLengthSeconds() : 0.0;
 
         if (track != nullptr)
@@ -170,9 +182,20 @@ namespace kb::ui
             info.removeFromTop (lineH);
         }
 
-        // BPM / KEY llegan en la Fase 3.
-        draw::text (g, tr ("wave.bpm") + " --.-    " + tr ("wave.key") + " --    +0.00%",
-                    info.removeFromTop (lineH), lineH * 0.6f, colour, Justification::centredLeft);
+        // BPM efectivo (con el tempo aplicado), tempo en % y tonalidad (Key: próxima entrega).
+        juce::String bpmText = "--";
+        if (track != nullptr && track->getBpm() > 0.0)
+            bpmText = formatBpm (shownBpm);
+        else if (analysing)
+            bpmText = "...";
+        const auto tempoText = (tempo >= 0.0f ? "+" : "") + juce::String (tempo, 2) + "%";
+
+        auto bpmLine = info.removeFromTop (lineH * 1.25f);
+        auto bpmLabel = bpmLine.removeFromLeft (lineH * 1.6f);
+        draw::text (g, tr ("wave.bpm"), bpmLabel, lineH * 0.55f, colour, Justification::centredLeft);
+        auto bpmValue = bpmLine.removeFromLeft (lineH * 3.6f);
+        draw::text (g, bpmText, bpmValue, lineH * 1.0f, textPrimary, Justification::centredLeft);
+        draw::text (g, tempoText + "   " + tr ("wave.key") + " --", bpmLine, lineH * 0.55f, colour, Justification::centredLeft);
 
         const auto timeLine = info.removeFromTop (lineH);
         draw::text (g, formatTime (status.positionSeconds) + "   " + formatTime (len - status.positionSeconds, true),

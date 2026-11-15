@@ -13,13 +13,14 @@ namespace kb::app
     class AudioDeviceService;
     class MainComponent;
     class PlayerController;
+    class TrackLibrary;
 
     class MainWindow final : public juce::DocumentWindow,
                              private juce::MenuBarModel,
                              private I18n::Listener
     {
     public:
-        MainWindow (AppSettings& settings, AudioDeviceService& audio, PlayerController& player);
+        MainWindow (AppSettings& settings, AudioDeviceService& audio, PlayerController& player, TrackLibrary& library);
         ~MainWindow() override;
 
         void closeButtonPressed() override;

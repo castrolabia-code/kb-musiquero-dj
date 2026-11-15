@@ -8,13 +8,17 @@
 //  * Si mientras tanto se pidió otra pista para el mismo deck, la vieja se
 //    descarta (gana siempre el último pedido).
 //  * Libera periódicamente las pistas que el audio ya no usa.
+//  * Analiza el BPM y la grilla de cada pista cargada (o los toma del cache).
 // =============================================================================
 #include <juce_events/juce_events.h>
 
+#include "analysis/TrackAnalyser.h"
+#include "app/AnalysisCache.h"
 #include "engine/AudioEngine.h"
 #include "engine/TrackLoader.h"
 
 #include <array>
+#include <set>
 #include <memory>
 #include <vector>
 
@@ -32,7 +36,7 @@ namespace kb::app
             virtual void trackLoadFailed (int deck, const juce::File& file, engine::LoadError error) = 0;
         };
 
-        explicit PlayerController (engine::AudioEngine& engine);
+        PlayerController (engine::AudioEngine& engine, AnalysisCache& cache);
         ~PlayerController() override;
 
         /** Carga un archivo en un deck (asincrónico). */
@@ -42,12 +46,16 @@ namespace kb::app
         std::shared_ptr<engine::TrackBuffer> getTrack (int deck) const;
         /** true entre el pedido de carga y el momento en que la pista se puede reproducir. */
         bool isLoading (int deck) const;
+        /** true mientras se calcula el BPM de la pista del deck. */
+        bool isAnalysing (int deck) const;
 
         engine::Deck::Status getStatus (int deck) const { return engine.getDeckStatus (deck); }
         engine::AudioEngine& getEngine() noexcept       { return engine; }
 
         // Transporte
         void togglePlay (int deck)              { engine.togglePlay (deck); }
+        void toggleSync (int deck)              { engine.toggleSync (deck); }
+        void setTempo (int deck, float percent) { engine.setTempo (deck, percent); }
         void cueDown (int deck)                 { engine.cueDown (deck); }
         void cueUp (int deck)                   { engine.cueUp (deck); }
         void seek (int deck, double seconds)    { engine.seek (deck, seconds); }
@@ -61,11 +69,14 @@ namespace kb::app
         void handleError (int deck, std::uint64_t request, const juce::File& file, engine::LoadError error);
 
         engine::AudioEngine& engine;
+        AnalysisCache&       cache;
         engine::TrackLoader  loader { kNumDecks };
+        analysis::TrackAnalyser analyser { "KB Deck Analysis" };
 
         std::array<std::shared_ptr<engine::TrackBuffer>, kNumDecks> tracks;
         std::array<std::uint64_t, kNumDecks> latestRequest {};
         std::array<bool, kNumDecks>          loading {};
+        std::set<std::uint64_t>              analysingIds;
         std::vector<Listener*> listeners;
 
         JUCE_DECLARE_WEAK_REFERENCEABLE (PlayerController)

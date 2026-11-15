@@ -16,6 +16,7 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 // --- Menú ---------------------------------------------------------------------
 "menu.file" = "Archivo"
 "menu.file.loadDeck" = "Cargar en Deck {n}..."
+"menu.file.addToLibrary" = "Agregar canciones a la lista..."
 "menu.file.exit" = "Salir"
 "menu.options" = "Opciones"
 "menu.options.audio" = "Audio..."
@@ -79,6 +80,9 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "deck.sync" = "SYNC"
 "deck.cue" = "CUE"
 "deck.play" = "PLAY"
+"deck.range8" = "±8%"
+"deck.range16" = "±16%"
+"deck.range50" = "±50%"
 "deck.mode.hotcue" = "HOT CUE"
 "deck.mode.fx" = "FX"
 "deck.mode.sampler" = "SAMPLER"
@@ -120,6 +124,13 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "library.col.genre" = "Género"
 "library.col.rating" = "Rating"
 "library.col.artwork" = "Carátula"
+"library.add" = "+"
+"library.addFiles" = "Agregar canciones..."
+"library.addFolder" = "Agregar una carpeta..."
+"library.remove" = "Quitar de la lista"
+"library.analysing" = "Analizando BPM: {n} pendientes"
+"library.emptyHint" = "Tocá el botón + (arriba a la izquierda) para agregar canciones, o arrastrá archivos o carpetas acá.\nDespués arrastrá una canción a un deck o hacé doble click."
+"library.col.format" = "Formato"
 
 // =============================================================================
 //  Textos internos de JUCE (selector de dispositivo de audio y errores WASAPI).

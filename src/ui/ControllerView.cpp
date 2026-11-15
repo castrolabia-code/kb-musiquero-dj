@@ -45,6 +45,47 @@ namespace kb::ui
         masterKnob.onValueChange = [this] { if (onMaster) onMaster ((float) masterKnob.getValue()); };
         addAndMakeVisible (masterKnob);
 
+        // --- Tempo, SYNC y platos (Fase 3) -------------------------------------------------
+        for (int d = 0; d < 2; ++d)
+        {
+            platters[(size_t) d] = std::make_unique<PlatterView> (d);
+            addAndMakeVisible (*platters[(size_t) d]);
+
+            auto fader = std::make_unique<KbFader> (true);
+            fader->setRange (-1.0, 1.0);
+            fader->setDoubleClickReturnValue (true, 0.0);
+            auto* rawFader = fader.get();
+            // Como en un CDJ: hacia abajo = más rápido (+), hacia arriba = más lento (-).
+            fader->onValueChange = [this, d, rawFader]
+            {
+                tempoPercent[(size_t) d] = (float) -rawFader->getValue() * kTempoRanges[rangeIndex[(size_t) d]];
+                if (onTempo) onTempo (d, tempoPercent[(size_t) d]);
+            };
+            addAndMakeVisible (*fader);
+            tempoFaders[(size_t) d] = std::move (fader);
+
+            syncButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.sync", cyan, true);
+            syncButtons[(size_t) d]->onPress = [this, d] { if (onSync) onSync (d); };
+            addAndMakeVisible (*syncButtons[(size_t) d]);
+
+            rangeButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.range8", orange, false);
+            rangeButtons[(size_t) d]->onPress = [this, d]
+            {
+                rangeIndex[(size_t) d] = (rangeIndex[(size_t) d] + 1) % 3;
+                static const char* keys[] = { "deck.range8", "deck.range16", "deck.range50" };
+                rangeButtons[(size_t) d]->setLabelKey (keys[rangeIndex[(size_t) d]]);
+                // El tempo no cambia: solo la escala del fader (más precisión con rango chico).
+                const auto range = kTempoRanges[rangeIndex[(size_t) d]];
+                if (std::abs (tempoPercent[(size_t) d]) > range)
+                {
+                    tempoPercent[(size_t) d] = juce::jlimit (-range, range, tempoPercent[(size_t) d]);
+                    if (onTempo) onTempo (d, tempoPercent[(size_t) d]);
+                }
+                updateTempoFader (d);
+            };
+            addAndMakeVisible (*rangeButtons[(size_t) d]);
+        }
+
         // --- Tiras de canal (Fase 2) --------------------------------------------------
         static const char* stripKeys[] = { "mixer.gain", "mixer.high", "mixer.mid", "mixer.low", "mixer.filter" };
         for (int d = 0; d < 2; ++d)
@@ -108,6 +149,46 @@ namespace kb::ui
     void ControllerView::setCueMix (float v)  { cueMixKnob.setValue (v, juce::dontSendNotification); }
     void ControllerView::setSplit (bool on)   { splitButton.setLit (on); }
 
+    void ControllerView::setTempo (int d, float percent)
+    {
+        if (! juce::isPositiveAndBelow (d, 2) || tempoFaders[(size_t) d]->isMouseButtonDown())
+            return;
+        if (std::abs (percent - tempoPercent[(size_t) d]) < 0.0005f)
+            return;
+
+        tempoPercent[(size_t) d] = percent;
+        // Si el SYNC pidió más que el rango actual, se agranda el rango.
+        static const char* keys[] = { "deck.range8", "deck.range16", "deck.range50" };
+        while (rangeIndex[(size_t) d] < 2 && std::abs (percent) > kTempoRanges[rangeIndex[(size_t) d]] + 1.0e-4f)
+            rangeButtons[(size_t) d]->setLabelKey (keys[++rangeIndex[(size_t) d]]);
+        updateTempoFader (d);
+    }
+
+    void ControllerView::updateTempoFader (int d)
+    {
+        const auto range = kTempoRanges[rangeIndex[(size_t) d]];
+        tempoFaders[(size_t) d]->setValue (juce::jlimit (-1.0, 1.0, (double) (-tempoPercent[(size_t) d] / range)),
+                                           juce::dontSendNotification);
+    }
+
+    void ControllerView::setSyncLit (int d, bool on)
+    {
+        if (juce::isPositiveAndBelow (d, 2))
+            syncButtons[(size_t) d]->setLit (on);
+    }
+
+    void ControllerView::setPlatter (int d, double positionSeconds, bool playing, bool loaded)
+    {
+        if (juce::isPositiveAndBelow (d, 2))
+            platters[(size_t) d]->setState (positionSeconds, playing, loaded);
+    }
+
+    void ControllerView::invalidateBackground()
+    {
+        background = {};
+        repaint();
+    }
+
     void ControllerView::pushChannelMeter (int d, const engine::MeterSource::Reading& r, float dt)
     {
         if (juce::isPositiveAndBelow (d, 2))
@@ -160,6 +241,17 @@ namespace kb::ui
     void ControllerView::resized()
     {
         computeLayout();
+        background = {};
+
+        for (int d = 0; d < 2; ++d)
+        {
+            const auto& dl = deckLayouts[(size_t) d];
+            platters[(size_t) d]->setBounds (dl.platter.toNearestInt());
+            tempoFaders[(size_t) d]->setBounds (dl.tempoSlot.reduced (unit * 0.8f, unit * 1.0f).toNearestInt());
+            syncButtons[(size_t) d]->setBounds (dl.sync.expanded (dl.sync.getHeight() * 0.08f).toNearestInt());
+            rangeButtons[(size_t) d]->setBounds (dl.tempoRange.toNearestInt());
+            rangeButtons[(size_t) d]->setTextScale (0.5f);
+        }
 
         for (int d = 0; d < 2; ++d)
         {
@@ -223,7 +315,8 @@ namespace kb::ui
             auto tempoCol = L.mirrored ? r.removeFromRight (r.getWidth() * 0.11f) : r.removeFromLeft (r.getWidth() * 0.11f);
             if (L.mirrored) r.removeFromRight (unit * 1.5f); else r.removeFromLeft (unit * 1.5f);
             L.tempoLabel = tempoCol.removeFromTop (textH * 1.4f);
-            L.tempoSlot  = tempoCol.reduced (0.0f, unit * 1.5f);
+            L.tempoRange = tempoCol.removeFromBottom (unit * 6.5f).reduced (0.0f, unit * 0.3f);
+            L.tempoSlot  = tempoCol.reduced (0.0f, unit * 1.0f);
 
             L.header = r.removeFromTop (textH * 1.4f);
 
@@ -309,6 +402,26 @@ namespace kb::ui
     // =========================================================================
     void ControllerView::paint (Graphics& g)
     {
+        const auto scale = g.getInternalContext().getPhysicalPixelScaleFactor();
+        if (background.isNull() || ! juce::exactlyEqual (scale, backgroundScale))
+            renderBackground (scale);
+
+        g.drawImage (background, getLocalBounds().toFloat());
+        paintDropOverlay (g);
+    }
+
+    void ControllerView::renderBackground (float scale)
+    {
+        backgroundScale = scale;
+        background = juce::Image (juce::Image::RGB, juce::jmax (1, juce::roundToInt ((float) getWidth() * scale)),
+                                  juce::jmax (1, juce::roundToInt ((float) getHeight() * scale)), false);
+        juce::Graphics g (background);
+        g.addTransform (juce::AffineTransform::scale (scale));
+        paintBackground (g);
+    }
+
+    void ControllerView::paintBackground (Graphics& g) const
+    {
         g.fillAll (panelDark);
 
         // Chasis amarillo con sombreado 3D (será un render PNG en la Fase 7)
@@ -331,6 +444,17 @@ namespace kb::ui
         paintMixer (g);
     }
 
+    void ControllerView::paintDropOverlay (Graphics& g) const
+    {
+        if (! juce::isPositiveAndBelow (dropTarget, 2))
+            return;
+        const auto& L = deckLayouts[(size_t) dropTarget];
+        g.setColour (cyan.withAlpha (0.18f));
+        g.fillRoundedRectangle (L.area.expanded (unit), unit * 2.0f);
+        g.setColour (cyan);
+        g.drawRoundedRectangle (L.area.expanded (unit), unit * 2.0f, juce::jmax (2.0f, unit * 0.6f));
+    }
+
     void ControllerView::paintDeck (Graphics& g, const DeckLayout& L, int deckIndex) const
     {
         const auto textH  = unit * 3.2f;
@@ -340,7 +464,9 @@ namespace kb::ui
         draw::text (g, tr ("deck.tempo"), L.tempoLabel, textH * 0.85f, textOnChassis);
         g.setColour (panelDark.withAlpha (0.85f));
         g.fillRoundedRectangle (L.tempoSlot, unit * 1.2f);
-        draw::fader (g, L.tempoSlot.reduced (unit * 0.8f, unit * 2.0f), true, 0.5f);
+        // Marcas de "-" arriba y "+" abajo (el fader es un componente).
+        draw::text (g, "-", L.tempoSlot.withHeight (unit * 3.0f).translated (0.0f, -unit * 0.2f), unit * 3.0f, textSecondary);
+        draw::text (g, "+", L.tempoSlot.withTrimmedTop (L.tempoSlot.getHeight() - unit * 3.0f), unit * 3.0f, textSecondary);
 
         draw::text (g, tr ("deck.name", { { "n", juce::String (deckIndex + 1) } }), L.header, textH,
                     textOnChassis, L.mirrored ? Justification::centredRight : Justification::centredLeft);
@@ -358,34 +484,10 @@ namespace kb::ui
                                                  panelDark, platter.getRight(), platter.getBottom(), false));
         g.fillPath (disc);
 
-        const auto ringR = diameter * 0.455f;
-        juce::Path ring;
-        ring.addCentredArc (c.x, c.y, ringR, ringR, 0.0f, 0.0f, juce::MathConstants<float>::twoPi, true);
-        juce::DropShadow (orange.withAlpha (0.7f), juce::roundToInt (unit * 1.6f), {}).drawForPath (g, ring);
-        g.setColour (orange);
-        g.strokePath (ring, juce::PathStrokeType (juce::jmax (1.5f, unit * 0.9f)));
+        juce::ignoreUnused (diameter, c, accent);
+        // Anillo, vinilo y etiqueta giratoria: PlatterView.
 
-        const auto vinyl = platter.reduced (diameter * 0.075f);
-        g.setGradientFill (juce::ColourGradient (panel, c.x, c.y, slot, vinyl.getRight(), c.y, true));
-        g.fillEllipse (vinyl);
-        g.setColour (juce::Colours::white.withAlpha (0.035f));
-        for (float k = 0.36f; k < 0.98f; k += 0.055f)
-            g.drawEllipse (vinyl.withSizeKeepingCentre (vinyl.getWidth() * k, vinyl.getHeight() * k), 1.0f);
-        g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.10f), vinyl.getX(), vinyl.getY(),
-                                                 juce::Colours::transparentWhite, c.x, c.y, false));
-        g.fillEllipse (vinyl);
-
-        const auto label = vinyl.withSizeKeepingCentre (vinyl.getWidth() * 0.3f, vinyl.getHeight() * 0.3f);
-        g.setColour (panelDark);
-        g.fillEllipse (label);
-        g.setColour (accent);
-        g.drawEllipse (label, juce::jmax (1.0f, unit * 0.4f));
-        draw::text (g, juce::String (deckIndex + 1), label, label.getHeight() * 0.5f, accent);
-        g.setColour (textPrimary);
-        g.drawLine (c.x, vinyl.getY() + unit, c.x, vinyl.getY() + vinyl.getHeight() * 0.18f, juce::jmax (1.5f, unit * 0.5f));
-
-        // SYNC (Fase 3). PLAY y CUE son componentes.
-        draw::button (g, L.sync, cyan, tr ("deck.sync"), false, true, L.sync.getHeight() * 0.2f);
+        // SYNC, PLAY y CUE son componentes.
 
         // Modos de pads y pads (Fase 4)
         const char* modeKeys[] = { "deck.mode.hotcue", "deck.mode.fx", "deck.mode.sampler", "deck.mode.loop" };
@@ -394,18 +496,6 @@ namespace kb::ui
         for (int i = 0; i < 4; ++i)
             draw::button (g, L.pads[(size_t) i], cyan, juce::String (i + 1), false, false, L.pads[(size_t) i].getHeight() * 0.32f);
 
-        // Destino de arrastrar y soltar
-        if (dropTarget == deckIndex)
-        {
-            g.setColour (cyan.withAlpha (0.18f));
-            g.fillRoundedRectangle (L.area.expanded (unit), unit * 2.0f);
-            g.setColour (cyan);
-            g.drawRoundedRectangle (L.area.expanded (unit), unit * 2.0f, juce::jmax (2.0f, unit * 0.6f));
-            const auto msg = L.platter.withSizeKeepingCentre (L.platter.getWidth() * 1.2f, unit * 7.0f);
-            g.setColour (panelDark.withAlpha (0.85f));
-            g.fillRoundedRectangle (msg, unit);
-            draw::text (g, tr ("wave.dropHere", { { "n", juce::String (deckIndex + 1) } }), msg.reduced (unit), unit * 3.2f, cyan);
-        }
     }
 
     void ControllerView::paintMixer (Graphics& g) const

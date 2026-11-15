@@ -6,7 +6,9 @@ add_library(kb_app_core STATIC
     I18n.h
     I18n.cpp
     AppSettings.h
-    AppSettings.cpp)
+    AppSettings.cpp
+    AnalysisCache.h
+    AnalysisCache.cpp)
 add_library(kb::app_core ALIAS kb_app_core)
 
 target_include_directories(kb_app_core PUBLIC "${PROJECT_SOURCE_DIR}/src")
@@ -33,6 +35,8 @@ target_sources(KBMusiqueroDJ PRIVATE
     OptionsComponent.h      OptionsComponent.cpp
     AudioDeviceService.h    AudioDeviceService.cpp
     PlayerController.h      PlayerController.cpp
+    TrackLibrary.h          TrackLibrary.cpp
+    LibraryView.h           LibraryView.cpp
     ../ui/Palette.h
     ../ui/DrawPrimitives.h  ../ui/DrawPrimitives.cpp
     ../ui/Controls.h        ../ui/Controls.cpp
@@ -40,6 +44,7 @@ target_sources(KBMusiqueroDJ PRIVATE
     ../ui/DeckDisplay.h     ../ui/DeckDisplay.cpp
     ../ui/LevelMeter.h      ../ui/LevelMeter.cpp
     ../ui/TopBar.h          ../ui/TopBar.cpp
+    ../ui/PlatterView.h     ../ui/PlatterView.cpp
     ../ui/KbLookAndFeel.h   ../ui/KbLookAndFeel.cpp
     ../ui/SkinPlaceholders.h ../ui/SkinPlaceholders.cpp)
 
@@ -49,6 +54,7 @@ target_compile_definitions(KBMusiqueroDJ PRIVATE
 
 target_link_libraries(KBMusiqueroDJ PRIVATE
     kb::app_core
+    kb::analysis
     kb::engine
     kb::juce)
 

@@ -10,6 +10,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "app/I18n.h"
+#include "app/LibraryView.h"
 #include "app/PlayerController.h"
 #include "ui/ControllerView.h"
 #include "ui/DeckDisplay.h"
@@ -25,12 +26,14 @@ namespace kb::app
 
     class MainComponent final : public juce::Component,
                                 public juce::FileDragAndDropTarget,
+                                public juce::DragAndDropContainer,
+                                public juce::DragAndDropTarget,
                                 private I18n::Listener,
                                 private PlayerController::Listener,
                                 private juce::Timer
     {
     public:
-        MainComponent (AudioDeviceService& audio, PlayerController& player);
+        MainComponent (AudioDeviceService& audio, PlayerController& player, TrackLibrary& library);
         ~MainComponent() override;
 
         /** Abre el diálogo para elegir un archivo y cargarlo en un deck. */
@@ -46,6 +49,16 @@ namespace kb::app
         void fileDragExit (const juce::StringArray& files) override;
         void filesDropped (const juce::StringArray& files, int x, int y) override;
 
+        // juce::DragAndDropTarget (filas de la biblioteca -> decks)
+        bool isInterestedInDragSource (const SourceDetails& details) override;
+        void itemDragEnter (const SourceDetails& details) override;
+        void itemDragMove (const SourceDetails& details) override;
+        void itemDragExit (const SourceDetails& details) override;
+        void itemDropped (const SourceDetails& details) override;
+
+        /** Abre el menú "+" de la biblioteca. */
+        void showAddToLibraryMenu() { libraryView.showAddMenu(); }
+
     private:
         void languageChanged() override;
         void trackLoaded (int deck) override;
@@ -54,7 +67,10 @@ namespace kb::app
 
         void updateStatusBar();
         void updateMeters();   // 60 fps, sincronizado con la pantalla
+        static constexpr int kLibraryTarget = -2;
         int  deckForDrop (int x, int y) const;
+        /** Deck libre para cargar con doble click: el que no suena (el 1 si ninguno suena). */
+        int  chooseFreeDeck() const;
         void setDropTarget (int deck);
         static juce::String describeError (engine::LoadError error);
 
@@ -64,7 +80,8 @@ namespace kb::app
         ui::TopBar             topBar;
         ui::ControllerView     controller;
         ui::DeckDisplay        deckDisplays[2] { ui::DeckDisplay (0), ui::DeckDisplay (1) };
-        ui::LibraryPlaceholder library;
+        TrackLibrary&          library;
+        LibraryView            libraryView;
         ui::StatusBar          statusBar;
 
         std::unique_ptr<juce::FileChooser> chooser;

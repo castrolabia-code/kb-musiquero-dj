@@ -8,10 +8,14 @@ add_executable(kb_tests
     EngineTests.cpp
     LoaderTests.cpp
     MixerTests.cpp
+    AnalysisTests.cpp
+    SyncTests.cpp
+    AppCoreTests.cpp
     I18nTests.cpp)
 
 target_link_libraries(kb_tests PRIVATE
     kb::engine
+    kb::analysis
     kb::app_core
     kb::juce
     Catch2::Catch2)

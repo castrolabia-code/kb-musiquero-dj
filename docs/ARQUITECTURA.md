@@ -1,6 +1,6 @@
 # Arquitectura — KB - MUSIQUERO DJ
 
-Documento vivo: se actualiza al cerrar cada fase. Última actualización: **Fase 2**.
+Documento vivo: se actualiza al cerrar cada fase. Última actualización: **Fase 3 (parte 1)**.
 
 ## 1. Vista general
 
@@ -126,7 +126,39 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 - `ui/LevelMeter`: escala no lineal en dBFS, solo repinta cuando cambia algún LED.
 - Clip del master = el bus habría pasado 0 dBFS antes del limitador.
 
-## 4. Audio y dispositivos (Windows)
+### Tempo y SYNC (Fase 3)
+
+- Velocidad del deck = `ratio (sample rate) × (1 + tempo%)`. Sin Key Lock todavía: el tono cambia
+  con la velocidad (lectura con interpolación Hermite).
+- **SYNC** se resuelve en el hilo de audio (necesita posiciones exactas):
+  1. `syncRatio(masterBPM·tempoMaster, slaveBPM)` elige ×1, ×½ o ×2, lo que quede más cerca de 1.
+  2. Fase: beats transcurridos desde la grilla de cada pista; el esclavo salta (con fundido) a la
+     misma fase del master al activar SYNC o al dar PLAY con SYNC encendido.
+  3. Mientras está encendido: sigue el tempo del master cada bloque y corrige la deriva de fase con
+     un ajuste de velocidad de hasta ±1 % (converge en ~2 s).
+  4. Activar SYNC en un deck lo apaga en el otro; mover el tempo a mano lo suelta.
+
+## 4. Análisis (Fase 3)
+
+```
+ PlayerController ──(pista cargada)──▶ AnalysisCache.find(archivo) ──sí──▶ setBeatInfo()
+                                           │ no
+                                           ▼
+                           TrackAnalyser "deck" (1 hilo, prioridad baja)
+                           espera a que termine de decodificar ─▶ BpmDetector ─▶ setBeatInfo() + cache
+
+ TrackLibrary (+) ──▶ TrackAnalyser "biblioteca" (otro hilo) ─▶ decodifica a 22 kHz ─▶ BpmDetector ─▶ cache
+```
+
+- **BpmDetector** (`src/analysis`): (1) flujo espectral a ~11 kHz, FFT 512, salto 64 (~180 Hz de
+  envolvente); (2) autocorrelación con refuerzo de 2× y 4× el período, rango de una octava
+  (78–156); (3) ajuste fino plegando toda la envolvente en un beat (pasos de 0,01 y 0,001 BPM);
+  redondeo a entero si está a < 0,03. La fase de la grilla sale del pliegue de la banda de graves
+  (< 200 Hz) cuando es clara.
+- `TrackBuffer::setBeatInfo` usa atómicos: el audio (SYNC) y la UI los leen sin locks.
+- `AnalysisCache` (JSON en `%APPDATA%`) invalida una entrada si cambian el tamaño o la fecha del archivo.
+
+## 4b. Audio y dispositivos (Windows)
 
 - Tipos de driver: **Windows Audio** (WASAPI compartido), **Windows Audio (Exclusive Mode)**,
   **Windows Audio (Low Latency Mode)** y **ASIO** (solo con `KB_ENABLE_ASIO=ON`). DirectSound está
@@ -191,3 +223,7 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D13 | Limitador brickwall siempre activo en master y auriculares | Prioridad: nunca saturar parlantes ni oídos. Costo: 2 ms de latencia. |
 | D14 | El CUE MIX toma el master antes del volumen MASTER | Bajar los parlantes no apaga el master en los auriculares (comportamiento de mixer de club). |
 | D15 | Kill = perilla toda a la izquierda (sin botones de kill aparte) | El layout de referencia no tiene botones de kill; MIDI (Fase 8) podrá mapear kills a botones. |
+| D16 | Rango de BPM de una octava (78–156) | Elimina la ambigüedad mitad/doble: cada tempo tiene una única lectura. Cubre house, techno, cumbia, reggaetón y hip-hop. |
+| D17 | SYNC con corrección continua de fase (±1 % máx.) | Mantiene los beats alineados aunque haya pequeños errores numéricos, sin saltos audibles. |
+| D18 | Lista de canciones simple en JSON antes de la biblioteca SQLite | Lo pidió el usuario antes de la Fase 6; se migra a SQLite sin cambiar la UI. |
+| D19 | Fondo del controlador cacheado en imagen | Animar los platos a 60 fps sin redibujar sombras ni degradés. |

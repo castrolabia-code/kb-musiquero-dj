@@ -181,6 +181,135 @@ namespace kb::engine
         return juce::isPositiveAndBelow (d, kNumDecks) && channel[(size_t) d].cue.load (std::memory_order_relaxed);
     }
 
+    // =========================================================================
+    //  Tempo y SYNC
+    // =========================================================================
+    void AudioEngine::setTempo (int d, float percent) noexcept
+    {
+        if (! juce::isPositiveAndBelow (d, kNumDecks))
+            return;
+        channel[(size_t) d].tempo.store (juce::jlimit (-kMaxTempoPercent, kMaxTempoPercent, percent), std::memory_order_relaxed);
+        if (channel[(size_t) d].sync.load (std::memory_order_relaxed))
+            setSync (d, false);   // mover el tempo a mano suelta el SYNC
+    }
+
+    float AudioEngine::getTempo (int d) const noexcept
+    {
+        return juce::isPositiveAndBelow (d, kNumDecks) ? channel[(size_t) d].tempo.load (std::memory_order_relaxed) : 0.0f;
+    }
+
+    bool AudioEngine::getSync (int d) const noexcept
+    {
+        return juce::isPositiveAndBelow (d, kNumDecks) && channel[(size_t) d].sync.load (std::memory_order_relaxed);
+    }
+
+    void AudioEngine::toggleSync (int d) { setSync (d, ! getSync (d)); }
+
+    void AudioEngine::setSync (int d, bool on)
+    {
+        if (! juce::isPositiveAndBelow (d, kNumDecks))
+            return;
+        // El cambio de estado lo hace el hilo de audio (necesita las posiciones exactas).
+        send ({ on ? Command::Type::syncOn : Command::Type::syncOff, (std::int8_t) d, nullptr, 0.0 });
+        // Reflejo inmediato para la UI; el audio lo confirma en el próximo bloque.
+        channel[(size_t) d].sync.store (on, std::memory_order_relaxed);
+        if (on)
+            channel[(size_t) (1 - d)].sync.store (false, std::memory_order_relaxed);
+    }
+
+    double AudioEngine::syncRatio (double masterBpm, double slaveBpm) noexcept
+    {
+        if (masterBpm <= 0.0 || slaveBpm <= 0.0)
+            return 1.0;
+        const auto r = masterBpm / slaveBpm;
+        double best = r;
+        for (auto k : { 0.5, 2.0 })
+            if (std::abs (std::log (r * k)) < std::abs (std::log (best)))
+                best = r * k;
+        return best;
+    }
+
+    bool AudioEngine::syncPhaseError (int slave, double ratio, double& error) const noexcept
+    {
+        const auto& s = decks[(size_t) slave];
+        const auto& m = decks[(size_t) (1 - slave)];
+        const auto* ts = s.getTrack();
+        const auto* tm = m.getTrack();
+        if (ts == nullptr || tm == nullptr || ts->getBpm() <= 0.0 || tm->getBpm() <= 0.0)
+            return false;
+
+        // Beats transcurridos desde la grilla de cada pista.
+        const auto masterBeats = (m.getPositionSecondsRT() - tm->getFirstBeatSeconds()) * tm->getBpm() / 60.0;
+        const auto slaveBeats  = (s.getPositionSecondsRT() - ts->getFirstBeatSeconds()) * ts->getBpm() / 60.0;
+
+        // Con mitad/doble tempo, 1 beat del master equivale a k beats del esclavo.
+        const auto k = ratio * ts->getBpm() / (tm->getBpm() * m.getRate());
+        const auto target = masterBeats * k;
+        auto e = (target - std::floor (target)) - (slaveBeats - std::floor (slaveBeats));
+        if (e > 0.5)  e -= 1.0;
+        if (e < -0.5) e += 1.0;
+        error = e;
+        return true;
+    }
+
+    void AudioEngine::engageSync (int d) noexcept
+    {
+        auto& s = decks[(size_t) d];
+        const auto& m = decks[(size_t) (1 - d)];
+        const auto* ts = s.getTrack();
+        const auto* tm = m.getTrack();
+        if (ts == nullptr || tm == nullptr || ts->getBpm() <= 0.0 || tm->getBpm() <= 0.0)
+            return;
+
+        // 1) Mismo tempo.
+        const auto masterFactor = 1.0 + channel[(size_t) (1 - d)].tempo.load (std::memory_order_relaxed) / 100.0;
+        const auto ratio = syncRatio (tm->getBpm() * masterFactor, ts->getBpm());
+        s.setRate (ratio);
+        channel[(size_t) d].tempo.store ((float) juce::jlimit (-50.0, 50.0, (ratio - 1.0) * 100.0), std::memory_order_relaxed);
+
+        // 2) Misma fase: si el master suena, el esclavo salta (con fundido) al beat alineado.
+        double error = 0.0;
+        if (m.isPlaying() && syncPhaseError (d, ratio, error) && std::abs (error) > 0.002)
+            s.seek (s.getPositionSecondsRT() + error * 60.0 / ts->getBpm());
+    }
+
+    void AudioEngine::updateTempo (int numSamples) noexcept
+    {
+        const auto sr = sampleRate.load (std::memory_order_relaxed);
+        for (int d = 0; d < kNumDecks; ++d)
+        {
+            auto& c = channel[(size_t) d];
+            auto& deck = decks[(size_t) d];
+            auto rate = 1.0 + c.tempo.load (std::memory_order_relaxed) / 100.0;
+
+            if (c.sync.load (std::memory_order_relaxed))
+            {
+                const auto* ts = deck.getTrack();
+                const auto* tm = decks[(size_t) (1 - d)].getTrack();
+                if (ts != nullptr && tm != nullptr && ts->getBpm() > 0.0 && tm->getBpm() > 0.0)
+                {
+                    // Sigue el tempo del master (si el master mueve su fader, el esclavo acompaña).
+                    const auto masterFactor = 1.0 + channel[(size_t) (1 - d)].tempo.load (std::memory_order_relaxed) / 100.0;
+                    const auto ratio = syncRatio (tm->getBpm() * masterFactor, ts->getBpm());
+                    c.tempo.store ((float) juce::jlimit (-50.0, 50.0, (ratio - 1.0) * 100.0), std::memory_order_relaxed);
+                    rate = ratio;
+
+                    // Corrección suave de fase (corrige la deriva en ~2 s, máximo ±1 %).
+                    double error = 0.0;
+                    if (deck.isPlaying() && decks[(size_t) (1 - d)].isPlaying() && syncPhaseError (d, ratio, error)
+                        && std::abs (error) > 0.001 && sr > 0.0)
+                    {
+                        const auto beatsPerSecond = ts->getBpm() * ratio / 60.0;
+                        const auto correction = juce::jlimit (-0.01, 0.01, (error / 2.0) / beatsPerSecond);
+                        rate *= 1.0 + correction;
+                    }
+                }
+            }
+            deck.setRate (rate);
+        }
+        juce::ignoreUnused (numSamples);
+    }
+
     void AudioEngine::setCrossfader (float p) noexcept       { crossfader.store (juce::jlimit (-1.0f, 1.0f, p), std::memory_order_relaxed); }
     void AudioEngine::setMasterVolume (float p) noexcept     { store01 (masterVolume, p); }
     void AudioEngine::setHeadphoneVolume (float p) noexcept  { store01 (phonesVolume, p); }
@@ -230,12 +359,28 @@ namespace kb::engine
         switch (c.type)
         {
             case Command::Type::load:       d.load (c.track);   break;
-            case Command::Type::play:       d.play();           break;
+            case Command::Type::play:
+                d.play();
+                if (channel[(size_t) c.deck].sync.load (std::memory_order_relaxed))
+                    engageSync (c.deck);   // con SYNC, arranca ya en fase con la otra bandeja
+                break;
             case Command::Type::pause:      d.pause();          break;
-            case Command::Type::togglePlay: d.togglePlay();     break;
+            case Command::Type::togglePlay:
+                d.togglePlay();
+                if (d.isPlaying() && channel[(size_t) c.deck].sync.load (std::memory_order_relaxed))
+                    engageSync (c.deck);
+                break;
             case Command::Type::cueDown:    d.cueDown();        break;
             case Command::Type::cueUp:      d.cueUp();          break;
             case Command::Type::seek:       d.seek (c.value);   break;
+            case Command::Type::syncOn:
+                channel[(size_t) c.deck].sync.store (true, std::memory_order_relaxed);
+                channel[(size_t) (1 - c.deck)].sync.store (false, std::memory_order_relaxed);
+                engageSync (c.deck);
+                break;
+            case Command::Type::syncOff:
+                channel[(size_t) c.deck].sync.store (false, std::memory_order_relaxed);
+                break;
         }
     }
 
@@ -282,6 +427,8 @@ namespace kb::engine
     void AudioEngine::renderBlock (float* const* outputs, int numOutputChannels, int offset, int n) noexcept
     {
         auto* W = work.getArrayOfWritePointers();
+
+        updateTempo (n);
 
         // 1) Decks y tiras de canal (trim, EQ, filtro, vúmetro de canal).
         for (int d = 0; d < kNumDecks; ++d)

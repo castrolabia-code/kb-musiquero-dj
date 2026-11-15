@@ -65,6 +65,16 @@ namespace kb::engine
         float  getOverviewPeak (int bin) const noexcept;
         int    getOverviewBinsReady() const noexcept;
 
+        // --- Tempo y grilla (los escribe el análisis; los lee cualquier hilo) ---------
+        void   setBeatInfo (double bpm, double firstBeatSeconds) noexcept
+        {
+            firstBeat.store (firstBeatSeconds, std::memory_order_relaxed);
+            beatsPerMinute.store (bpm, std::memory_order_release);
+        }
+        /** 0 mientras no se analizó (o si no se pudo detectar). */
+        double getBpm() const noexcept              { return beatsPerMinute.load (std::memory_order_acquire); }
+        double getFirstBeatSeconds() const noexcept { return firstBeat.load (std::memory_order_relaxed); }
+
         // --- Cancelación (la pista se reemplazó antes de terminar de cargar) -------
         void cancelLoading() noexcept        { cancelled.store (true, std::memory_order_relaxed); }
         bool isLoadingCancelled() const noexcept { return cancelled.load (std::memory_order_relaxed); }
@@ -92,6 +102,8 @@ namespace kb::engine
         std::atomic<std::int64_t> length    { 0 };
         std::atomic<bool>         complete  { false };
         std::atomic<bool>         cancelled { false };
+        std::atomic<double>       beatsPerMinute { 0.0 };
+        std::atomic<double>       firstBeat      { 0.0 };
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackBuffer)
     };

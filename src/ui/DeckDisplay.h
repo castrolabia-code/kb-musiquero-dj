@@ -28,7 +28,11 @@ namespace kb::ui
         std::function<void (double seconds)> onSeek;
 
         /** Llamar ~30 veces por segundo desde la UI. Repinta solo si algo cambió. */
-        void update (std::shared_ptr<engine::TrackBuffer> track, const engine::Deck::Status& status, bool loading);
+        void update (std::shared_ptr<engine::TrackBuffer> track, const engine::Deck::Status& status, bool loading,
+                     float tempoPercent, bool analysing);
+
+        /** "128.00" (BPM efectivo con el tempo aplicado). */
+        static juce::String formatBpm (double bpm);
 
         void setDropHighlight (bool shouldHighlight);
         /** Fuerza repintar (p. ej. al cambiar el idioma). */
@@ -51,6 +55,9 @@ namespace kb::ui
         std::shared_ptr<engine::TrackBuffer> track;
         engine::Deck::Status status;
         bool loading = false;
+        bool analysing = false;
+        float tempo = 0.0f;
+        double shownBpm = -1.0;
         bool dropHighlight = false;
 
         juce::Image overview;           // caché de la vista general

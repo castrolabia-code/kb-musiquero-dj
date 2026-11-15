@@ -88,6 +88,22 @@ namespace kb::engine
         void cueUp (int deck);
         void seek (int deck, double seconds);
 
+        // --- Tempo y SYNC ------------------------------------------------------------------
+        /** Tempo en % (-50..+50). Moverlo a mano desactiva el SYNC de ese deck. */
+        void  setTempo (int deck, float percent) noexcept;
+        /** Tempo actual en % (también lo cambia el SYNC). */
+        float getTempo (int deck) const noexcept;
+        /** SYNC: el deck sigue el tempo de la otra bandeja y se alinea con sus beats.
+            Activarlo en un deck lo desactiva en el otro (la otra bandeja es el "master"). */
+        void  toggleSync (int deck);
+        void  setSync (int deck, bool enabled);
+        bool  getSync (int deck) const noexcept;
+
+        /** Relación de velocidad para igualar tempos, eligiendo mitad/doble si queda más
+            cerca (p. ej. 140 vs 72 -> el deck lento va a 70, no a 140). */
+        static double syncRatio (double masterEffectiveBpm, double slaveBpm) noexcept;
+        static constexpr float kMaxTempoPercent = 50.0f;
+
         // --- Mixer (cualquier hilo; posiciones de perilla/fader 0..1) --------------------
         void  setChannelVolume (int deck, float position01) noexcept;
         float getChannelVolume (int deck) const noexcept;
@@ -156,7 +172,7 @@ namespace kb::engine
     private:
         struct Command
         {
-            enum class Type : std::uint8_t { load, play, pause, togglePlay, cueDown, cueUp, seek };
+            enum class Type : std::uint8_t { load, play, pause, togglePlay, cueDown, cueUp, seek, syncOn, syncOff };
             Type         type  = Type::play;
             std::int8_t  deck  = 0;
             TrackBuffer* track = nullptr;
@@ -169,6 +185,10 @@ namespace kb::engine
         bool send (const Command& c);
         void handleCommand (const Command& c) noexcept;
         void renderBlock (float* const* outputs, int numOutputs, int offset, int numSamples) noexcept;
+        void updateTempo (int numSamples) noexcept;
+        void engageSync (int deck) noexcept;
+        /** Fase de beat del deck esclavo respecto del master (en beats del esclavo, -0.5..0.5). */
+        bool syncPhaseError (int slave, double ratio, double& errorBeats) const noexcept;
         void returnRetiredTracks() noexcept;
 
         std::array<Deck, kNumDecks>         decks;
@@ -192,6 +212,8 @@ namespace kb::engine
             std::atomic<float> high   { 0.5f };
             std::atomic<float> filter { 0.5f };
             std::atomic<bool>  cue    { false };
+            std::atomic<float> tempo  { 0.0f };    // %
+            std::atomic<bool>  sync   { false };
         };
         std::array<ChannelParams, kNumDecks> channel;
 

@@ -24,6 +24,7 @@ namespace kb::ui
         /** Tamaño de letra relativo al alto del botón (por defecto 0.2 redondo / 0.36 rectangular). */
         void setTextScale (float s) { textScale = s; repaint(); }
 
+        void setLabelKey (const juce::String& key) { labelKey = key; repaint(); }
         void setLit (bool shouldBeLit);
         bool isLit() const noexcept { return lit; }
 

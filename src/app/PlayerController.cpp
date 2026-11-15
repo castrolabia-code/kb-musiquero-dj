@@ -4,8 +4,8 @@
 
 namespace kb::app
 {
-    PlayerController::PlayerController (engine::AudioEngine& e)
-        : engine (e)
+    PlayerController::PlayerController (engine::AudioEngine& e, AnalysisCache& c)
+        : engine (e), cache (c)
     {
         startTimerHz (10);   // recolección de pistas liberadas
     }
@@ -61,6 +61,41 @@ namespace kb::app
 
         loading[(size_t) deck] = false;
         tracks[(size_t) deck] = track;
+
+        // BPM y grilla: del cache si este archivo ya se analizó; si no, en segundo plano.
+        const auto file = track->getInfo().file;
+        if (const auto known = cache.find (file))
+        {
+            if (known->bpm > 0.0)
+                track->setBeatInfo (known->bpm, known->firstBeatSeconds);
+        }
+        else
+        {
+            juce::WeakReference<PlayerController> weak (this);
+            const auto id = track->getId();
+            analysingIds.insert (id);
+            analyser.analyseTrack (track, [weak, file, track, id] (analysis::BeatInfo info)
+            {
+                const auto duration = track->getLengthSeconds();
+                const auto format = track->getInfo().formatName;
+                juce::MessageManager::callAsync ([weak, file, info, duration, format, id]
+                {
+                    if (auto* self = weak.get())
+                    {
+                        self->analysingIds.erase (id);
+                        AnalysisEntry e;
+                        e.bpm = info.bpm;
+                        e.firstBeatSeconds = info.firstBeatSeconds;
+                        e.durationSeconds = duration;
+                        e.formatName = format;
+                        self->cache.store (file, e);
+                        juce::Logger::writeToLog ("BPM " + file.getFileName() + ": " + juce::String (info.bpm, 2)
+                                                  + " (confianza " + juce::String (info.confidence, 2) + ")");
+                    }
+                });
+            });
+        }
+
         engine.loadTrack (deck, track);
 
         juce::Logger::writeToLog ("Deck " + juce::String (deck + 1) + ": " + track->getInfo().file.getFullPathName()
@@ -89,6 +124,12 @@ namespace kb::app
     std::shared_ptr<engine::TrackBuffer> PlayerController::getTrack (int deck) const
     {
         return juce::isPositiveAndBelow (deck, kNumDecks) ? tracks[(size_t) deck] : nullptr;
+    }
+
+    bool PlayerController::isAnalysing (int deck) const
+    {
+        const auto t = getTrack (deck);
+        return t != nullptr && analysingIds.count (t->getId()) > 0;
     }
 
     bool PlayerController::isLoading (int deck) const

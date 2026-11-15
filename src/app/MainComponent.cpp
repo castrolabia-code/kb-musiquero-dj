@@ -8,13 +8,18 @@ namespace kb::app
 {
     static constexpr int kUiRefreshHz = 30;
 
-    MainComponent::MainComponent (AudioDeviceService& a, PlayerController& p)
-        : audio (a), player (p)
+    MainComponent::MainComponent (AudioDeviceService& a, PlayerController& p, TrackLibrary& lib)
+        : audio (a), player (p), library (lib), libraryView (lib)
     {
         setOpaque (true);
         for (auto* c : std::initializer_list<juce::Component*> { &topBar, &controller, &deckDisplays[0],
-                                                                 &deckDisplays[1], &library, &statusBar })
+                                                                 &deckDisplays[1], &libraryView, &statusBar })
             addAndMakeVisible (c);
+
+        libraryView.onLoadRequest = [this] (int deck, const juce::File& file)
+        {
+            player.loadFile (deck >= 0 ? deck : chooseFreeDeck(), file);
+        };
 
         // --- Controlador -> motor --------------------------------------------------------
         auto& engine = player.getEngine();
@@ -31,6 +36,8 @@ namespace kb::app
         controller.onPhones     = [&engine] (float v) { engine.setHeadphoneVolume (v); };
         controller.onCueMix     = [&engine] (float v) { engine.setCueMix (v); };
         controller.onSplit      = [&engine] (bool on) { engine.setSplit (on); };
+        controller.onTempo      = [this] (int d, float pct) { player.setTempo (d, pct); };
+        controller.onSync       = [this] (int d) { player.toggleSync (d); };
 
         for (int d = 0; d < 2; ++d)
         {
@@ -84,7 +91,7 @@ namespace kb::app
         deckDisplays[0].setBounds (waves.removeFromTop (waves.getHeight() / 2));
         deckDisplays[1].setBounds (waves);
 
-        library.setBounds (b);
+        libraryView.setBounds (b);
     }
 
     // =========================================================================
@@ -107,7 +114,8 @@ namespace kb::app
 
     void MainComponent::trackLoaded (int deck)
     {
-        deckDisplays[deck].update (player.getTrack (deck), player.getStatus (deck), player.isLoading (deck));
+        deckDisplays[deck].update (player.getTrack (deck), player.getStatus (deck), player.isLoading (deck),
+                                   player.getEngine().getTempo (deck), player.isAnalysing (deck));
     }
 
     void MainComponent::trackLoadFailed (int, const juce::File& file, engine::LoadError error)
@@ -146,9 +154,43 @@ namespace kb::app
     bool MainComponent::isInterestedInFileDrag (const juce::StringArray& files)
     {
         for (const auto& f : files)
-            if (engine::formats::isSupportedFile (juce::File (f)))
+        {
+            const juce::File file (f);
+            if (engine::formats::isSupportedFile (file) || file.isDirectory())
                 return true;
+        }
         return false;
+    }
+
+    int MainComponent::chooseFreeDeck() const
+    {
+        const auto a = player.getStatus (0), b = player.getStatus (1);
+        if (a.playing && ! b.playing) return 1;
+        if (! a.playing && b.playing) return 0;
+        if (player.getTrack (0) != nullptr && player.getTrack (1) == nullptr) return 1;
+        return 0;
+    }
+
+    // --- Filas de la biblioteca arrastradas a un deck ------------------------------------
+    bool MainComponent::isInterestedInDragSource (const SourceDetails& d)
+    {
+        return d.description.toString().startsWith (LibraryView::kDragPrefix);
+    }
+
+    void MainComponent::itemDragEnter (const SourceDetails& d) { itemDragMove (d); }
+    void MainComponent::itemDragMove (const SourceDetails& d)
+    {
+        const auto deck = deckForDrop (d.localPosition.x, d.localPosition.y);
+        setDropTarget (deck >= 0 ? deck : -1);
+    }
+    void MainComponent::itemDragExit (const SourceDetails&) { setDropTarget (-1); }
+
+    void MainComponent::itemDropped (const SourceDetails& d)
+    {
+        const auto deck = deckForDrop (d.localPosition.x, d.localPosition.y);
+        setDropTarget (-1);
+        if (deck >= 0)
+            player.loadFile (deck, juce::File (d.description.toString().fromFirstOccurrenceOf (LibraryView::kDragPrefix, false, false)));
     }
 
     int MainComponent::deckForDrop (int x, int y) const
@@ -169,7 +211,8 @@ namespace kb::app
             return local.x < controller.getWidth() / 2 ? 0 : 1;
         }
 
-        // Biblioteca (Fase 6): todavía no recibe archivos.
+        if (libraryView.getBounds().contains (p))
+            return kLibraryTarget;
         return -1;
     }
 
@@ -181,14 +224,30 @@ namespace kb::app
             deckDisplays[d].setDropHighlight (d == deck);
     }
 
-    void MainComponent::fileDragEnter (const juce::StringArray&, int x, int y) { setDropTarget (deckForDrop (x, y)); }
-    void MainComponent::fileDragMove (const juce::StringArray&, int x, int y)  { setDropTarget (deckForDrop (x, y)); }
+    void MainComponent::fileDragEnter (const juce::StringArray&, int x, int y) { setDropTarget (juce::jmax (-1, deckForDrop (x, y))); }
+    void MainComponent::fileDragMove (const juce::StringArray&, int x, int y)  { setDropTarget (juce::jmax (-1, deckForDrop (x, y))); }
     void MainComponent::fileDragExit (const juce::StringArray&)                { setDropTarget (-1); }
 
     void MainComponent::filesDropped (const juce::StringArray& files, int x, int y)
     {
         const auto deck = deckForDrop (x, y);
         setDropTarget (-1);
+
+        if (deck == kLibraryTarget)
+        {
+            // Sobre la biblioteca: se agregan los archivos (y las carpetas, con todo su contenido).
+            juce::Array<juce::File> toAdd;
+            for (const auto& f : files)
+            {
+                const juce::File file (f);
+                if (file.isDirectory())
+                    library.addFolder (file);
+                else
+                    toAdd.add (file);
+            }
+            library.addFiles (toAdd);
+            return;
+        }
         if (deck < 0)
             return;
 
@@ -224,7 +283,10 @@ namespace kb::app
             lights.atCue      = std::abs (st.positionSeconds - st.cueSeconds) < 0.001;
             controller.setDeckLights (d, lights, blink);
 
-            deckDisplays[d].update (track, st, player.isLoading (d));
+            const auto tempo = player.getEngine().getTempo (d);
+            controller.setTempo (d, tempo);
+            controller.setSyncLit (d, player.getEngine().getSync (d));
+            deckDisplays[d].update (track, st, player.isLoading (d), tempo, player.isAnalysing (d));
         }
 
         // SPLIT también se cambia desde Opciones: reflejarlo en el botón.
@@ -241,6 +303,11 @@ namespace kb::app
         lastMeterTime = now;
 
         auto& engine = player.getEngine();
+        for (int d = 0; d < 2; ++d)
+        {
+            const auto st = engine.getDeckStatus (d);
+            controller.setPlatter (d, st.positionSeconds, st.playing, st.trackId != 0);
+        }
         controller.pushChannelMeter (0, engine.readMeter (engine::MeterId::channel1), dt);
         controller.pushChannelMeter (1, engine.readMeter (engine::MeterId::channel2), dt);
         topBar.pushMaster (engine.readMeter (engine::MeterId::masterLeft),
@@ -251,6 +318,7 @@ namespace kb::app
     void MainComponent::languageChanged()
     {
         updateStatusBar();
+        controller.invalidateBackground();
         // Los componentes traducen al pintar: alcanza con repintar.
         for (auto* c : getChildren())
             c->repaint();

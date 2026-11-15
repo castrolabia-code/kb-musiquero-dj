@@ -16,6 +16,7 @@ countries: en gb us au ca nz ie za
 // --- Menu ---------------------------------------------------------------------
 "menu.file" = "File"
 "menu.file.loadDeck" = "Load into Deck {n}..."
+"menu.file.addToLibrary" = "Add songs to the list..."
 "menu.file.exit" = "Exit"
 "menu.options" = "Options"
 "menu.options.audio" = "Audio..."
@@ -79,6 +80,9 @@ countries: en gb us au ca nz ie za
 "deck.sync" = "SYNC"
 "deck.cue" = "CUE"
 "deck.play" = "PLAY"
+"deck.range8" = "±8%"
+"deck.range16" = "±16%"
+"deck.range50" = "±50%"
 "deck.mode.hotcue" = "HOT CUE"
 "deck.mode.fx" = "FX"
 "deck.mode.sampler" = "SAMPLER"
@@ -120,6 +124,13 @@ countries: en gb us au ca nz ie za
 "library.col.genre" = "Genre"
 "library.col.rating" = "Rating"
 "library.col.artwork" = "Artwork"
+"library.add" = "+"
+"library.addFiles" = "Add songs..."
+"library.addFolder" = "Add a folder..."
+"library.remove" = "Remove from list"
+"library.analysing" = "Analysing BPM: {n} pending"
+"library.emptyHint" = "Press the + button (top left) to add songs, or drop files or folders here.\nThen drag a song onto a deck or double-click it."
+"library.col.format" = "Format"
 
 // =============================================================================
 //  JUCE internal strings (audio device selector and WASAPI errors).

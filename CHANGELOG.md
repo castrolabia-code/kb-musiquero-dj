@@ -3,6 +3,23 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.4.0] — Fase 3 (parte 1): BPM, SYNC, tempo, platos y lista de canciones
+
+### Agregado
+- **Detección de BPM y grilla** con algoritmo propio (flujo espectral + autocorrelación + ajuste fino plegando todo el tema): precisión de centésimas en house y cumbia de prueba; rango 78–156 BPM (los tempos fuera de rango se pliegan una octava). La fase de la grilla se toma de los graves (bombo/bajo).
+- Análisis en segundo plano al cargar un tema y **cache de resultados** (`analysis.json`): un tema ya analizado no se vuelve a analizar (salvo que el archivo cambie).
+- **Display del deck**: BPM efectivo (con el tempo aplicado) en grande, tempo en %.
+- **Fader de TEMPO** funcional (abajo = más rápido, como en un CDJ), con botón de rango **±8 / ±16 / ±50 %**; doble click vuelve a 0.
+- **SYNC**: iguala el tempo con la otra bandeja (eligiendo mitad/doble si corresponde) y **alinea los beats**. Mientras está encendido sigue los cambios de tempo de la otra bandeja y corrige la fase suavemente; al dar PLAY arranca ya en fase. Mover el tempo a mano lo suelta. Desfase medido en 5 minutos: < 5 ms.
+- **Platos que giran** a 33⅓ rpm según la posición real (más rápido con más tempo, quietos en pausa); el anillo naranja se enciende mientras reproduce.
+- **Lista de canciones** con botón **"+"** en CARPETAS (agregar canciones o una carpeta entera) y arrastrando archivos/carpetas sobre la biblioteca. Columnas #, Título, Artista, BPM, Duración y Formato, ordenables. Se carga arrastrando una fila a un deck, con doble click (al deck libre) o click derecho. Supr quita de la lista. La lista se guarda entre sesiones (`library.json`).
+- Archivo → Agregar canciones a la lista.
+- Optimización: el fondo del controlador se cachea en una imagen; repintar los platos a 60 fps es barato.
+- Pruebas: BPM (house 128 y 124,5; cumbia 95 y 104,3 con humanización; plegado de octava; silencio; cancelación), grilla (< 15 ms), tempo, SYNC (relación mitad/doble, alineación, seguimiento, PLAY en fase, **5 minutos en fase**), cache de análisis.
+
+### Pendiente de la Fase 3
+- Tonalidad (Key, Camelot), waveform RGB por frecuencia, Key Lock (Signalsmith Stretch) y key shift. Hasta entonces, cambiar el tempo también cambia el tono (como un tocadiscos).
+
 ## [0.3.0] — Fase 2: Mixer completo y salidas
 
 ### Agregado

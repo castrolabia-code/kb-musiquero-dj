@@ -59,6 +59,7 @@ namespace kb::engine
             endGhost();
 
         ghost          = main;
+        ghostRate      = rate;
         ghostGain      = mainGain;
         ghostStep      = mainGain / (float) fadeLength;
         ghostRemaining = fadeLength;
@@ -271,7 +272,7 @@ namespace kb::engine
                     readFrame (*main.track, mainDecoded, main.pos, l, r);
                     outL += l * mainGain;
                     outR += r * mainGain;
-                    main.pos += main.ratio;
+                    main.pos += main.ratio * rate;
                     if (mainGain < 1.0f)
                         mainGain = std::min (1.0f, mainGain + fadeStep);
                 }
@@ -283,7 +284,7 @@ namespace kb::engine
                 readFrame (*ghost.track, ghostDecoded, ghost.pos, l, r);
                 outL += l * ghostGain;
                 outR += r * ghostGain;
-                ghost.pos += ghost.ratio;
+                ghost.pos += ghost.ratio * ghostRate;
                 ghostGain = std::max (0.0f, ghostGain - ghostStep);
                 if (--ghostRemaining == 0)
                     endGhost();
