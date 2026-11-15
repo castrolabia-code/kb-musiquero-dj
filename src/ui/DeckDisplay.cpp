@@ -305,7 +305,8 @@ namespace kb::ui
         {
             juce::Graphics::ScopedSaveState save (g);
             g.reduceClipRegion (area.toNearestInt());
-            g.drawImage (detailImage, area.getX(), area.getY(), area.getWidth(), area.getHeight(),
+            const auto dest = area.toNearestInt();
+            g.drawImage (detailImage, dest.getX(), dest.getY(), dest.getWidth(), dest.getHeight(),
                          srcX, 0, srcW, detailImage.getHeight());
         }
 
