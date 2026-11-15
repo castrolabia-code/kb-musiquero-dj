@@ -2,10 +2,14 @@
 # pruebas unitarias y publica el ejecutable de Windows como artefacto descargable.
 name: Build
 
+# Push de un tag vX.Y.Z => además publica un Release con el ZIP descargable.
 on:
   push:
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 concurrency:
   group: build-${{ github.ref }}
@@ -28,13 +32,36 @@ jobs:
       - name: Pruebas
         run: ctest --preset windows-x64-release
 
-      - name: Publicar ejecutable
+      - name: Empaquetar (exe + runtime de Visual C++)
+        shell: pwsh
+        run: |
+          cmake --install build/windows-x64-release --config Release --component app --prefix "dist/KB Musiquero DJ"
+          Get-ChildItem "dist/KB Musiquero DJ" | Format-Table Name, Length
+          if (-not (Test-Path "dist/KB Musiquero DJ/KB Musiquero DJ.exe")) { throw "Falta el exe" }
+          if (-not (Test-Path "dist/KB Musiquero DJ/vcruntime140.dll"))   { throw "Faltan las DLL de Visual C++" }
+          $name = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "dev" }
+          Compress-Archive -Path "dist/KB Musiquero DJ" -DestinationPath "KB-Musiquero-DJ-$name-Windows-x64.zip"
+          "ZIP_NAME=KB-Musiquero-DJ-$name-Windows-x64.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Publicar ejecutable (artefacto de CI)
         uses: actions/upload-artifact@v4
         with:
           name: KB-Musiquero-DJ-windows-x64-${{ github.sha }}
-          path: build/windows-x64-release/src/app/KBMusiqueroDJ_artefacts/Release/
+          path: ${{ env.ZIP_NAME }}
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publicar Release (solo tags vX.Y.Z)
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" "${{ env.ZIP_NAME }}" `
+            --repo "${{ github.repository }}" `
+            --title "KB - MUSIQUERO DJ ${{ github.ref_name }}" `
+            --notes "Descargá el ZIP, descomprimilo y ejecutá 'KB Musiquero DJ.exe'. Ver CHANGELOG.md." `
+            --prerelease
 
   linux:
     name: Linux (pruebas)

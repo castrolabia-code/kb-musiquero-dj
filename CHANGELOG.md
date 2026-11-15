@@ -19,4 +19,5 @@ Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` r
 - Una sola instancia: si se abre otra, se trae la ventana existente al frente.
 - Pruebas (Catch2): contrato del motor, paridad de claves ES/EN, traducción en vivo, claves usadas en el código y aislamiento del motor respecto de la UI.
 - CI en GitHub Actions: compila en Windows y Linux, corre las pruebas y publica el `.exe`.
+- Empaquetado (`cmake --install --component app`) con las DLL de Visual C++ al lado del ejecutable; los tags `vX.Y.Z` publican un Release con el ZIP descargable.
 - Documentación: `docs/ARQUITECTURA.md` y `docs/LICENCIAS.md`.

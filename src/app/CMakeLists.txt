@@ -51,3 +51,21 @@ if(MSVC)
     # Proyecto de inicio en Visual Studio.
     set_property(DIRECTORY "${PROJECT_SOURCE_DIR}" PROPERTY VS_STARTUP_PROJECT KBMusiqueroDJ)
 endif()
+
+# =============================================================================
+#  Instalación / empaquetado: `cmake --install <build> --component app --prefix <carpeta>`
+#  deja el ejecutable y, en Windows, las DLL del runtime de Visual C++
+#  (vcruntime140, msvcp140...) al lado, así corre en cualquier PC sin instalar
+#  el "VC++ Redistributable". El instalador de la Fase 9 parte de esta carpeta.
+# =============================================================================
+if(WIN32)
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
+    set(CMAKE_INSTALL_UCRT_LIBRARIES FALSE)   # el UCRT ya viene con Windows 10/11
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_COMPONENT app)
+    include(InstallRequiredSystemLibraries)
+endif()
+
+# Componente "app": deja afuera los archivos que instalan JUCE y Catch2.
+install(TARGETS KBMusiqueroDJ
+    RUNTIME DESTINATION . COMPONENT app
+    BUNDLE  DESTINATION . COMPONENT app)

@@ -6,11 +6,14 @@ JUCE 8 + C++20 + CMake.
 > Estado: **Fase 0 — Base del proyecto** (ver [CHANGELOG.md](CHANGELOG.md)).
 > El documento maestro del producto está en [CLAUDE.md](CLAUDE.md).
 
-## Descargar el ejecutable sin compilar
+## Descargar el programa (sin compilar)
 
-Cada push compila automáticamente en GitHub Actions:
-**Actions → Build → (la última ejecución) → Artifacts → `KB-Musiquero-DJ-windows-x64-…`**.
-Descomprimir y ejecutar `KB Musiquero DJ.exe`.
+**https://github.com/castrolabia-code/kb-musiquero-dj/releases**
+
+Bajar el `.zip` de la última versión, descomprimirlo y ejecutar `KB Musiquero DJ.exe`.
+El ZIP ya trae las DLL de Visual C++, no hace falta instalar nada más.
+
+Para publicar una versión nueva: crear y subir un tag `vX.Y.Z` (GitHub Actions arma el ZIP y el Release).
 
 ## Compilar en Windows
 
