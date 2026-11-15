@@ -34,6 +34,9 @@ namespace kb::app
         /** Pedido de cargar un archivo en un deck (0/1) o en el deck libre (-1). */
         std::function<void (int deck, const juce::File& file)> onLoadRequest;
 
+        /** Tonalidades que están sonando: las compatibles se marcan en verde en la columna Key. */
+        void setReferenceKeys (const std::vector<int>& keys);
+
         /** Abre el selector para agregar canciones o una carpeta. */
         void showAddMenu();
 
@@ -42,7 +45,7 @@ namespace kb::app
         void resized() override;
 
     private:
-        enum Column { colNumber = 1, colTitle, colArtist, colBpm, colDuration, colFormat };
+        enum Column { colNumber = 1, colTitle, colArtist, colBpm, colDuration, colFormat, colKey };
 
         // juce::TableListBoxModel
         int  getNumRows() override;
@@ -65,6 +68,7 @@ namespace kb::app
         juce::TableListBox table { "tracks", this };
         ui::GlowButton addButton { "library.add", juce::Colour (0xff19E3F5), true };
         std::vector<int> order;   // fila visible -> índice en la biblioteca
+        std::vector<int> referenceKeys;
         int sortColumn = 0;
         bool sortForwards = true;
         juce::Rectangle<int> sidebar;

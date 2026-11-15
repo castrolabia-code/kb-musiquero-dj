@@ -20,7 +20,7 @@ namespace kb::analysis
         pool.removeAllJobs (true, 15000);
     }
 
-    void TrackAnalyser::analyseTrack (std::shared_ptr<engine::TrackBuffer> track, std::function<void (BeatInfo)> onDone)
+    void TrackAnalyser::analyseTrack (std::shared_ptr<engine::TrackBuffer> track, std::function<void (BeatInfo, KeyInfo)> onDone)
     {
         auto stop = shuttingDown;
         pool.addJob ([track, onDone, stop]
@@ -37,11 +37,17 @@ namespace kb::analysis
                                                     track->getLengthFrames(), track->getSampleRate(), stop.get());
             if (stop->load())
                 return;
-
             if (info.isValid())
                 track->setBeatInfo (info.bpm, info.firstBeatSeconds);
+
+            const auto key = KeyDetector::analyse (track->getReadPointer (0), track->getReadPointer (1),
+                                                   track->getLengthFrames(), track->getSampleRate(), stop.get());
+            if (stop->load())
+                return;
+            track->setKey (key.key);
+
             if (onDone)
-                onDone (info);
+                onDone (info, key);
         });
     }
 
@@ -69,6 +75,8 @@ namespace kb::analysis
         r.formatName = t.getInfo().formatName;
         r.beat = BpmDetector::analyse (t.getReadPointer (0), t.getReadPointer (1), t.getLengthFrames(),
                                        t.getSampleRate(), cancel);
+        r.key = KeyDetector::analyse (t.getReadPointer (0), t.getReadPointer (1), t.getLengthFrames(),
+                                      t.getSampleRate(), cancel);
         r.ok = true;
         return r;
     }

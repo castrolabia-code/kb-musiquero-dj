@@ -47,6 +47,9 @@ namespace kb::ui
         /** Tempo pedido con el fader, en % (+ = más rápido). */
         std::function<void (int deck, float percent)> onTempo;
         std::function<void (int deck)>              onSync;
+        std::function<void (int deck)>              onKeyLock;
+        /** delta = -1 / +1 semitono; 0 = volver al tono original. */
+        std::function<void (int deck, int delta)>   onKeyShift;
 
         // --- Estado a mostrar -------------------------------------------------------
         struct DeckLights
@@ -73,6 +76,7 @@ namespace kb::ui
         /** Tempo actual en % (lo puede cambiar el SYNC). No pisa al usuario mientras arrastra. */
         void setTempo (int deck, float percent);
         void setSyncLit (int deck, bool on);
+        void setKeyState (int deck, bool keyLock, int keyShift);
         /** Plato: llamar a cada cuadro (60 fps). */
         void setPlatter (int deck, double positionSeconds, bool playing, bool loaded);
         /** Fuerza regenerar el fondo cacheado (p. ej. al cambiar el idioma). */
@@ -98,6 +102,7 @@ namespace kb::ui
         struct DeckLayout
         {
             juce::Rectangle<float> area, tempoLabel, tempoSlot, tempoRange, header, platter, sync, cue, pause, play;
+            juce::Rectangle<float> keyLock, keyDown, keyUp;
             std::array<juce::Rectangle<float>, 4> modes, pads;
             bool mirrored = false;
         };
@@ -142,6 +147,7 @@ namespace kb::ui
         // Tempo, SYNC y platos (Fase 3)
         std::array<std::unique_ptr<KbFader>, 2>     tempoFaders;
         std::array<std::unique_ptr<GlowButton>, 2>  syncButtons, rangeButtons;
+        std::array<std::unique_ptr<GlowButton>, 2>  keyLockButtons, keyDownButtons, keyUpButtons;
         std::array<std::unique_ptr<PlatterView>, 2> platters;
         std::array<int, 2>   rangeIndex { 0, 0 };
         std::array<float, 2> tempoPercent { 0.0f, 0.0f };

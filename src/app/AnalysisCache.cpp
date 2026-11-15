@@ -54,6 +54,10 @@ namespace kb::app
             s.entry.firstBeatSeconds = (double) v.getProperty ("firstBeat", 0.0);
             s.entry.durationSeconds  = (double) v.getProperty ("duration", 0.0);
             s.entry.formatName       = v.getProperty ("format", {}).toString();
+            // Las entradas de antes de la detección de tonalidad se vuelven a analizar.
+            if (! v.hasProperty ("key"))
+                continue;
+            s.entry.key              = (int) v.getProperty ("key", -1);
             s.fileSize               = (juce::int64) v.getProperty ("size", 0);
             s.modified               = (juce::int64) v.getProperty ("modified", 0);
             const auto path = v.getProperty ("path", {}).toString();
@@ -76,13 +80,14 @@ namespace kb::app
             o->setProperty ("firstBeat", s.entry.firstBeatSeconds);
             o->setProperty ("duration", s.entry.durationSeconds);
             o->setProperty ("format", s.entry.formatName);
+            o->setProperty ("key", s.entry.key);
             o->setProperty ("size", s.fileSize);
             o->setProperty ("modified", s.modified);
             list.add (juce::var (o));
         }
 
         auto* root = new juce::DynamicObject();
-        root->setProperty ("version", 1);
+        root->setProperty ("version", 2);
         root->setProperty ("entries", list);
 
         storage.getParentDirectory().createDirectory();

@@ -5,6 +5,7 @@
 # =============================================================================
 add_library(kb_analysis STATIC
     BpmDetector.h    BpmDetector.cpp
+    KeyDetector.h    KeyDetector.cpp
     TrackAnalyser.h  TrackAnalyser.cpp)
 add_library(kb::analysis ALIAS kb_analysis)
 

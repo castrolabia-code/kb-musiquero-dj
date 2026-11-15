@@ -3,7 +3,7 @@
 //  TrackAnalyser: cola de análisis en segundo plano (un hilo, prioridad baja).
 //
 //    * analyseTrack(): para una pista ya cargada en un deck. Espera a que
-//      termine de decodificarse, la analiza y guarda BPM y grilla en la pista.
+//      termine de decodificarse, la analiza y guarda BPM, grilla y tonalidad.
 //    * analyseFile():  para la lista de canciones. Decodifica el archivo a
 //      22 kHz (rápido y liviano), analiza y devuelve el resultado.
 //
@@ -11,6 +11,7 @@
 //  mensajes con MessageManager::callAsync).
 // =============================================================================
 #include "analysis/BpmDetector.h"
+#include "analysis/KeyDetector.h"
 #include "engine/TrackBuffer.h"
 
 #include <juce_core/juce_core.h>
@@ -23,6 +24,7 @@ namespace kb::analysis
     struct FileAnalysis
     {
         BeatInfo beat;
+        KeyInfo  key;
         double   durationSeconds = 0.0;
         juce::String formatName;
         bool     ok = false;
@@ -34,7 +36,8 @@ namespace kb::analysis
         explicit TrackAnalyser (juce::String threadName = "KB Analysis");
         ~TrackAnalyser();
 
-        void analyseTrack (std::shared_ptr<engine::TrackBuffer> track, std::function<void (BeatInfo)> onDone);
+        /** Calcula BPM, grilla y tonalidad y los guarda en la pista. */
+        void analyseTrack (std::shared_ptr<engine::TrackBuffer> track, std::function<void (BeatInfo, KeyInfo)> onDone);
         void analyseFile (const juce::File& file, std::function<void (FileAnalysis)> onDone);
 
         /** Análisis sincrónico de un archivo (pruebas y herramientas). */

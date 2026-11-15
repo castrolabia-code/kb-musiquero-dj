@@ -97,6 +97,24 @@ namespace kb::ui
                 updateTempoFader (d);
             };
             addAndMakeVisible (*rangeButtons[(size_t) d]);
+
+            // Key Lock y key shift
+            keyLockButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.keyLock", orange, false);
+            keyDownButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.keyDown", cyan, false);
+            keyUpButtons[(size_t) d]   = std::make_unique<GlowButton> ("deck.keyUp", cyan, false);
+            keyLockButtons[(size_t) d]->setTooltipKey ("tip.keyLock");
+            keyDownButtons[(size_t) d]->setTooltipKey ("tip.keyShift");
+            keyUpButtons[(size_t) d]->setTooltipKey ("tip.keyShift");
+            keyLockButtons[(size_t) d]->onPress = [this, d] { if (onKeyLock) onKeyLock (d); };
+            keyDownButtons[(size_t) d]->onPress = [this, d] { if (onKeyShift) onKeyShift (d, -1); };
+            keyUpButtons[(size_t) d]->onPress   = [this, d] { if (onKeyShift) onKeyShift (d, +1); };
+            keyDownButtons[(size_t) d]->onDoubleClick = [this, d] { if (onKeyShift) onKeyShift (d, 0); };
+            keyUpButtons[(size_t) d]->onDoubleClick   = [this, d] { if (onKeyShift) onKeyShift (d, 0); };
+            for (auto* b : { keyLockButtons[(size_t) d].get(), keyDownButtons[(size_t) d].get(), keyUpButtons[(size_t) d].get() })
+            {
+                b->setTextScale (0.58f);
+                addAndMakeVisible (*b);
+            }
         }
 
         // --- Tiras de canal (Fase 2) --------------------------------------------------
@@ -189,6 +207,15 @@ namespace kb::ui
         const auto range = kTempoRanges[rangeIndex[(size_t) d]];
         tempoFaders[(size_t) d]->setValue (juce::jlimit (-1.0, 1.0, (double) (-tempoPercent[(size_t) d] / range)),
                                            juce::dontSendNotification);
+    }
+
+    void ControllerView::setKeyState (int d, bool keyLock, int keyShift)
+    {
+        if (! juce::isPositiveAndBelow (d, 2))
+            return;
+        keyLockButtons[(size_t) d]->setLit (keyLock);
+        keyDownButtons[(size_t) d]->setLit (keyShift < 0);
+        keyUpButtons[(size_t) d]->setLit (keyShift > 0);
     }
 
     void ControllerView::setSyncLit (int d, bool on)
@@ -289,6 +316,9 @@ namespace kb::ui
             tempoFaders[(size_t) d]->setBounds (dl.tempoSlot.reduced (unit * 0.8f, unit * 1.0f).toNearestInt());
             syncButtons[(size_t) d]->setBounds (dl.sync.expanded (dl.sync.getHeight() * 0.08f).toNearestInt());
             rangeButtons[(size_t) d]->setBounds (dl.tempoRange.toNearestInt());
+            keyLockButtons[(size_t) d]->setBounds (dl.keyLock.toNearestInt());
+            keyDownButtons[(size_t) d]->setBounds (dl.keyDown.toNearestInt());
+            keyUpButtons[(size_t) d]->setBounds (dl.keyUp.toNearestInt());
             rangeButtons[(size_t) d]->setTextScale (0.5f);
         }
 
@@ -359,6 +389,23 @@ namespace kb::ui
             L.tempoSlot  = tempoCol.reduced (0.0f, unit * 1.0f);
 
             L.header = r.removeFromTop (textH * 1.4f);
+            {
+                // [KEY LOCK] [KEY -] [KEY +] del lado interior del encabezado (mismo orden visual en ambos decks).
+                auto keys = L.header.reduced (0.0f, unit * 0.2f);
+                const auto gapKeys = unit * 0.8f;
+                if (! L.mirrored)
+                {
+                    L.keyUp   = keys.removeFromRight (unit * 9.0f);  keys.removeFromRight (gapKeys);
+                    L.keyDown = keys.removeFromRight (unit * 9.0f);  keys.removeFromRight (gapKeys);
+                    L.keyLock = keys.removeFromRight (unit * 12.0f);
+                }
+                else
+                {
+                    L.keyLock = keys.removeFromLeft (unit * 12.0f);  keys.removeFromLeft (gapKeys);
+                    L.keyDown = keys.removeFromLeft (unit * 9.0f);   keys.removeFromLeft (gapKeys);
+                    L.keyUp   = keys.removeFromLeft (unit * 9.0f);
+                }
+            }
 
             auto platterArea = r.removeFromTop (r.getHeight() * 0.66f);
             const auto diameter = juce::jmin (platterArea.getWidth(), platterArea.getHeight()) * 0.96f;

@@ -3,6 +3,22 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.5.0] — Fase 3 completa: tonalidad, Key Lock, key shift y waveform por frecuencia
+
+### Agregado
+- **Detección de tonalidad** (cromagrama + perfiles de Krumhansl-Schmuckler) con notación musical y **Camelot** (8A, 9B…). Se muestra en el display del deck (con el corrimiento aplicado) y en la nueva columna **Key** de la lista.
+- **Colores de compatibilidad armónica** en la lista: las tonalidades que combinan con lo que está sonando (misma, ±1 en la rueda o relativa) se marcan en verde.
+- **KEY LOCK** por deck (Signalsmith Stretch, MIT): cambiar el tempo no cambia el tono. La latencia del stretch se compensa: la posición mostrada y el SYNC usan lo que realmente se escucha.
+- **Key shift** ±12 semitonos con **KEY -** / **KEY +** (doble click: tono original), sin cambiar la velocidad.
+- **Waveform por frecuencia** (graves oscuros, medios y agudos claros, en cyan para el deck 1 y naranja para el deck 2):
+  - **Vista ampliada** que avanza con la canción, playhead al centro, **grilla de beats** (más fuerte cada 4) y cue. Rueda del mouse: zoom de 2 a 32 s. Muestra tiempo real: con SYNC las grillas de los dos decks quedan alineadas.
+  - **Vista general** de la canción completa debajo, con click/arrastre para saltar y la ventana del zoom marcada.
+- El cache de análisis guarda también la tonalidad y se escribe cada 5 s (no se pierde si la PC se apaga de golpe). Los análisis viejos sin tonalidad se recalculan solos.
+- Pruebas: tonalidad (C, Am, G, Em; Camelot; transposición; compatibilidad), Key Lock (tono constante a +10 %, key shift +12, latencia compensada < 15 ms, SYNC con un deck en Key Lock, cero allocations, rendimiento: 2 decks con Key Lock ≈ 3,4 % de un núcleo en Release).
+
+### Cambiado
+- La zona de waveforms es más alta y el display de cada deck muestra BPM y tonalidad en grande.
+
 ## [0.4.1] — Pedidos del usuario: PLAY/PAUSA, símbolos y ayuda
 
 ### Agregado
@@ -24,8 +40,6 @@ Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` r
 - Optimización: el fondo del controlador se cachea en una imagen; repintar los platos a 60 fps es barato.
 - Pruebas: BPM (house 128 y 124,5; cumbia 95 y 104,3 con humanización; plegado de octava; silencio; cancelación), grilla (< 15 ms), tempo, SYNC (relación mitad/doble, alineación, seguimiento, PLAY en fase, **5 minutos en fase**), cache de análisis.
 
-### Pendiente de la Fase 3
-- Tonalidad (Key, Camelot), waveform RGB por frecuencia, Key Lock (Signalsmith Stretch) y key shift. Hasta entonces, cambiar el tempo también cambia el tono (como un tocadiscos).
 
 ## [0.3.0] — Fase 2: Mixer completo y salidas
 

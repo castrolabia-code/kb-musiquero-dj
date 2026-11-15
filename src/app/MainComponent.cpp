@@ -2,6 +2,7 @@
 
 #include "app/AudioDeviceService.h"
 #include "engine/AudioFileFormats.h"
+#include "analysis/KeyDetector.h"
 #include "ui/Palette.h"
 
 namespace kb::app
@@ -39,6 +40,11 @@ namespace kb::app
         controller.onSplit      = [&engine] (bool on) { engine.setSplit (on); };
         controller.onTempo      = [this] (int d, float pct) { player.setTempo (d, pct); };
         controller.onSync       = [this] (int d) { player.toggleSync (d); };
+        controller.onKeyLock    = [&engine] (int d) { engine.setKeyLock (d, ! engine.getKeyLock (d)); };
+        controller.onKeyShift   = [&engine] (int d, int delta)
+        {
+            engine.setKeyShift (d, delta == 0 ? 0 : engine.getKeyShift (d) + delta);
+        };
 
         for (int d = 0; d < 2; ++d)
         {
@@ -86,9 +92,9 @@ namespace kb::app
 
         const auto avail = b.getHeight();
         topBar.setBounds     (b.removeFromTop (juce::roundToInt (avail * 0.06)));
-        controller.setBounds (b.removeFromTop (juce::roundToInt (avail * 0.50)));
+        controller.setBounds (b.removeFromTop (juce::roundToInt (avail * 0.47)));
 
-        auto waves = b.removeFromTop (juce::roundToInt (avail * 0.16)).reduced (2, 0);
+        auto waves = b.removeFromTop (juce::roundToInt (avail * 0.21)).reduced (2, 0);
         deckDisplays[0].setBounds (waves.removeFromTop (waves.getHeight() / 2));
         deckDisplays[1].setBounds (waves);
 
@@ -115,8 +121,7 @@ namespace kb::app
 
     void MainComponent::trackLoaded (int deck)
     {
-        deckDisplays[deck].update (player.getTrack (deck), player.getStatus (deck), player.isLoading (deck),
-                                   player.getEngine().getTempo (deck), player.isAnalysing (deck));
+        deckDisplays[deck].update (makeDeckView (deck));
     }
 
     void MainComponent::trackLoadFailed (int, const juce::File& file, engine::LoadError error)
@@ -284,17 +289,42 @@ namespace kb::app
             lights.atCue      = std::abs (st.positionSeconds - st.cueSeconds) < 0.001;
             controller.setDeckLights (d, lights, blink);
 
-            const auto tempo = player.getEngine().getTempo (d);
-            controller.setTempo (d, tempo);
-            controller.setSyncLit (d, player.getEngine().getSync (d));
-            deckDisplays[d].update (track, st, player.isLoading (d), tempo, player.isAnalysing (d));
+            auto& engine = player.getEngine();
+            controller.setTempo (d, engine.getTempo (d));
+            controller.setSyncLit (d, engine.getSync (d));
+            controller.setKeyState (d, engine.getKeyLock (d), engine.getKeyShift (d));
         }
+
+        // Colores de compatibilidad armónica en la lista: respecto de lo que está sonando.
+        std::vector<int> playingKeys;
+        for (int d = 0; d < 2; ++d)
+        {
+            const auto v = makeDeckView (d);
+            if (v.track != nullptr && v.status.playing && v.track->getKey() >= 0)
+                playingKeys.push_back (analysis::MusicalKey::transpose (
+                    v.track->getKey(), ui::DeckDisplay::effectiveShift (v.tempo, v.keyLock, v.keyShift)));
+        }
+        libraryView.setReferenceKeys (playingKeys);
 
         // SPLIT también se cambia desde Opciones: reflejarlo en el botón.
         controller.setSplit (player.getEngine().getSplit());
 
         if (tick % (kUiRefreshHz / 4) == 0)
             updateStatusBar();
+    }
+
+    ui::DeckDisplay::View MainComponent::makeDeckView (int d) const
+    {
+        auto& engine = player.getEngine();
+        ui::DeckDisplay::View v;
+        v.track     = player.getTrack (d);
+        v.status    = engine.getDeckStatus (d);
+        v.loading   = player.isLoading (d);
+        v.analysing = player.isAnalysing (d);
+        v.tempo     = engine.getTempo (d);
+        v.keyLock   = engine.getKeyLock (d);
+        v.keyShift  = engine.getKeyShift (d);
+        return v;
     }
 
     void MainComponent::updateMeters()
@@ -308,6 +338,7 @@ namespace kb::app
         {
             const auto st = engine.getDeckStatus (d);
             controller.setPlatter (d, st.positionSeconds, st.playing, st.trackId != 0);
+            deckDisplays[d].update (makeDeckView (d));   // waveform ampliada a 60 fps
         }
         controller.pushChannelMeter (0, engine.readMeter (engine::MeterId::channel1), dt);
         controller.pushChannelMeter (1, engine.readMeter (engine::MeterId::channel2), dt);

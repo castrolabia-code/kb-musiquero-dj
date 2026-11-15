@@ -13,6 +13,8 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 | **r8brain-free-src** | 6.5 | Conversión de sample rate de alta calidad al cargar pistas | MIT | ✅ | Incluir el aviso de copyright (© Aleksey Vaneev) en "Créditos" y en la documentación del instalador (Fase 9). Usa la FFT de Ooura, incluida y de licencia permisiva. |
 | **Windows Media Foundation** | (sistema operativo) | Decodificar M4A/AAC | Componente de Windows | ✅ | No se redistribuye nada. En Windows "N" (Europa) sin el Media Feature Pack, M4A no carga y la app muestra un error claro. |
 | Decodificadores de JUCE (MP3, FLAC, Ogg Vorbis, WAV, AIFF) | (JUCE) | Formatos de audio | Incluidos en JUCE (FLAC/Vorbis: BSD) | ✅ | Las patentes de MP3 vencieron en 2017. |
+| **Signalsmith Stretch** | 1.4.0 | Key Lock (cambiar tempo sin cambiar tono) y key shift | MIT | ✅ | Incluir el aviso de copyright (© Geraint Luff / Signalsmith Audio Ltd) en "Créditos" (Fase 9). |
+| **Signalsmith Linear** | 0.6.4 | FFT/STFT que usa Signalsmith Stretch | MIT | ✅ | Incluir el aviso de copyright (© Signalsmith Audio) en "Créditos". |
 | **Catch2** | 3.16.1 | Pruebas unitarias | BSL-1.0 | ✅ | Solo se usa en desarrollo; no se distribuye con el producto. |
 
 ## Opcionales (desactivadas por defecto)
@@ -25,7 +27,6 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 
 | Dependencia | Fase | Uso | Licencia | Estado | Notas |
 |---|---|---|---|---|---|
-| Signalsmith Stretch | 3 | Time-stretch / Key Lock | MIT | ✅ ⏳ | Requiere incluir el aviso de copyright. |
 | TagLib | 6 | Tags y carátulas | LGPL-2.1 **o** MPL-1.1 | ✅ ⏳ | Se enlaza como **DLL** (LGPL): el usuario debe poder reemplazarla; incluir texto de licencia y ofrecer el código de TagLib. |
 | SQLite | 6 | Base de datos de la biblioteca | Dominio público | ✅ ⏳ | Sin obligaciones. |
 | Orbitron / Rajdhani | 7 | Tipografía del skin | SIL OFL 1.1 | ✅ ⏳ | Se pueden embeber; incluir el texto de la OFL; no vender la fuente por separado. **Eurostile NO** (comercial de Linotype, requiere compra). |

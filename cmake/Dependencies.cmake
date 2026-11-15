@@ -6,6 +6,7 @@
 #     -DFETCHCONTENT_SOURCE_DIR_JUCE=C:/src/JUCE
 #     -DFETCHCONTENT_SOURCE_DIR_CATCH2=C:/src/Catch2
 #     -DFETCHCONTENT_SOURCE_DIR_R8BRAIN=C:/src/r8brain-free-src
+#     -DFETCHCONTENT_SOURCE_DIR_SIGNALSMITH_STRETCH=...  -DFETCHCONTENT_SOURCE_DIR_SIGNALSMITH_LINEAR=...
 # =============================================================================
 include(FetchContent)
 
@@ -46,6 +47,32 @@ if(MSVC)
     target_compile_options(kb_r8brain PRIVATE /W0)
 else()
     target_compile_options(kb_r8brain PRIVATE -w)
+endif()
+
+# --- Signalsmith Stretch (Key Lock / key shift) --------------------------------
+# Licencia: MIT (Signalsmith Audio). Depende de signalsmith-linear (MIT).
+# Solo encabezados. Tags fijos: stretch 1.4.0, linear 0.6.4.
+# SOURCE_SUBDIR inexistente: solo se descargan, no se agregan sus CMakeLists.
+FetchContent_Declare(signalsmith_linear
+    GIT_REPOSITORY https://github.com/Signalsmith-Audio/linear.git
+    GIT_TAG        0.6.4
+    GIT_SHALLOW    TRUE
+    SOURCE_SUBDIR  kb-solo-encabezados)
+FetchContent_Declare(signalsmith_stretch
+    GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
+    GIT_TAG        1.4.0
+    GIT_SHALLOW    TRUE
+    SOURCE_SUBDIR  kb-solo-encabezados)
+FetchContent_MakeAvailable(signalsmith_linear signalsmith_stretch)
+
+# Target propio con includes "de sistema" (sus plantillas no deben ensuciar nuestras advertencias).
+add_library(kb_stretch INTERFACE)
+add_library(kb::stretch ALIAS kb_stretch)
+target_include_directories(kb_stretch SYSTEM INTERFACE
+    "${signalsmith_stretch_SOURCE_DIR}/include"
+    "${signalsmith_linear_SOURCE_DIR}/include")
+if(MSVC)
+    target_compile_options(kb_stretch INTERFACE /bigobj)
 endif()
 
 # --- Catch2 v3 (solo pruebas, no se distribuye) --------------------------------

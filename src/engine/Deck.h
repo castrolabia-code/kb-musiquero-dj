@@ -14,6 +14,12 @@
 //  fundido de ~3 ms. El audio que se interrumpe se sigue leyendo con un
 //  segundo cabezal ("ghost") que se apaga mientras el principal entra.
 //
+//  Key Lock / key shift (Fase 3): con Key Lock encendido (o con el tono
+//  corrido) el audio pasa por Signalsmith Stretch, que cambia la velocidad sin
+//  cambiar el tono (o el tono sin cambiar la velocidad). La posición publicada
+//  es siempre la que SE ESCUCHA (descontando la latencia del stretch), así el
+//  SYNC alinea lo que suena de verdad.
+//
 //  Todos los métodos, salvo prepare() y los getters de estado, son del hilo de
 //  audio: sin allocations, locks ni I/O.
 // =============================================================================
@@ -22,6 +28,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <memory>
 
 namespace kb::engine
 {
@@ -31,10 +38,11 @@ namespace kb::engine
         static constexpr double kFadeSeconds = 0.003;
         static constexpr int    kMaxRetired  = 8;
 
-        Deck() = default;
+        Deck();
+        ~Deck();
 
-        /** Hilo de control, audio detenido. */
-        void prepare (double engineSampleRate) noexcept;
+        /** Hilo de control, audio detenido. Reserva la memoria del time-stretch. */
+        void prepare (double engineSampleRate, int maxBlockSize = 2048);
 
         // --- Comandos (hilo de audio) ------------------------------------------------
         /** Carga una pista (puede ser nullptr para vaciar el deck). La anterior queda
@@ -46,6 +54,10 @@ namespace kb::engine
         void cueDown() noexcept;
         void cueUp() noexcept;
         void seek (double seconds) noexcept;
+
+        /** Key Lock (mantener el tono al cambiar el tempo) y key shift en semitonos. Hilo de audio. */
+        void setPitchMode (bool keyLock, float keyShiftSemitones) noexcept;
+        bool isStretching() const noexcept { return stretchActive; }
 
         /** Velocidad de reproducción (1 = normal, 1.08 = +8 %). Hilo de audio. */
         void   setRate (double r) noexcept { rate = r; }
@@ -82,7 +94,12 @@ namespace kb::engine
             double       ratio = 1.0;   // frames de pista por muestra de salida
         };
 
+        struct Stretcher;
+
         void startGhost() noexcept;
+        void prime() noexcept;
+        double stretchLead() const noexcept;   // frames de pista entre lo que se lee y lo que se escucha
+        bool renderStretched (int numSamples, std::int64_t decoded) noexcept;
         void endGhost() noexcept;
         void retire (TrackBuffer* t) noexcept;
         void publish() noexcept;
@@ -108,6 +125,13 @@ namespace kb::engine
         double ghostRate     = 1.0;
         double rate          = 1.0;
         int   ghostRemaining = 0;
+
+        // Time-stretch (Key Lock / key shift)
+        std::unique_ptr<Stretcher> stretcher;
+        bool   keyLock = false, stretchActive = false, needPrime = true;
+        float  keyShift = 0.0f, appliedTranspose = 1000.0f;
+        double stretchReadPos = 0.0;   // frames de pista: hasta dónde se le dio entrada al stretch
+        double inputFraction  = 0.0;
 
         std::array<TrackBuffer*, kMaxRetired> retired {};
         int numRetired = 0;

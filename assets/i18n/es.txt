@@ -81,6 +81,10 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "deck.cue" = "CUE"
 "deck.play" = "PLAY"
 "deck.pause" = "PAUSA"
+"deck.keyLock" = "KEY LOCK"
+"deck.keyLockShort" = "LOCK"
+"deck.keyDown" = "KEY -"
+"deck.keyUp" = "KEY +"
 "deck.range8" = "±8%"
 "deck.range16" = "±16%"
 "deck.range50" = "±50%"
@@ -158,9 +162,12 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "tip.channelMeter" = "Vúmetro del canal (antes del fader). Si se prende el LED rojo de arriba, bajá el GAIN. Click: apaga el LED."
 "tip.masterMeter" = "Vúmetro del master (lo que sale por los parlantes), en dBFS. Click: apaga el LED de clip."
 "tip.limit" = "LIMIT: se enciende cuando el limitador actúa para que el master no sature. Si queda prendido, bajá el MASTER o los GAIN."
-"tip.waveform" = "Vista de la canción completa: hacé click o arrastrá para saltar a esa parte. El triángulo naranja es el punto de cue."
+"tip.waveform" = "Vista de la canción completa: hacé click o arrastrá para saltar a esa parte. La línea naranja es el punto de cue."
 "tip.deckInfo" = "Canción cargada: título, artista, BPM (con el tempo aplicado), tempo en %, tiempo transcurrido y restante."
 "tip.libraryAdd" = "Agregar canciones o una carpeta entera a la lista."
+"tip.waveformDetail" = "Waveform ampliada: graves (color oscuro), medios y agudos (claro). Las líneas son los beats; las más fuertes, cada 4. Rueda del mouse: zoom."
+"tip.keyShift" = "Cambia el tono de la canción de a un semitono (sin cambiar la velocidad), para que dos temas combinen. Doble click: tono original."
+"tip.keyLock" = "KEY LOCK (master tempo): al cambiar el TEMPO la canción se acelera o frena sin cambiar el tono."
 
 // =============================================================================
 //  Textos internos de JUCE (selector de dispositivo de audio y errores WASAPI).

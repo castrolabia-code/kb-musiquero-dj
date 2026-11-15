@@ -64,6 +64,12 @@ namespace kb::ui
                     r.getHeight() * 0.16f, ink);
     }
 
+    void GlowButton::mouseDoubleClick (const juce::MouseEvent&)
+    {
+        if (onDoubleClick)
+            onDoubleClick();
+    }
+
     juce::String GlowButton::getTooltip()  { return tooltipKey.isNotEmpty() ? tr (tooltipKey) : juce::String(); }
     juce::String KbFader::getTooltip()     { return tooltipKey.isNotEmpty() ? tr (tooltipKey) : juce::String(); }
     juce::String KbKnob::getTooltip()      { return tooltipKey.isNotEmpty() ? tr (tooltipKey) : juce::String(); }

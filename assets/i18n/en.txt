@@ -81,6 +81,10 @@ countries: en gb us au ca nz ie za
 "deck.cue" = "CUE"
 "deck.play" = "PLAY"
 "deck.pause" = "PAUSE"
+"deck.keyLock" = "KEY LOCK"
+"deck.keyLockShort" = "LOCK"
+"deck.keyDown" = "KEY -"
+"deck.keyUp" = "KEY +"
 "deck.range8" = "±8%"
 "deck.range16" = "±16%"
 "deck.range50" = "±50%"
@@ -158,9 +162,12 @@ countries: en gb us au ca nz ie za
 "tip.channelMeter" = "Channel meter (pre-fader). If the top red LED lights up, lower the GAIN. Click: reset the LED."
 "tip.masterMeter" = "Master meter (what goes to the speakers), in dBFS. Click: reset the clip LED."
 "tip.limit" = "LIMIT: lights up when the limiter is working to keep the master from clipping. If it stays on, lower MASTER or GAIN."
-"tip.waveform" = "Whole-song view: click or drag to jump there. The orange triangle is the cue point."
+"tip.waveform" = "Whole-song view: click or drag to jump there. The orange line is the cue point."
 "tip.deckInfo" = "Loaded song: title, artist, BPM (with tempo applied), tempo %, elapsed and remaining time."
 "tip.libraryAdd" = "Add songs or a whole folder to the list."
+"tip.waveformDetail" = "Zoomed waveform: lows (dark colour), mids and highs (light). Lines are beats; stronger ones every 4. Mouse wheel: zoom."
+"tip.keyShift" = "Shifts the song's pitch one semitone at a time (speed unchanged) so two songs match. Double-click: original key."
+"tip.keyLock" = "KEY LOCK (master tempo): changing TEMPO speeds the song up or down without changing its pitch."
 
 // =============================================================================
 //  JUCE internal strings (audio device selector and WASAPI errors).

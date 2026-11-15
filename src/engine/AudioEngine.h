@@ -104,6 +104,14 @@ namespace kb::engine
         static double syncRatio (double masterEffectiveBpm, double slaveBpm) noexcept;
         static constexpr float kMaxTempoPercent = 50.0f;
 
+        // --- Key Lock y key shift -----------------------------------------------------------
+        /** Key Lock (master tempo): cambiar el tempo no cambia el tono. */
+        void setKeyLock (int deck, bool enabled) noexcept;
+        bool getKeyLock (int deck) const noexcept;
+        /** Corrimiento de tono en semitonos (-12..+12), independiente del tempo. */
+        void setKeyShift (int deck, int semitones) noexcept;
+        int  getKeyShift (int deck) const noexcept;
+
         // --- Mixer (cualquier hilo; posiciones de perilla/fader 0..1) --------------------
         void  setChannelVolume (int deck, float position01) noexcept;
         float getChannelVolume (int deck) const noexcept;
@@ -214,6 +222,8 @@ namespace kb::engine
             std::atomic<bool>  cue    { false };
             std::atomic<float> tempo  { 0.0f };    // %
             std::atomic<bool>  sync   { false };
+            std::atomic<bool>  keyLock  { false };
+            std::atomic<int>   keyShift { 0 };
         };
         std::array<ChannelParams, kNumDecks> channel;
 

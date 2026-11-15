@@ -50,7 +50,7 @@ namespace kb::app
         bool isAnalysing (int deck) const;
 
         engine::Deck::Status getStatus (int deck) const { return engine.getDeckStatus (deck); }
-        engine::AudioEngine& getEngine() noexcept       { return engine; }
+        engine::AudioEngine& getEngine() const noexcept { return engine; }
 
         // Transporte
         void togglePlay (int deck)              { engine.togglePlay (deck); }
@@ -79,6 +79,7 @@ namespace kb::app
         std::array<std::uint64_t, kNumDecks> latestRequest {};
         std::array<bool, kNumDecks>          loading {};
         std::set<std::uint64_t>              analysingIds;
+        int ticks = 0;
         std::vector<Listener*> listeners;
 
         JUCE_DECLARE_WEAK_REFERENCEABLE (PlayerController)

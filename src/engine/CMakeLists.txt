@@ -33,5 +33,5 @@ endif()
 target_include_directories(kb_engine PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(kb_engine
     PUBLIC  kb::juce
-    PRIVATE kb::r8brain)
+    PRIVATE kb::r8brain kb::stretch)
 set_target_properties(kb_engine PROPERTIES FOLDER "KB")

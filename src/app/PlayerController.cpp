@@ -68,17 +68,18 @@ namespace kb::app
         {
             if (known->bpm > 0.0)
                 track->setBeatInfo (known->bpm, known->firstBeatSeconds);
+            track->setKey (known->key);
         }
         else
         {
             juce::WeakReference<PlayerController> weak (this);
             const auto id = track->getId();
             analysingIds.insert (id);
-            analyser.analyseTrack (track, [weak, file, track, id] (analysis::BeatInfo info)
+            analyser.analyseTrack (track, [weak, file, track, id] (analysis::BeatInfo info, analysis::KeyInfo key)
             {
                 const auto duration = track->getLengthSeconds();
                 const auto format = track->getInfo().formatName;
-                juce::MessageManager::callAsync ([weak, file, info, duration, format, id]
+                juce::MessageManager::callAsync ([weak, file, info, key, duration, format, id]
                 {
                     if (auto* self = weak.get())
                     {
@@ -88,9 +89,11 @@ namespace kb::app
                         e.firstBeatSeconds = info.firstBeatSeconds;
                         e.durationSeconds = duration;
                         e.formatName = format;
+                        e.key = key.key;
                         self->cache.store (file, e);
                         juce::Logger::writeToLog ("BPM " + file.getFileName() + ": " + juce::String (info.bpm, 2)
-                                                  + " (confianza " + juce::String (info.confidence, 2) + ")");
+                                                  + " (confianza " + juce::String (info.confidence, 2) + "), key "
+                                                  + juce::String (analysis::MusicalKey::camelot (key.key)));
                     }
                 });
             });
@@ -151,5 +154,10 @@ namespace kb::app
     void PlayerController::timerCallback()
     {
         engine.collectGarbage();
+
+        // Los análisis nuevos se guardan cada 5 s (no solo al cerrar: si la PC se
+        // apaga de golpe no se pierden).
+        if (++ticks % 50 == 0)
+            cache.save();
     }
 } // namespace kb::app

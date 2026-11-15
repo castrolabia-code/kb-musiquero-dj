@@ -121,6 +121,7 @@ namespace kb::app
                     e.firstBeatSeconds = r.beat.firstBeatSeconds;
                     e.durationSeconds  = r.durationSeconds;
                     e.formatName       = r.formatName;
+                    e.key              = r.key.key;
                     self->pending.erase (file.getFullPathName());
                     self->cache.store (file, e);   // notifica a la lista
                 }

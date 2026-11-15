@@ -67,6 +67,7 @@ namespace kb::app
 
         void updateStatusBar();
         void updateMeters();   // 60 fps, sincronizado con la pantalla
+        ui::DeckDisplay::View makeDeckView (int deck) const;
         static constexpr int kLibraryTarget = -2;
         int  deckForDrop (int x, int y) const;
         /** Deck libre para cargar con doble click: el que no suena (el 1 si ninguno suena). */

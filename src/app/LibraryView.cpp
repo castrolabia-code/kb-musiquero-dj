@@ -1,5 +1,6 @@
 #include "app/LibraryView.h"
 
+#include "analysis/KeyDetector.h"
 #include "engine/AudioFileFormats.h"
 #include "ui/DeckDisplay.h"
 #include "ui/DrawPrimitives.h"
@@ -31,6 +32,7 @@ namespace kb::app
         header.addColumn ("t",  colTitle,    320, 80, 1200, colFlags);
         header.addColumn ("a",  colArtist,   220, 60, 800, colFlags);
         header.addColumn ("b",  colBpm,      80,  50, 140, colFlags);
+        header.addColumn ("k",  colKey,      90,  50, 160, colFlags);
         header.addColumn ("d",  colDuration, 90,  60, 140, colFlags);
         header.addColumn ("f",  colFormat,   110, 60, 200, colFlags);
         updateHeaderTexts();
@@ -58,6 +60,7 @@ namespace kb::app
         h.setColumnName (colTitle,    tr ("library.col.title"));
         h.setColumnName (colArtist,   tr ("library.col.artist"));
         h.setColumnName (colBpm,      tr ("library.col.bpm"));
+        h.setColumnName (colKey,      tr ("library.col.key"));
         h.setColumnName (colDuration, tr ("library.col.duration"));
         h.setColumnName (colFormat,   tr ("library.col.format"));
     }
@@ -106,6 +109,15 @@ namespace kb::app
     // =========================================================================
     //  Orden y datos
     // =========================================================================
+    void LibraryView::setReferenceKeys (const std::vector<int>& keys)
+    {
+        if (keys != referenceKeys)
+        {
+            referenceKeys = keys;
+            table.repaint();
+        }
+    }
+
     void LibraryView::refresh()
     {
         rebuildOrder();
@@ -130,6 +142,10 @@ namespace kb::app
                     return ui::DeckDisplay::formatTime (a->durationSeconds).upToLastOccurrenceOf (".", false, false);
                 return library.isAnalysing (item) ? "..." : "--";
             case colFormat:   return it.file.getFileExtension().trimCharactersAtStart (".").toUpperCase();
+            case colKey:
+                if (a.has_value() && a->key >= 0)
+                    return juce::String (analysis::MusicalKey::camelot (a->key)) + "  " + juce::String (analysis::MusicalKey::name (a->key));
+                return library.isAnalysing (item) ? "..." : "--";
             default:          break;
         }
         return {};
@@ -154,6 +170,13 @@ namespace kb::app
             {
                 const auto a = library.analysisFor (i);
                 return { a.has_value() ? a->bpm : 0.0, {} };
+            }
+            if (sortColumn == colKey)
+            {
+                // Orden de la rueda de Camelot: 1A, 1B, 2A, 2B...
+                const auto a = library.analysisFor (i);
+                const auto k = a.has_value() ? a->key : -1;
+                return { k < 0 ? 99.0 : analysis::MusicalKey::camelotNumber (k) * 2.0 + (analysis::MusicalKey::isMinor (k) ? 0.0 : 1.0), {} };
             }
             if (sortColumn == colDuration)
             {
@@ -204,11 +227,24 @@ namespace kb::app
         auto colour = column == colTitle ? textPrimary : textSecondary;
         if (column == colBpm)
             colour = cyan;
+        if (column == colKey)
+        {
+            const auto a = library.analysisFor (item);
+            const auto k = a.has_value() ? a->key : -1;
+            const auto compatible = std::any_of (referenceKeys.begin(), referenceKeys.end(),
+                                                 [k] (int ref) { return analysis::MusicalKey::compatible (k, ref); });
+            colour = compatible ? play : orange.withAlpha (0.9f);
+            if (compatible)
+            {
+                g.setColour (play.withAlpha (0.12f));
+                g.fillRect (0, 0, w, h);
+            }
+        }
         if (selected)
             colour = colour.brighter (0.3f);
 
         g.setColour (colour);
-        g.setFont (ui::KbLookAndFeel::labelFont ((float) h * 0.52f, column == colTitle || column == colBpm));
+        g.setFont (ui::KbLookAndFeel::labelFont ((float) h * 0.52f, column == colTitle || column == colBpm || column == colKey));
         const auto just = (column == colBpm || column == colDuration || column == colNumber)
                               ? juce::Justification::centredRight : juce::Justification::centredLeft;
         g.drawText (cellText (item, column), 6, 0, w - 12, h, just, true);

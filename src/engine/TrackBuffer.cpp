@@ -25,7 +25,41 @@ namespace kb::engine
             ch = std::make_unique<float[]> ((size_t) capacity);
 
         overview = std::make_unique<float[]> ((size_t) kOverviewBins);
+        prepareBands();
         length.store (capacity, std::memory_order_release);
+    }
+
+    void TrackBuffer::prepareBands()
+    {
+        framesPerDetailBin = sampleRate / kDetailBinsPerSecond;
+        numDetailBins = (int) std::ceil ((double) capacity / framesPerDetailBin) + 1;
+        for (int b = 0; b < numBands; ++b)
+        {
+            overviewBands[b] = std::make_unique<float[]> ((size_t) kOverviewBins);
+            detailBands[b]   = std::make_unique<float[]> ((size_t) numDetailBins);
+        }
+        const auto twoPi = 2.0 * juce::MathConstants<double>::pi;
+        lpLowCoef  = 1.0 - std::exp (-twoPi * 200.0 / sampleRate);
+        lpHighCoef = 1.0 - std::exp (-twoPi * 2500.0 / sampleRate);
+    }
+
+    float TrackBuffer::getOverviewBand (int band, int bin) const noexcept
+    {
+        return juce::isPositiveAndBelow (band, (int) numBands) && juce::isPositiveAndBelow (bin, kOverviewBins)
+                   ? overviewBands[band][(size_t) bin] : 0.0f;
+    }
+
+    int TrackBuffer::getDetailBinsReady() const noexcept
+    {
+        if (isComplete())
+            return numDetailBins;
+        return juce::jlimit (0, numDetailBins, (int) std::floor ((double) getDecodedFrames() / framesPerDetailBin));
+    }
+
+    float TrackBuffer::getDetailBand (int band, int bin) const noexcept
+    {
+        return juce::isPositiveAndBelow (band, (int) numBands) && juce::isPositiveAndBelow (bin, numDetailBins)
+                   ? detailBands[band][(size_t) bin] : 0.0f;
     }
 
     float TrackBuffer::getLoadProgress() const noexcept
@@ -64,6 +98,22 @@ namespace kb::engine
             const auto peak = std::max (std::abs (l[f]), std::abs (r[f]));
             if (peak > overview[(size_t) bin])
                 overview[(size_t) bin] = peak;
+
+            // Separación en 3 bandas (graves / medios / agudos) con filtros de un polo.
+            const auto x = 0.5 * ((double) l[f] + (double) r[f]);
+            lpLowState  += (x - lpLowState) * lpLowCoef;
+            lpHighState += (x - lpHighState) * lpHighCoef;
+            const float bands[numBands] = { (float) std::abs (lpLowState),
+                                            (float) std::abs (lpHighState - lpLowState),
+                                            (float) std::abs (x - lpHighState) };
+            const auto dbin = std::min (numDetailBins - 1, (int) ((double) f / framesPerDetailBin));
+            for (int b = 0; b < numBands; ++b)
+            {
+                auto& o = overviewBands[b][(size_t) bin];
+                auto& d = detailBands[b][(size_t) dbin];
+                if (bands[b] > o) o = bands[b];
+                if (bands[b] > d) d = bands[b];
+            }
         }
     }
 

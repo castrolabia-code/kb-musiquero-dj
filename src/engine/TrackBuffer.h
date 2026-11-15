@@ -37,6 +37,8 @@ namespace kb::engine
     public:
         static constexpr int kNumChannels  = 2;
         static constexpr int kOverviewBins = 4096;
+        static constexpr int kDetailBinsPerSecond = 150;   // waveform ampliada
+        enum Band { low = 0, mid = 1, high = 2, numBands = 3 };
 
         /** Reserva toda la memoria. Puede lanzar std::bad_alloc. */
         TrackBuffer (TrackInfo info, double sampleRate, std::int64_t capacityFrames);
@@ -64,6 +66,15 @@ namespace kb::engine
         /** Pico (0..1) de un bin. Válido para bins totalmente decodificados. */
         float  getOverviewPeak (int bin) const noexcept;
         int    getOverviewBinsReady() const noexcept;
+        /** Pico por banda de frecuencia (graves < 200 Hz, medios, agudos > 2,5 kHz). */
+        float  getOverviewBand (int band, int bin) const noexcept;
+
+        // --- Waveform ampliada (150 valores por segundo y por banda) ----------------------
+        double getFramesPerDetailBin() const noexcept { return framesPerDetailBin; }
+        int    getNumDetailBins() const noexcept      { return numDetailBins; }
+        /** Bins totalmente decodificados (los demás valen 0). */
+        int    getDetailBinsReady() const noexcept;
+        float  getDetailBand (int band, int bin) const noexcept;
 
         // --- Tempo y grilla (los escribe el análisis; los lee cualquier hilo) ---------
         void   setBeatInfo (double bpm, double firstBeatSeconds) noexcept
@@ -74,6 +85,10 @@ namespace kb::engine
         /** 0 mientras no se analizó (o si no se pudo detectar). */
         double getBpm() const noexcept              { return beatsPerMinute.load (std::memory_order_acquire); }
         double getFirstBeatSeconds() const noexcept { return firstBeat.load (std::memory_order_relaxed); }
+
+        /** Tonalidad 0..23 (ver analysis::MusicalKey), -1 = desconocida. */
+        void setKey (int k) noexcept { musicalKey.store (k, std::memory_order_relaxed); }
+        int  getKey() const noexcept { return musicalKey.load (std::memory_order_relaxed); }
 
         // --- Cancelación (la pista se reemplazó antes de terminar de cargar) -------
         void cancelLoading() noexcept        { cancelled.store (true, std::memory_order_relaxed); }
@@ -88,6 +103,7 @@ namespace kb::engine
 
     private:
         void updateOverview (std::int64_t from, std::int64_t to) noexcept;
+        void prepareBands();
 
         TrackInfo     info;
         std::uint64_t id;
@@ -97,6 +113,12 @@ namespace kb::engine
 
         std::unique_ptr<float[]> channels[kNumChannels];
         std::unique_ptr<float[]> overview;   // kOverviewBins
+        std::unique_ptr<float[]> overviewBands[numBands];
+        std::unique_ptr<float[]> detailBands[numBands];
+        double framesPerDetailBin = 1.0;
+        int    numDetailBins = 0;
+        // Filtros de un polo para separar las bandas (solo los usa el hilo de carga).
+        double lpLowState = 0.0, lpHighState = 0.0, lpLowCoef = 0.0, lpHighCoef = 0.0;
 
         std::atomic<std::int64_t> decoded   { 0 };
         std::atomic<std::int64_t> length    { 0 };
@@ -104,6 +126,7 @@ namespace kb::engine
         std::atomic<bool>         cancelled { false };
         std::atomic<double>       beatsPerMinute { 0.0 };
         std::atomic<double>       firstBeat      { 0.0 };
+        std::atomic<int>          musicalKey     { -1 };
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackBuffer)
     };

@@ -1,11 +1,50 @@
 #include "engine/Deck.h"
 
+#include <signalsmith-stretch/signalsmith-stretch.h>
+
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace kb::engine
 {
-    void Deck::prepare (double sr) noexcept
+    // =========================================================================
+    //  Time-stretch: Signalsmith Stretch + buffers pre-reservados
+    // =========================================================================
+    struct Deck::Stretcher
+    {
+        signalsmith::stretch::SignalsmithStretch<float> engine { 0x4B42 };   // semilla fija: reproducible
+        std::vector<float> inL, inR, outL, outR, seekL, seekR;
+        float* in[2]   {};
+        float* out[2]  {};
+        float* seek[2] {};
+        int maxIn = 0, maxOut = 0, maxSeek = 0;
+
+        void allocate (double sampleRate, int maxBlock)
+        {
+            engine.presetDefault (2, (float) sampleRate);
+            maxOut  = std::max (maxBlock, 64);
+            maxIn   = maxOut * 2 + 64;   // hasta +50 % de tempo (y algo de margen)
+            maxSeek = engine.inputLatency() + 2 * engine.outputLatency() + 64;
+            for (auto* v : { &inL, &inR })     v->assign ((size_t) maxIn, 0.0f);
+            for (auto* v : { &outL, &outR })   v->assign ((size_t) maxOut, 0.0f);
+            for (auto* v : { &seekL, &seekR }) v->assign ((size_t) maxSeek, 0.0f);
+            in[0] = inL.data();     in[1] = inR.data();
+            out[0] = outL.data();   out[1] = outR.data();
+            seek[0] = seekL.data(); seek[1] = seekR.data();
+
+            // "Calentar": la primera vez el stretch dimensiona sus buffers internos.
+            engine.outputSeek (seek, engine.outputSeekLength (1.0f));
+            engine.process (in, maxOut, out, maxOut);
+            engine.outputSeek (seek, engine.outputSeekLength (1.5f));
+            engine.reset();
+        }
+    };
+
+    Deck::Deck() = default;
+    Deck::~Deck() = default;
+
+    void Deck::prepare (double sr, int maxBlockSize)
     {
         engineSampleRate = sr > 0.0 ? sr : 48000.0;
         fadeLength = std::max (16, (int) std::lround (kFadeSeconds * engineSampleRate));
@@ -14,6 +53,80 @@ namespace kb::engine
         // Si la pista se cargó a otro sample rate, se reproduce interpolando.
         main.ratio  = ratioFor (main.track);
         ghost.ratio = ratioFor (ghost.track);
+
+        stretcher = std::make_unique<Stretcher>();
+        stretcher->allocate (engineSampleRate, maxBlockSize);
+        appliedTranspose = 1000.0f;
+        needPrime = true;
+    }
+
+    void Deck::setPitchMode (bool lock, float shift) noexcept
+    {
+        keyLock  = lock;
+        keyShift = shift;
+        const auto active = stretcher != nullptr && (lock || std::abs (shift) > 0.01f);
+        if (active != stretchActive)
+        {
+            // Cambio de modo sonando: fundido entre el modo viejo y el nuevo.
+            startGhost();
+            mainGain = 0.0f;
+            stretchActive = active;
+            needPrime = true;
+        }
+    }
+
+    double Deck::stretchLead() const noexcept
+    {
+        if (stretcher == nullptr)
+            return 0.0;
+        const auto& s = stretcher->engine;
+        return ((double) s.inputLatency() + rate * (double) s.outputLatency()) * main.ratio;
+    }
+
+    void Deck::prime() noexcept
+    {
+        auto& st = *stretcher;
+        const auto length = std::min (st.maxSeek, st.engine.outputSeekLength ((float) rate));
+        const auto decoded = main.track->getDecodedFrames();
+        for (int i = 0; i < length; ++i)
+            readFrame (*main.track, decoded, main.pos + i * main.ratio, st.seekL[(size_t) i], st.seekR[(size_t) i]);
+        st.engine.outputSeek (st.seek, length);
+        stretchReadPos = main.pos + length * main.ratio;
+        inputFraction = 0.0;
+        needPrime = false;
+    }
+
+    bool Deck::renderStretched (int n, std::int64_t decoded) noexcept
+    {
+        auto& st = *stretcher;
+
+        // Tono: con Key Lock solo el corrimiento pedido; sin Key Lock (solo key
+        // shift) también el cambio de tono natural de la velocidad, como un vinilo.
+        const auto transpose = keyShift + (keyLock ? 0.0f : 12.0f * (float) std::log2 (rate));
+        if (std::abs (transpose - appliedTranspose) > 0.001f)
+        {
+            st.engine.setTransposeSemitones (transpose);
+            appliedTranspose = transpose;
+        }
+
+        if (needPrime)
+            prime();
+
+        inputFraction += n * rate;
+        const auto inCount = std::min (st.maxIn, (int) inputFraction);
+        inputFraction -= inCount;
+
+        // Si la entrada todavía no se decodificó, esperar (como en el modo normal).
+        if (stretchReadPos + inCount * main.ratio + 2.0 >= (double) decoded && ! main.track->isComplete())
+            return false;
+
+        for (int i = 0; i < inCount; ++i)
+            readFrame (*main.track, decoded, stretchReadPos + i * main.ratio, st.inL[(size_t) i], st.inR[(size_t) i]);
+        stretchReadPos += inCount * main.ratio;
+
+        st.engine.process (st.in, inCount, st.out, std::min (n, st.maxOut));
+        main.pos = stretchReadPos - stretchLead();
+        return true;
     }
 
     double Deck::ratioFor (const TrackBuffer* t) const noexcept
@@ -99,6 +212,7 @@ namespace kb::engine
         cuePreview = false;
         mainGain   = 0.0f;
         cuePoint   = 0.0;
+        needPrime  = true;
         publish();
     }
 
@@ -119,6 +233,7 @@ namespace kb::engine
 
         playing  = true;
         mainGain = 0.0f;   // entra con fundido
+        needPrime = true;
     }
 
     void Deck::pause() noexcept
@@ -163,6 +278,7 @@ namespace kb::engine
                 playing    = true;
                 cuePreview = true;
                 mainGain   = 0.0f;
+                needPrime  = true;
             }
             else
             {
@@ -198,6 +314,7 @@ namespace kb::engine
             mainGain = 0.0f;
         }
         main.pos = target;
+        needPrime = true;
     }
 
     // =========================================================================
@@ -246,11 +363,31 @@ namespace kb::engine
         if (ghost.track != nullptr)
             ghostDecoded = ghost.track->getDecodedFrames();
 
+        // Key Lock / key shift: el bloque principal sale del time-stretch.
+        bool stretchedBlock = false;
+        if (stretchActive && playing && main.track != nullptr && numSamples <= stretcher->maxOut
+            && ! (mainComplete && main.pos >= (double) mainLength))
+        {
+            stretchedBlock = renderStretched (numSamples, mainDecoded);
+            if (! stretchedBlock)
+            {
+                mainGain = 0.0f;     // esperando decodificación: silencio y re-cebado
+                needPrime = true;
+            }
+        }
+
         for (int n = 0; n < numSamples; ++n)
         {
             float outL = 0.0f, outR = 0.0f;
 
-            if (playing && main.track != nullptr)
+            if (stretchedBlock)
+            {
+                outL += stretcher->outL[(size_t) n] * mainGain;
+                outR += stretcher->outR[(size_t) n] * mainGain;
+                if (mainGain < 1.0f)
+                    mainGain = std::min (1.0f, mainGain + fadeStep);
+            }
+            else if (playing && main.track != nullptr && ! stretchActive)
             {
                 if (mainComplete && main.pos >= (double) mainLength)
                 {
@@ -292,6 +429,15 @@ namespace kb::engine
 
             left[n]  = outL;
             right[n] = outR;
+        }
+
+        // Fin de la pista también en modo Key Lock.
+        if (stretchActive && playing && main.track != nullptr && mainComplete && main.pos >= (double) mainLength)
+        {
+            playing    = false;
+            cuePreview = false;
+            mainGain   = 0.0f;
+            main.pos   = (double) mainLength;
         }
 
         publish();

@@ -36,12 +36,13 @@ namespace kb::ui
         void setLit (bool shouldBeLit);
         bool isLit() const noexcept { return lit; }
 
-        /** Llamados al apretar / soltar con el mouse (o al tocar). */
-        std::function<void()> onPress, onRelease;
+        /** Llamados al apretar / soltar con el mouse (o al tocar), y con doble click. */
+        std::function<void()> onPress, onRelease, onDoubleClick;
 
     private:
         void paintButton (juce::Graphics& g, bool highlighted, bool down) override;
         void buttonStateChanged() override;
+        void mouseDoubleClick (const juce::MouseEvent&) override;
 
         juce::String labelKey, tooltipKey;
         juce::Colour colour;

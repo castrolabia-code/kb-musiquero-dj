@@ -1,6 +1,6 @@
 # Arquitectura — KB - MUSIQUERO DJ
 
-Documento vivo: se actualiza al cerrar cada fase. Última actualización: **Fase 3 (parte 1)**.
+Documento vivo: se actualiza al cerrar cada fase. Última actualización: **Fase 3**.
 
 ## 1. Vista general
 
@@ -128,8 +128,17 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 
 ### Tempo y SYNC (Fase 3)
 
-- Velocidad del deck = `ratio (sample rate) × (1 + tempo%)`. Sin Key Lock todavía: el tono cambia
-  con la velocidad (lectura con interpolación Hermite).
+- Velocidad del deck = `ratio (sample rate) × (1 + tempo%)`.
+- Sin Key Lock ni key shift: lectura directa con interpolación Hermite (el tono cambia con la velocidad).
+- **Key Lock / key shift** (`Deck::renderStretched`, Signalsmith Stretch, preset por defecto):
+  - Cada bloque lee `n × velocidad` muestras de entrada y el stretch devuelve `n` de salida.
+  - Tono: `keyShift` con Key Lock; `keyShift + 12·log2(velocidad)` sin Key Lock (emula el vinilo).
+  - **Posición publicada = lo que se escucha**: `lectura − (latenciaEntrada + velocidad × latenciaSalida)`.
+    El SYNC compara posiciones escuchadas, así alinea el audio real aunque un deck use stretch y el otro no.
+  - Tras cada discontinuidad (play, salto, cue, carga, cambio de modo) se "ceba" con `outputSeek()`
+    desde la posición escuchada, y se entra con el fundido de 3 ms de siempre.
+  - Toda la memoria del stretch se reserva en `prepare()` (y se "calienta" una vez): la prueba de
+    allocations lo verifica con Key Lock prendiéndose y apagándose.
 - **SYNC** se resuelve en el hilo de audio (necesita posiciones exactas):
   1. `syncRatio(masterBPM·tempoMaster, slaveBPM)` elige ×1, ×½ o ×2, lo que quede más cerca de 1.
   2. Fase: beats transcurridos desde la grilla de cada pista; el esclavo salta (con fundido) a la
@@ -156,7 +165,15 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
   redondeo a entero si está a < 0,03. La fase de la grilla sale del pliegue de la banda de graves
   (< 200 Hz) cuando es clara.
 - `TrackBuffer::setBeatInfo` usa atómicos: el audio (SYNC) y la UI los leen sin locks.
-- `AnalysisCache` (JSON en `%APPDATA%`) invalida una entrada si cambian el tamaño o la fecha del archivo.
+- **KeyDetector**: cromagrama (FFT 4096 a ~11 kHz, 55 Hz–2 kHz, A4 = 440 Hz, cada cuadro normalizado
+  y comprimido) correlacionado con los 24 perfiles de Krumhansl-Kessler. Codificación 0..11 mayores,
+  12..23 menores; Camelot y compatibilidad (misma, ±1, relativa) en `MusicalKey`.
+- **Waveform**: al decodificar, `TrackBuffer` separa graves (< 200 Hz), medios y agudos (> 2,5 kHz)
+  con filtros de un polo y guarda picos por banda: 4096 bins para la vista general y 150 por segundo
+  para la ampliada. La UI los dibuja en imágenes cacheadas (la ampliada cubre 3 ventanas de zoom y
+  se re-dibuja solo al salir de ese rango).
+- `AnalysisCache` (JSON en `%APPDATA%`) invalida una entrada si cambian el tamaño o la fecha del archivo;
+  se guarda cada 5 s y al cerrar.
 
 ## 4b. Audio y dispositivos (Windows)
 
@@ -227,3 +244,6 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D17 | SYNC con corrección continua de fase (±1 % máx.) | Mantiene los beats alineados aunque haya pequeños errores numéricos, sin saltos audibles. |
 | D18 | Lista de canciones simple en JSON antes de la biblioteca SQLite | Lo pidió el usuario antes de la Fase 6; se migra a SQLite sin cambiar la UI. |
 | D19 | Fondo del controlador cacheado en imagen | Animar los platos a 60 fps sin redibujar sombras ni degradés. |
+| D20 | Key Lock con Signalsmith Stretch (preset por defecto) | Calidad alta con ~1,7 % de CPU por deck; MIT. El stretch se usa solo con Key Lock o key shift: sin ellos el audio sale sin procesar. |
+| D21 | Posición publicada = posición escuchada | Con latencias distintas entre decks (stretch vs. directo), el SYNC tiene que alinear lo que se oye. |
+| D22 | Waveform de 3 bandas en colores del deck (no RGB clásico) | Respeta la paleta de la referencia (cyan / naranja) y mantiene la lectura por frecuencia. |

@@ -21,6 +21,7 @@ namespace kb::app
         double bpm              = 0.0;
         double firstBeatSeconds = 0.0;
         double durationSeconds  = 0.0;
+        int    key              = -1;   // 0..23, -1 desconocida
         juce::String formatName;
     };
 

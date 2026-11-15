@@ -67,7 +67,7 @@ namespace kb::engine
         work.clear();
 
         for (auto& d : decks)
-            d.prepare (config.sampleRate);
+            d.prepare (config.sampleRate, block);
         for (auto& s : strips)
             s.prepare (config.sampleRate);
         masterLimiter.prepare (config.sampleRate);
@@ -306,8 +306,32 @@ namespace kb::engine
                 }
             }
             deck.setRate (rate);
+            deck.setPitchMode (c.keyLock.load (std::memory_order_relaxed),
+                               (float) c.keyShift.load (std::memory_order_relaxed));
         }
         juce::ignoreUnused (numSamples);
+    }
+
+    void AudioEngine::setKeyLock (int d, bool on) noexcept
+    {
+        if (juce::isPositiveAndBelow (d, kNumDecks))
+            channel[(size_t) d].keyLock.store (on, std::memory_order_relaxed);
+    }
+
+    bool AudioEngine::getKeyLock (int d) const noexcept
+    {
+        return juce::isPositiveAndBelow (d, kNumDecks) && channel[(size_t) d].keyLock.load (std::memory_order_relaxed);
+    }
+
+    void AudioEngine::setKeyShift (int d, int semitones) noexcept
+    {
+        if (juce::isPositiveAndBelow (d, kNumDecks))
+            channel[(size_t) d].keyShift.store (juce::jlimit (-12, 12, semitones), std::memory_order_relaxed);
+    }
+
+    int AudioEngine::getKeyShift (int d) const noexcept
+    {
+        return juce::isPositiveAndBelow (d, kNumDecks) ? channel[(size_t) d].keyShift.load (std::memory_order_relaxed) : 0;
     }
 
     void AudioEngine::setCrossfader (float p) noexcept       { crossfader.store (juce::jlimit (-1.0f, 1.0f, p), std::memory_order_relaxed); }
