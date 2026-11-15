@@ -587,7 +587,8 @@ namespace kb::ui
         grad.addColour (0.35, palette::chassis);
         g.setGradientFill (grad);
         g.fillPath (chassisPath);
-        // Diseño tribal polinesio sobre todo el chasis (decks 1 y 2), negro al 50 %.
+        // Diseño tribal polinesio solo sobre el amarillo de los decks 1 y 2, en negro
+        // con 25 % de opacidad (la mitad del primer intento, pedido del usuario).
         // Las piezas se superponen: se pintan opacas en una máscara y la máscara se
         // aplica una sola vez al 50 % (así los cruces no se oscurecen de más).
         {
@@ -604,7 +605,8 @@ namespace kb::ui
             }
             juce::Graphics::ScopedSaveState save (g);
             g.reduceClipRegion (chassisPath);
-            g.setColour (juce::Colours::black.withAlpha (0.5f));
+            g.excludeClipRegion (mixer.panel.expanded (unit * 0.5f).getSmallestIntegerContainer());   // solo amarillo
+            g.setColour (juce::Colours::black.withAlpha (0.25f));
             g.drawImageTransformed (mask, juce::AffineTransform::scale (1.0f / sc).translated ((float) bounds.getX(), (float) bounds.getY()), true);
         }
 
