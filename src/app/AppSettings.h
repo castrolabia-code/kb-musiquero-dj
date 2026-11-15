@@ -50,6 +50,10 @@ namespace kb::app
         juce::String getSamplerState() const;
         void setSamplerState (const juce::String& json);
 
+        /** Unidades de FX (JSON: efecto, beats, wet, parámetro y destino de cada una). */
+        juce::String getFxState() const;
+        void setFxState (const juce::String& json);
+
         /** Escribe a disco inmediatamente (por defecto se guarda con demora). */
         bool flush();
 

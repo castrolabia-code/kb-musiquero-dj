@@ -3,6 +3,16 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.8.0] — Fase 5: efectos
+
+### Agregado
+- **2 unidades de FX** en la pantalla, entre las waveforms y la biblioteca. Cada una: **efecto**, **beats** (1/8 a 8, sincronizados al BPM), perilla del **parámetro** principal, perilla **WET** (dry/wet), **ON** y destino **1 / 2 / M** (deck 1, deck 2 o master).
+- **12 efectos**: **Eco** (repeticiones que pierden agudos, como una cinta), **Delay** (ping-pong estéreo), **Reverb**, **Flanger**, **Phaser**, **Filtro** (barrido resonante al ritmo), **Bitcrusher**, **Gater** (corta al ritmo), **Roll** (repite el fragmento), **Freno**, **Backspin** y **Ruido** (barrido de ruido para subidas).
+- Eco, delay y reverb **dejan sonar la cola** al apagarlos. Cambiar de efecto encendido hace un fundido corto (sin clicks).
+- En un deck, el efecto actúa después del EQ y el filtro (también se escucha en el CUE de auriculares). En el master, antes del volumen y del limitador. El tempo de los FX de master es el del deck que más suena.
+- La configuración de los FX (efecto, beats, wet, parámetro y destino) se guarda entre sesiones.
+- Pruebas: eco en el tiempo exacto del beat, WET en 0 deja el audio intacto (los 12 efectos), estabilidad de todos los efectos con parámetros extremos, período del gater, roll, freno que termina en silencio, cola del eco y apagado automático, cambio de efecto sin clicks, ruteo deck / master y cero allocations en el hilo de audio.
+
 ## [0.7.1] — Rediseño según la imagen de referencia
 
 ### Cambiado

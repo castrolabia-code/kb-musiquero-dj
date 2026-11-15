@@ -45,6 +45,7 @@ target_sources(KBMusiqueroDJ PRIVATE
     ../ui/DeckDisplay.h     ../ui/DeckDisplay.cpp
     ../ui/LevelMeter.h      ../ui/LevelMeter.cpp
     ../ui/TopBar.h          ../ui/TopBar.cpp
+    ../ui/FxPanel.h         ../ui/FxPanel.cpp
     ../ui/PlatterView.h     ../ui/PlatterView.cpp
     ../ui/TribalArt.h       ../ui/TribalArt.cpp
     ../ui/KbLookAndFeel.h   ../ui/KbLookAndFeel.cpp

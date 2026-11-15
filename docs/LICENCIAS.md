@@ -13,6 +13,7 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 | **r8brain-free-src** | 6.5 | Conversión de sample rate de alta calidad al cargar pistas | MIT | ✅ | Incluir el aviso de copyright (© Aleksey Vaneev) en "Créditos" y en la documentación del instalador (Fase 9). Usa la FFT de Ooura, incluida y de licencia permisiva. |
 | **Windows Media Foundation** | (sistema operativo) | Decodificar M4A/AAC | Componente de Windows | ✅ | No se redistribuye nada. En Windows "N" (Europa) sin el Media Feature Pack, M4A no carga y la app muestra un error claro. |
 | Decodificadores de JUCE (MP3, FLAC, Ogg Vorbis, WAV, AIFF) | (JUCE) | Formatos de audio | Incluidos en JUCE (FLAC/Vorbis: BSD) | ✅ | Las patentes de MP3 vencieron en 2017. |
+| Reverb de JUCE (`juce::Reverb`, Freeverb) | (JUCE) | Efecto REVERB | Incluida en JUCE (misma licencia que JUCE) | ✅ | Sin obligaciones extra (cubierta por la licencia de JUCE). |
 | **Signalsmith Stretch** | 1.4.0 | Key Lock (cambiar tempo sin cambiar tono) y key shift | MIT | ✅ | Incluir el aviso de copyright (© Geraint Luff / Signalsmith Audio Ltd) en "Créditos" (Fase 9). |
 | **Signalsmith Linear** | 0.6.4 | FFT/STFT que usa Signalsmith Stretch | MIT | ✅ | Incluir el aviso de copyright (© Signalsmith Audio) en "Créditos". |
 | **Orbitron** (Black, Bold) | 2018 (theleagueof/orbitron) | Logo y títulos | SIL OFL 1.1 | ✅ | Embebida en el ejecutable; texto de la licencia en `assets/fonts/OFL-Orbitron.txt` (se incluye con el instalador). No se vende la fuente por separado. |

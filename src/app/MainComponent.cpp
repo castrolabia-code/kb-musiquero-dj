@@ -14,7 +14,7 @@ namespace kb::app
     {
         setOpaque (true);
         for (auto* c : std::initializer_list<juce::Component*> { &topBar, &controller, &deckDisplays[0],
-                                                                 &deckDisplays[1], &libraryView, &statusBar })
+                                                                 &deckDisplays[1], &libraryView, &statusBar, &fxPanel })
             addAndMakeVisible (c);
 
         libraryView.onLoadRequest = [this] (int deck, const juce::File& file)
@@ -58,6 +58,16 @@ namespace kb::app
         controller.onJogTouch = [perf] (int d, bool t) { perf->jogTouch (d, t); };
         controller.onJogTurn  = [perf] (int d, double turns) { perf->jogMove (d, turns); };
         controller.onJogWheel = [perf] (int d, float w) { perf->jogWheel (d, w); };
+
+        // --- Efectos (Fase 5) ----------------------------------------------------------------
+        restoreFx();
+        fxPanel.onType   = [this] (int u, int t)    { player.getEngine().getFxUnit (u).setType ((engine::fx::Type) t); saveFx(); updateFxPanel(); };
+        fxPanel.onOn     = [this] (int u, bool on)  { player.getEngine().getFxUnit (u).setOn (on); updateFxPanel(); };
+        fxPanel.onWet    = [this] (int u, float w)  { player.getEngine().getFxUnit (u).setWet (w); saveFx(); };
+        fxPanel.onParam  = [this] (int u, float v)  { player.getEngine().getFxUnit (u).setParam (v); saveFx(); };
+        fxPanel.onBeats  = [this] (int u, int i)    { player.getEngine().getFxUnit (u).setBeatsIndex (i); saveFx(); updateFxPanel(); };
+        fxPanel.onTarget = [this] (int u, int t)    { player.getEngine().getFxUnit (u).setTarget ((engine::fx::Target) t); saveFx(); updateFxPanel(); };
+        updateFxPanel();
 
         // --- AUTO MIX ------------------------------------------------------------------------
         autoMixSeconds = settings.getAutoMixSeconds();
@@ -175,11 +185,13 @@ namespace kb::app
         screenArea = b;
 
         auto inner = b.reduced (m / 2 + 2);
-        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * 0.5));
+        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * 0.42));
         const auto gap = m / 2;
         deckDisplays[0].setBounds (waves.removeFromLeft ((waves.getWidth() - gap) / 2));
         waves.removeFromLeft (gap);
         deckDisplays[1].setBounds (waves);
+        inner.removeFromTop (m / 3);
+        fxPanel.setBounds (inner.removeFromTop (juce::jlimit (34, 60, juce::roundToInt (H * 0.045))));
         inner.removeFromTop (m / 3);
         libraryView.setBounds (inner);
     }
@@ -217,6 +229,65 @@ namespace kb::app
                                           .withButton (tr ("common.ok"))
                                           .withAssociatedComponent (this),
                                       nullptr);
+    }
+
+    void MainComponent::updateFxPanel()
+    {
+        for (int u = 0; u < engine::AudioEngine::kNumFxUnits; ++u)
+        {
+            const auto& unit = player.getEngine().getFxUnit (u);
+            ui::FxPanel::UnitState st;
+            st.type = (int) unit.getType();
+            st.on = unit.isOn();
+            st.wet = unit.getWet();
+            st.param = unit.getParam();
+            st.beatsIndex = unit.getBeatsIndex();
+            st.target = (int) unit.getTarget();
+            st.usesBeats = engine::fx::FxUnit::usesBeats (unit.getType());
+            fxPanel.setUnit (u, st);
+        }
+    }
+
+    void MainComponent::saveFx()
+    {
+        juce::Array<juce::var> list;
+        for (int u = 0; u < engine::AudioEngine::kNumFxUnits; ++u)
+        {
+            const auto& unit = player.getEngine().getFxUnit (u);
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("type", (int) unit.getType());
+            o->setProperty ("beats", unit.getBeatsIndex());
+            o->setProperty ("wet", unit.getWet());
+            o->setProperty ("param", unit.getParam());
+            o->setProperty ("target", (int) unit.getTarget());
+            list.add (juce::var (o));
+        }
+        settings.setFxState (juce::JSON::toString (juce::var (list), true));
+    }
+
+    void MainComponent::restoreFx()
+    {
+        auto& engine = player.getEngine();
+        // Por defecto: FX 1 = eco en el deck 1, FX 2 = filtro en el deck 2.
+        engine.getFxUnit (0).setType (engine::fx::Type::echo);
+        engine.getFxUnit (0).setTarget (engine::fx::Target::deck1);
+        engine.getFxUnit (1).setType (engine::fx::Type::filter);
+        engine.getFxUnit (1).setTarget (engine::fx::Target::deck2);
+
+        const auto json = juce::JSON::parse (settings.getFxState());
+        if (const auto* list = json.getArray())
+        {
+            for (int u = 0; u < juce::jmin (engine::AudioEngine::kNumFxUnits, list->size()); ++u)
+            {
+                const auto& v = (*list)[u];
+                auto& unit = engine.getFxUnit (u);
+                unit.setType ((engine::fx::Type) juce::jlimit (0, (int) engine::fx::Type::count - 1, (int) v.getProperty ("type", 0)));
+                unit.setBeatsIndex ((int) v.getProperty ("beats", engine::fx::kDefaultBeatsIndex));
+                unit.setWet ((float) (double) v.getProperty ("wet", 0.5));
+                unit.setParam ((float) (double) v.getProperty ("param", 0.5));
+                unit.setTarget ((engine::fx::Target) juce::jlimit (0, 2, (int) v.getProperty ("target", 2)));
+            }
+        }
     }
 
     void MainComponent::toggleAutoMix()
@@ -480,6 +551,7 @@ namespace kb::app
     {
         updateStatusBar();
         controller.invalidateBackground();
+        fxPanel.refreshTexts();
         // Los componentes traducen al pintar: alcanza con repintar.
         for (auto* c : getChildren())
             c->repaint();

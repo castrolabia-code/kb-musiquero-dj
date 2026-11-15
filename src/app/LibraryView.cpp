@@ -348,7 +348,7 @@ namespace kb::app
         b.removeFromLeft (4);
         table.setBounds (b);
 
-        const auto rowH = juce::jlimit (30, 40, getHeight() / 7);
+        const auto rowH = juce::jlimit (26, 40, getHeight() / 8);
         addButton.setBounds (juce::Rectangle<int> (rowH + 6, rowH + 6)
                                  .withCentre ({ sidebar.getRight() - rowH / 2 - 8, sidebar.getY() + rowH / 2 + 6 }));
 
@@ -365,7 +365,7 @@ namespace kb::app
         g.setColour (panel);
         g.fillRoundedRectangle (side, 4.0f);
 
-        const auto rowH = (float) juce::jlimit (30, 40, getHeight() / 7);
+        const auto rowH = (float) juce::jlimit (26, 40, getHeight() / 8);
         const auto textH = rowH * 0.55f;
         side = side.reduced (rowH * 0.4f, rowH * 0.2f);
         auto header = side.removeFromTop (rowH + 4.0f);

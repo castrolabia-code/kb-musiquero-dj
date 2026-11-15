@@ -14,6 +14,7 @@ namespace kb::app
         static constexpr const char* split        = "routing.split";
         static constexpr const char* autoMixSecs  = "mixer.autoMixSeconds";
         static constexpr const char* sampler      = "sampler.slots";
+        static constexpr const char* fxState      = "fx.units";
     }
 
     // Subir este número si cambia el formato de los ajustes (para migraciones).
@@ -105,6 +106,9 @@ namespace kb::app
 
     juce::String AppSettings::getSamplerState() const       { return file().getValue (keys::sampler, {}); }
     void AppSettings::setSamplerState (const juce::String& j) { file().setValue (keys::sampler, j); }
+
+    juce::String AppSettings::getFxState() const       { return file().getValue (keys::fxState, {}); }
+    void AppSettings::setFxState (const juce::String& j) { file().setValue (keys::fxState, j); }
 
     bool AppSettings::flush()
     {

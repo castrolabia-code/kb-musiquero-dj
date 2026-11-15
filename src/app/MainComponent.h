@@ -16,6 +16,7 @@
 #include "app/PlayerController.h"
 #include "ui/ControllerView.h"
 #include "ui/DeckDisplay.h"
+#include "ui/FxPanel.h"
 #include "ui/SkinPlaceholders.h"
 #include "ui/TopBar.h"
 
@@ -87,6 +88,10 @@ namespace kb::app
         bool dropOnPad (int x, int y, const juce::File& file);
 
         ui::TopBar             topBar;
+        ui::FxPanel            fxPanel;
+        void saveFx();
+        void restoreFx();
+        void updateFxPanel();
         ui::ControllerView     controller;
         ui::DeckDisplay        deckDisplays[2] { ui::DeckDisplay (0), ui::DeckDisplay (1) };
         TrackLibrary&          library;
