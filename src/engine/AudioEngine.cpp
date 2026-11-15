@@ -71,6 +71,8 @@ namespace kb::engine
         for (auto& s : strips)
             s.prepare (config.sampleRate);
         sampler.prepare (config.sampleRate);
+        for (auto& u : fxUnits)
+            u.prepare (config.sampleRate, block);
         masterLimiter.prepare (config.sampleRate);
         phonesLimiter.prepare (config.sampleRate);
 
@@ -552,6 +554,14 @@ namespace kb::engine
         }
     }
 
+    double AudioEngine::getDeckBpm (int d) const noexcept
+    {
+        if (! juce::isPositiveAndBelow (d, kNumDecks))
+            return 0.0;
+        const auto* t = decks[(size_t) d].getTrack();
+        return t != nullptr && t->getBpm() > 0.0 ? t->getBpm() * decks[(size_t) d].getRate() : 0.0;
+    }
+
     Deck::Status AudioEngine::getDeckStatus (int deck) const noexcept
     {
         return juce::isPositiveAndBelow (deck, kNumDecks) ? decks[(size_t) deck].getStatus() : Deck::Status {};
@@ -681,6 +691,11 @@ namespace kb::engine
             p.filter = load (c.filter);
             p.lowMultiplier = amLowMultiplier[(size_t) d];
             strips[(size_t) d].process (L, R, n, p);
+
+            // FX asignados a este deck: después del EQ y el filtro (también llegan al CUE).
+            for (auto& u : fxUnits)
+                if (u.getTarget() == (fx::Target) d)
+                    u.process (L, R, n, getDeckBpm (d));
         }
 
         // 1b) Sampler (va directo al bus master, antes del volumen MASTER).
@@ -715,30 +730,52 @@ namespace kb::engine
         auto* pL = W[phonesL]; auto* pR = W[phonesR];
         const auto* sL = W[samplerL]; const auto* sR = W[samplerR];
 
-        float masterPeakBeforeLimiter = 0.0f;
+        // 3a) Bus master (antes del volumen) y bus de cue.
         for (int i = 0; i < n; ++i)
         {
             const auto gA = smoothedDeckGain[0].getNextValue();
             const auto gB = smoothedDeckGain[1].getNextValue();
             const auto cA = smoothedCueGain[0].getNextValue();
             const auto cB = smoothedCueGain[1].getNextValue();
+            mL[i] = aL[i] * gA + bL[i] * gB + sL[i];
+            mR[i] = aR[i] * gA + bR[i] * gB + sR[i];
+            pL[i] = aL[i] * cA + bL[i] * cB;   // por ahora: bus de CUE (pre-fader)
+            pR[i] = aR[i] * cA + bR[i] * cB;
+        }
+
+        // 3b) FX asignados al MASTER (antes del volumen y del limitador). Su tempo:
+        //     el del deck que más suena "al aire".
+        {
+            double masterBpm = 0.0;
+            float loudest = -1.0f;
+            for (int d = 0; d < kNumDecks; ++d)
+            {
+                const auto level = decks[(size_t) d].isPlaying() ? faderGain (load (channel[(size_t) d].volume)) * xfade[d] : -0.5f;
+                if (level > loudest && getDeckBpm (d) > 0.0)
+                {
+                    loudest = level;
+                    masterBpm = getDeckBpm (d);
+                }
+            }
+            for (auto& u : fxUnits)
+                if (u.getTarget() == fx::Target::master)
+                    u.process (mL, mR, n, masterBpm);
+        }
+
+        // 3c) Volumen MASTER y auriculares (el master entra a los auriculares antes del
+        //     volumen MASTER: bajar los parlantes no apaga el master en los auriculares).
+        float masterPeakBeforeLimiter = 0.0f;
+        for (int i = 0; i < n; ++i)
+        {
             const auto gM = smoothedMaster.getNextValue();
             const auto gP = smoothedPhones.getNextValue();
             const auto mc = smoothedMixCue.getNextValue();
             const auto mm = smoothedMixMaster.getNextValue();
-
-            const auto busL = aL[i] * gA + bL[i] * gB + sL[i];   // master antes del volumen MASTER
-            const auto busR = aR[i] * gA + bR[i] * gB + sR[i];
-            const auto cueBusL = aL[i] * cA + bL[i] * cB;
-            const auto cueBusR = aR[i] * cA + bR[i] * cB;
-
+            const auto busL = mL[i], busR = mR[i];
+            pL[i] = (pL[i] * mc + busL * mm) * gP;
+            pR[i] = (pR[i] * mc + busR * mm) * gP;
             mL[i] = busL * gM;
             mR[i] = busR * gM;
-            // Auriculares: el master entra antes del volumen MASTER (bajar los
-            // parlantes no apaga el master en los auriculares).
-            pL[i] = (cueBusL * mc + busL * mm) * gP;
-            pR[i] = (cueBusR * mc + busR * mm) * gP;
-
             masterPeakBeforeLimiter = std::max (masterPeakBeforeLimiter, std::max (std::abs (mL[i]), std::abs (mR[i])));
         }
 

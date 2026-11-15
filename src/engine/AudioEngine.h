@@ -33,6 +33,7 @@
 #include "engine/LockFreeQueue.h"
 #include "engine/MeterSource.h"
 #include "engine/Sampler.h"
+#include "engine/fx/FxUnit.h"
 #include "engine/RealtimeChecks.h"
 #include "engine/TrackBuffer.h"
 #include "engine/dsp/Limiter.h"
@@ -117,6 +118,13 @@ namespace kb::engine
         void  setSampleLooping (int slot, bool loop) noexcept     { sampler.setLooping (slot, loop); }
         bool  getSampleLooping (int slot) const noexcept          { return sampler.isLooping (slot); }
         float getSampleProgress (int slot) const noexcept         { return sampler.getProgress (slot); }
+
+        // --- Efectos (Fase 5): 2 unidades. Sus parámetros son atómicos (cualquier hilo).
+        static constexpr int kNumFxUnits = 2;
+        fx::FxUnit&       getFxUnit (int unit) noexcept       { return fxUnits[(size_t) juce::jlimit (0, kNumFxUnits - 1, unit)]; }
+        const fx::FxUnit& getFxUnit (int unit) const noexcept { return fxUnits[(size_t) juce::jlimit (0, kNumFxUnits - 1, unit)]; }
+        /** Tempo efectivo de lo que sale por un deck (BPM de la pista × velocidad), o 0. */
+        double getDeckBpm (int deck) const noexcept;
 
         // --- Tempo y SYNC ------------------------------------------------------------------
         /** Tempo en % (-50..+50). Moverlo a mano desactiva el SYNC de ese deck. */
@@ -256,6 +264,7 @@ namespace kb::engine
         std::array<Deck, kNumDecks>         decks;
         std::array<ChannelStrip, kNumDecks> strips;
         Sampler sampler;
+        std::array<fx::FxUnit, 2> fxUnits;
         bool sendDeck (Command::Type type, int deck, double value = 0.0, int index = 0);
         dsp::Limiter masterLimiter, phonesLimiter;
         std::array<MeterSource, 2> masterMeters;
