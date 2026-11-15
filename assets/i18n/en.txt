@@ -15,6 +15,7 @@ countries: en gb us au ca nz ie za
 
 // --- Menu ---------------------------------------------------------------------
 "menu.file" = "File"
+"menu.file.loadDeck" = "Load into Deck {n}..."
 "menu.file.exit" = "Exit"
 "menu.options" = "Options"
 "menu.options.audio" = "Audio..."
@@ -41,6 +42,17 @@ countries: en gb us au ca nz ie za
 "audio.status.running" = "{type} · {device} · {rate} Hz · {buffer} samples · {latency} ms · {outputs} outputs · CPU {cpu} %"
 "audio.status.noDevice" = "No audio device. Set it up in Options > Audio."
 "audio.error.open" = "Could not open the audio device: {error}"
+
+// --- Track loading ----------------------------------------------------------------
+"load.chooserTitle" = "Choose a song for Deck {n}"
+"load.error.title" = "Could not load the song"
+"load.error.body" = "\"{file}\"\n\n{reason}"
+"load.error.fileNotFound" = "The file does not exist or was moved."
+"load.error.unsupportedFormat" = "Unsupported format. Valid formats: {formats}."
+"load.error.unreadable" = "The file is damaged or cannot be decoded."
+"load.error.empty" = "The file contains no audio."
+"load.error.tooLong" = "The track is too long (max. approx. 45 minutes)."
+"load.error.outOfMemory" = "Not enough memory to load the track."
 
 // --- About -----------------------------------------------------------------------
 "about.title" = "About"
@@ -70,6 +82,10 @@ countries: en gb us au ca nz ie za
 
 // --- Waveform area -----------------------------------------------------------------
 "wave.empty" = "No track loaded"
+"wave.emptyHint" = "Drop a song here or use File > Load into Deck"
+"wave.loading" = "Loading {percent} %"
+"wave.loadingShort" = "Loading..."
+"wave.dropHere" = "Drop to load into DECK {n}"
 "wave.bpm" = "BPM"
 "wave.key" = "KEY"
 
@@ -78,7 +94,7 @@ countries: en gb us au ca nz ie za
 "library.allTracks" = "All tracks"
 "library.history" = "History"
 "library.playlists" = "Playlists"
-"library.dropHint" = "Drop songs or folders here (available from Phase 1)"
+"library.dropHint" = "Drag songs onto a deck to load them. The library arrives in Phase 6."
 "library.col.number" = "#"
 "library.col.title" = "Title"
 "library.col.artist" = "Artist"

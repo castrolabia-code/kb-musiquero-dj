@@ -8,6 +8,7 @@
 #include "app/AudioDeviceService.h"
 #include "app/I18n.h"
 #include "app/MainWindow.h"
+#include "app/PlayerController.h"
 #include "engine/AudioEngine.h"
 #include "ui/KbLookAndFeel.h"
 
@@ -39,7 +40,8 @@ namespace kb::app
             audio  = std::make_unique<AudioDeviceService> (*engine, *settings);
             const auto audioError = audio->initialise();
 
-            mainWindow = std::make_unique<MainWindow> (*settings, *audio);
+            player = std::make_unique<PlayerController> (*engine);
+            mainWindow = std::make_unique<MainWindow> (*settings, *audio, *player);
 
             // Si el audio no abrió, avisar y llevar directo a Opciones > Audio.
             if (audioError.isNotEmpty())
@@ -62,6 +64,7 @@ namespace kb::app
         void shutdown() override
         {
             mainWindow.reset();
+            player.reset();     // cancela cargas en curso
             audio.reset();      // guarda el estado del dispositivo y cierra el audio
             engine.reset();
 
@@ -114,6 +117,7 @@ namespace kb::app
         std::unique_ptr<ui::KbLookAndFeel>    lookAndFeel;
         std::unique_ptr<engine::AudioEngine>  engine;
         std::unique_ptr<AudioDeviceService>   audio;
+        std::unique_ptr<PlayerController>     player;
         std::unique_ptr<MainWindow>           mainWindow;
     };
 } // namespace kb::app

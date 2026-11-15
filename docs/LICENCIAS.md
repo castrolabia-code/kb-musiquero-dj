@@ -10,6 +10,9 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 | Dependencia | Versión | Uso | Licencia | Estado | Obligaciones |
 |---|---|---|---|---|---|
 | **JUCE** | 8.0.15 | Framework de la app, audio, interfaz | AGPLv3 **o** licencia comercial JUCE | ⚠️ | Para vender sin publicar el código hace falta una **licencia comercial de JUCE** acorde a la facturación (planes Starter, Indie y Pro). **Revisar los términos vigentes en juce.com antes de la primera venta.** Las librerías que JUCE trae dentro (FLAC, Ogg Vorbis: BSD; zlib; etc.) tienen licencias permisivas y se listan en "Créditos" de la app en la Fase 9. |
+| **r8brain-free-src** | 6.5 | Conversión de sample rate de alta calidad al cargar pistas | MIT | ✅ | Incluir el aviso de copyright (© Aleksey Vaneev) en "Créditos" y en la documentación del instalador (Fase 9). Usa la FFT de Ooura, incluida y de licencia permisiva. |
+| **Windows Media Foundation** | (sistema operativo) | Decodificar M4A/AAC | Componente de Windows | ✅ | No se redistribuye nada. En Windows "N" (Europa) sin el Media Feature Pack, M4A no carga y la app muestra un error claro. |
+| Decodificadores de JUCE (MP3, FLAC, Ogg Vorbis, WAV, AIFF) | (JUCE) | Formatos de audio | Incluidos en JUCE (FLAC/Vorbis: BSD) | ✅ | Las patentes de MP3 vencieron en 2017. |
 | **Catch2** | 3.16.1 | Pruebas unitarias | BSL-1.0 | ✅ | Solo se usa en desarrollo; no se distribuye con el producto. |
 
 ## Opcionales (desactivadas por defecto)
@@ -22,9 +25,6 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 
 | Dependencia | Fase | Uso | Licencia | Estado | Notas |
 |---|---|---|---|---|---|
-| Windows Media Foundation | 1 | Decodificar M4A/AAC | Componente del SO | ✅ | No se redistribuye nada. |
-| Decodificador MP3 de JUCE | 1 | MP3 | Incluido en JUCE | ✅ | Las patentes de MP3 vencieron en 2017. |
-| r8brain-free-src | 1 | Conversión de sample rate de alta calidad | MIT | ✅ ⏳ | Requiere incluir el aviso de copyright. |
 | Signalsmith Stretch | 3 | Time-stretch / Key Lock | MIT | ✅ ⏳ | Requiere incluir el aviso de copyright. |
 | TagLib | 6 | Tags y carátulas | LGPL-2.1 **o** MPL-1.1 | ✅ ⏳ | Se enlaza como **DLL** (LGPL): el usuario debe poder reemplazarla; incluir texto de licencia y ofrecer el código de TagLib. |
 | SQLite | 6 | Base de datos de la biblioteca | Dominio público | ✅ ⏳ | Sin obligaciones. |
@@ -37,6 +37,7 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 |---|---|
 | Rubber Band | GPL (o licencia comercial paga). Reemplazada por Signalsmith Stretch (MIT). |
 | Windows Media Format de JUCE (`JUCE_USE_WINDOWS_MEDIA_FORMAT`) | API vieja; se usa Media Foundation directamente. |
+| Interpolador `WindowedSincInterpolator` de JUCE (para el cambio de sample rate) | No ajusta su filtro al bajar de frecuencia: con pistas de 96/48 kHz en un dispositivo de 44.1 kHz habría aliasing audible. r8brain sí lo hace (verificado por prueba: residuo < −100 dB). |
 
 ## Recordatorios para el dueño del producto
 

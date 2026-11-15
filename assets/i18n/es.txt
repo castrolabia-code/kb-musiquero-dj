@@ -15,6 +15,7 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 
 // --- Menú ---------------------------------------------------------------------
 "menu.file" = "Archivo"
+"menu.file.loadDeck" = "Cargar en Deck {n}..."
 "menu.file.exit" = "Salir"
 "menu.options" = "Opciones"
 "menu.options.audio" = "Audio..."
@@ -41,6 +42,17 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "audio.status.running" = "{type} · {device} · {rate} Hz · {buffer} muestras · {latency} ms · {outputs} salidas · CPU {cpu} %"
 "audio.status.noDevice" = "Sin dispositivo de audio. Configuralo en Opciones > Audio."
 "audio.error.open" = "No se pudo abrir el dispositivo de audio: {error}"
+
+// --- Carga de pistas ----------------------------------------------------------------
+"load.chooserTitle" = "Elegí una canción para el Deck {n}"
+"load.error.title" = "No se pudo cargar la canción"
+"load.error.body" = "\"{file}\"\n\n{reason}"
+"load.error.fileNotFound" = "El archivo no existe o fue movido."
+"load.error.unsupportedFormat" = "Formato no soportado. Formatos válidos: {formats}."
+"load.error.unreadable" = "El archivo está dañado o no se puede decodificar."
+"load.error.empty" = "El archivo no tiene audio."
+"load.error.tooLong" = "La pista es demasiado larga (máximo aprox. 45 minutos)."
+"load.error.outOfMemory" = "No hay memoria suficiente para cargar la pista."
 
 // --- Acerca de ---------------------------------------------------------------------
 "about.title" = "Acerca de"
@@ -70,6 +82,10 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 
 // --- Zona de waveforms -------------------------------------------------------------
 "wave.empty" = "Sin pista cargada"
+"wave.emptyHint" = "Arrastrá una canción acá o usá Archivo > Cargar en Deck"
+"wave.loading" = "Cargando {percent} %"
+"wave.loadingShort" = "Cargando..."
+"wave.dropHere" = "Soltá para cargar en el DECK {n}"
 "wave.bpm" = "BPM"
 "wave.key" = "KEY"
 
@@ -78,7 +94,7 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "library.allTracks" = "Todas las pistas"
 "library.history" = "Historial"
 "library.playlists" = "Playlists"
-"library.dropHint" = "Arrastrá canciones o carpetas acá (disponible desde la Fase 1)"
+"library.dropHint" = "Arrastrá canciones sobre un deck para cargarlas. La biblioteca llega en la Fase 6."
 "library.col.number" = "#"
 "library.col.title" = "Título"
 "library.col.artist" = "Artista"

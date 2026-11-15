@@ -3,7 +3,10 @@
 # =============================================================================
 add_executable(kb_tests
     TestMain.cpp
+    TestHelpers.h
+    AllocationCounter.cpp
     EngineTests.cpp
+    LoaderTests.cpp
     I18nTests.cpp)
 
 target_link_libraries(kb_tests PRIVATE

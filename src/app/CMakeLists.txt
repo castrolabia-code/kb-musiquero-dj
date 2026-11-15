@@ -32,7 +32,12 @@ target_sources(KBMusiqueroDJ PRIVATE
     MainComponent.h         MainComponent.cpp
     OptionsComponent.h      OptionsComponent.cpp
     AudioDeviceService.h    AudioDeviceService.cpp
+    PlayerController.h      PlayerController.cpp
     ../ui/Palette.h
+    ../ui/DrawPrimitives.h  ../ui/DrawPrimitives.cpp
+    ../ui/Controls.h        ../ui/Controls.cpp
+    ../ui/ControllerView.h  ../ui/ControllerView.cpp
+    ../ui/DeckDisplay.h     ../ui/DeckDisplay.cpp
     ../ui/KbLookAndFeel.h   ../ui/KbLookAndFeel.cpp
     ../ui/SkinPlaceholders.h ../ui/SkinPlaceholders.cpp)
 

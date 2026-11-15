@@ -3,7 +3,7 @@
 Software DJ comercial de 2 decks para Windows 10/11 (x64), preparado para portarse a Android.
 JUCE 8 + C++20 + CMake.
 
-> Estado: **Fase 0 — Base del proyecto** (ver [CHANGELOG.md](CHANGELOG.md)).
+> Estado: **Fase 1 — Motor de audio mínimo** (v0.2.0) (ver [CHANGELOG.md](CHANGELOG.md)).
 > El documento maestro del producto está en [CLAUDE.md](CLAUDE.md).
 
 ## Descargar el programa (sin compilar)

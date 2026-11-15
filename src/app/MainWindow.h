@@ -11,13 +11,15 @@ namespace kb::app
 {
     class AppSettings;
     class AudioDeviceService;
+    class MainComponent;
+    class PlayerController;
 
     class MainWindow final : public juce::DocumentWindow,
                              private juce::MenuBarModel,
                              private I18n::Listener
     {
     public:
-        MainWindow (AppSettings& settings, AudioDeviceService& audio);
+        MainWindow (AppSettings& settings, AudioDeviceService& audio, PlayerController& player);
         ~MainWindow() override;
 
         void closeButtonPressed() override;
@@ -41,6 +43,7 @@ namespace kb::app
 
         AppSettings&        settings;
         AudioDeviceService& audio;
+        MainComponent*      mainComponent = nullptr;   // propiedad de la ventana
         juce::Component::SafePointer<juce::DialogWindow> optionsWindow;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)

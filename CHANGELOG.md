@@ -3,6 +3,26 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.2.0] — Fase 1: Motor de audio mínimo
+
+### Agregado
+- **2 decks** con carga de **MP3, WAV, AIFF, FLAC, OGG y M4A/AAC** (M4A mediante Windows Media Foundation).
+- **Carga en segundo plano y progresiva**: un hilo por deck; se puede dar PLAY apenas empieza a cargar.
+- **Conversión de sample rate de alta calidad** al cargar (r8brain-free-src, MIT), con filtro anti-aliasing y sin retardo.
+- **Transporte estilo CDJ**: PLAY/PAUSE y CUE (vuelve al cue, fija el cue en pausa, preescucha mientras se mantiene, PLAY + CUE sigue sonando). PLAY titila en pausa.
+- **Sin clicks**: fundidos de 3 ms en play, pausa, saltos, CUE y cargas (segundo cabezal de fundido).
+- **Mixer básico**: volumen por canal (curva cuadrática), crossfader de potencia constante y MASTER, todos suavizados (20 ms). Protección de recorte a 0 dBFS hasta el limitador de la Fase 2.
+- **Arrastrar y soltar** desde el Explorador sobre cada deck (plato, mitad del controlador o su franja de waveform), con resaltado del deck destino.
+- **Archivo → Cargar en Deck 1/2...** con selector de archivos filtrado por formato.
+- **Display por deck**: título y artista (desde el nombre "Artista - Título"), tiempo transcurrido y restante, % de carga y **vista general de la pista** con click/arrastre para saltar, marca de cue y parte reproducida atenuada.
+- Mensajes de error claros y traducidos al cargar (archivo inexistente, formato no soportado, dañado, demasiado largo, sin memoria).
+- Comunicación UI → motor por cola lock-free; las pistas que el audio suelta vuelven por otra cola y se liberan en el hilo de mensajes.
+- Pruebas: lógica de CUE, ausencia de clicks medida, mezcla y curvas, decodificación de los 6 formatos, calidad del resampler, carga progresiva y cancelación, **cero allocations en el callback de audio** (verificado reemplazando new/delete) y rendimiento (2 decks ≈ 0,5 % de un núcleo).
+
+### Conocido / pendiente
+- Si se cambia el sample rate del dispositivo con pistas cargadas, estas se reproducen con interpolación Hermite hasta volver a cargarlas.
+- La biblioteca todavía no recibe archivos (Fase 6).
+
 ## [0.1.0] — Fase 0: Base del proyecto
 
 ### Agregado

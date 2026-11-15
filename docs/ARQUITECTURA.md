@@ -1,21 +1,24 @@
 # Arquitectura — KB - MUSIQUERO DJ
 
-Documento vivo: se actualiza al cerrar cada fase. Última actualización: **Fase 0**.
+Documento vivo: se actualiza al cerrar cada fase. Última actualización: **Fase 1**.
 
 ## 1. Vista general
 
 ```
                 ┌───────────────────────────── app (escritorio) ─────────────────────────────┐
                 │  Main.cpp ─ MainWindow ─ MainComponent ─ OptionsComponent                   │
-                │       │            │              │                                         │
-                │  AppSettings    I18n (ES/EN)   ui/ (skin, placeholders, LookAndFeel)         │
+                │       │            │              │  (drag & drop, menú, refresco 30 Hz)    │
+                │  AppSettings    I18n (ES/EN)   ui/ ControllerView, DeckDisplay, Controls   │
                 │       │                                                                     │
+                │  PlayerController ── carga pistas y las entrega al motor                    │
                 │  AudioDeviceService  ── WASAPI / ASIO (juce_audio_devices)                  │
                 └───────┬─────────────────────────────────────────────────────────────────────┘
                         │ prepare / process / release  (solo buffers de float)
-                ┌───────▼──────── engine (portable, sin UI) ───────┐   ┌── analysis (Fase 3) ──┐
-                │ AudioEngine → Decks, Mixer, FX, Routing (F1–F5)  │   │ BPM, Key, waveform     │
-                └──────────────────────────────────────────────────┘   └────────────────────────┘
+                ┌───────▼──────── engine (portable, sin UI) ────────────┐   ┌── analysis (F3) ──┐
+                │ AudioEngine → 2 × Deck, mixer (vol, xfader, master)    │   │ BPM, Key, wave RGB │
+                │ TrackLoader (hilos) → TrackBuffer (float, en memoria)  │   └────────────────────┘
+                │ AudioFileFormats (JUCE + Media Foundation en Windows)  │
+                └────────────────────────────────────────────────────────┘
                 library (F6, SQLite) · midi (F8) · licensing (F9)
 ```
 
@@ -47,20 +50,57 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 |---|---|---|
 | **Mensajes (UI)** | Ventanas, menús, ajustes, I18n, `AudioDeviceService::getStatus()` | Todo, salvo bloquear mucho tiempo |
 | **Audio** (driver) | `AudioDeviceService::audioDeviceIOCallbackWithContext` → `AudioEngine::process` | **Solo** matemática sobre memoria pre-reservada y atómicos |
-| **Carga/decodificación** (Fase 1) | Lectura de archivos y buffering anticipado | I/O, allocations |
+| **Carga** (`TrackLoader`, 1 hilo por deck) | Decodificación + conversión de sample rate (r8brain) | I/O, allocations, COM/Media Foundation |
 | **Análisis** (Fase 3) | BPM, Key, waveform | CPU pesada, baja prioridad |
 
 ### Reglas de tiempo real (innegociables)
 
 1. En `process()`: **cero** allocations, locks, I/O de disco, logs, excepciones o llamadas al sistema.
-2. UI → motor: parámetros `std::atomic` y colas lock-free SPSC (Fase 1).
+2. UI → motor: comandos por cola lock-free SPSC (`LockFreeQueue.h`) y parámetros continuos `std::atomic`, suavizados en el audio (`SmoothedValue`, 20 ms).
 3. Motor → UI: atómicos para medidores y posición; la UI los lee con un timer de 60 Hz (Fase 2).
 4. `prepare()` reserva toda la memoria; JUCE lo llama con el audio detenido (`audioDeviceAboutToStart`).
 5. `RealtimeChecks.h` exige con `static_assert` que los atómicos usados sean lock-free.
 6. `audioDeviceError()` puede llegar desde el hilo de audio: solo incrementa un contador.
 7. Procesamiento interno en `float` de 32 bits, con `ScopedNoDenormals`.
 
-## 3. Audio y dispositivos (Windows)
+## 3. Reproducción (Fase 1)
+
+### Ciclo de vida de una pista
+
+```
+ UI: loadFile(deck, archivo)
+   └─▶ TrackLoader (hilo de fondo)
+         1. abre el lector (JUCE o Media Foundation)
+         2. reserva TrackBuffer completo (float estéreo, al sample rate del motor)
+         3. onReady ─▶ (callAsync) ─▶ PlayerController ─▶ AudioEngine::loadTrack
+         4. sigue decodificando por bloques + r8brain, publica 'decodedFrames' (release)
+   AudioEngine (hilo de audio)
+         Deck lee solo frames < decodedFrames (acquire). Si alcanza el borde, espera.
+         Al reemplazarla, la pista vieja queda "retirada"; cuando el fundido termina
+         vuelve por la cola 'released' ─▶ collectGarbage() (hilo de mensajes) la libera.
+```
+
+- Memoria: ~10 MB por minuto a 44.1/48 kHz. Límite de 1 GiB por pista (~45 min). Para sets largos
+  se evaluará streaming desde disco en una fase posterior.
+- Cada pista tiene un id único; la UI compara `Deck::Status::trackId` para no mostrar el estado de
+  una pista vieja durante un reemplazo.
+- La "vista general" (4096 picos) se calcula mientras decodifica.
+
+### Deck
+
+- Posición en frames (`double`). Si la pista se cargó al sample rate del motor, la lectura es
+  exacta; si no (cambio de dispositivo después de cargar), interpolación Hermite de 4 puntos.
+- **Anti-click**: todo cambio brusco crea un "ghost" (segundo cabezal) que se apaga en 3 ms mientras
+  el principal entra desde 0. Probado midiendo el mayor salto entre muestras.
+- **CUE estilo CDJ**: ver comentario de `engine/Deck.h` y pruebas `[cue]`.
+
+### Mixer (Fase 1)
+
+`salida = (deckA · fader(volA) · xfA + deckB · fader(volB) · xfB) · fader(master)`, con
+`fader(p) = p²` y crossfader de potencia constante (`cos/sin`). Recorte de seguridad a ±1.0 (se
+cuenta en `getClippedSamples()`) hasta el limitador de la Fase 2.
+
+## 4. Audio y dispositivos (Windows)
 
 - Tipos de driver: **Windows Audio** (WASAPI compartido), **Windows Audio (Exclusive Mode)**,
   **Windows Audio (Low Latency Mode)** y **ASIO** (solo con `KB_ENABLE_ASIO=ON`). DirectSound está
@@ -70,7 +110,7 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 - El estado del dispositivo se guarda como XML en los ajustes en cada cambio. Si al arrancar el
   dispositivo guardado no está, se abre el predeterminado.
 
-## 4. Internacionalización
+## 5. Internacionalización
 
 - `assets/i18n/es.txt` y `en.txt` (formato `LocalisedStrings` de JUCE), embebidos con `juce_add_binary_data`.
 - El código usa **claves** (`kb::tr ("menu.options")`), nunca textos. Variables: `{nombre}`.
@@ -81,7 +121,7 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 - Pruebas: misma cantidad y nombre de claves en ES y EN, y toda clave usada en el código existe.
 - La C++ no contiene literales no-ASCII visibles al usuario (todo texto con tildes está en los `.txt`).
 
-## 5. Persistencia
+## 6. Persistencia
 
 | Qué | Dónde (Windows) |
 |---|---|
@@ -91,7 +131,7 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 
 `settings.version` permite migrar el formato en el futuro.
 
-## 6. UI y escalado
+## 7. UI y escalado
 
 - JUCE gestiona la conciencia de DPI por monitor en Windows: todo se dibuja en coordenadas lógicas
   y se rasteriza a la resolución física, sin pixelado en 1080p, 1440p o 4K.
@@ -99,14 +139,14 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 - Fase 0: el skin es un **placeholder vectorial** (`ui/SkinPlaceholders`) con el layout definitivo y la paleta oficial (`ui/Palette.h`).
 - Fase 7: chasis y platos pasan a renders PNG @1x/@2x/@4x; lo dinámico sigue siendo vectorial; waveforms y animaciones por OpenGL.
 
-## 7. Build y CI
+## 8. Build y CI
 
 - `CMakePresets.json`: `windows-x64-debug/release` (Visual Studio, x64) y `linux-debug/release` (Ninja).
 - GitHub Actions (`.github/workflows/build.yml`) compila en Windows y Linux, corre `ctest` y publica el ejecutable de Windows.
 - Runtime de MSVC: dinámico (`/MD`). El instalador (Fase 9) incluirá el VC++ Redistributable.
   Se eligió dinámico para compartir el runtime con la DLL de TagLib (Fase 6) sin problemas de ABI.
 
-## 8. Decisiones registradas
+## 9. Decisiones registradas
 
 | # | Decisión | Motivo |
 |---|---|---|
@@ -117,3 +157,7 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D5 | ASIO desactivado por defecto | Requiere el acuerdo propietario de Steinberg para uso comercial. |
 | D6 | Idioma por defecto: el del SO si es inglés, si no español | Mercado principal hispanohablante. |
 | D7 | Una sola instancia | Dos instancias pelearían por el dispositivo de audio exclusivo. |
+| D8 | Pistas decodificadas completas en memoria (float) | Saltos, cues, loops y scratch (Fase 4) instantáneos y sin I/O en el audio. Costo: ~10 MB/min. |
+| D9 | Conversión de sample rate al cargar (r8brain), no en tiempo real | Máxima calidad sin costo en el callback. El tempo/pitch (Fase 3) se hará sobre la pista ya convertida. |
+| D10 | Fundidos de 3 ms con cabezal "ghost" | Elimina clicks en todos los cambios sin perder respuesta (3 ms es inaudible como demora). |
+| D11 | M4A con Media Foundation propio (no `WindowsMediaAudioFormat` de JUCE) | API moderna, AAC confiable, salida float directa. |

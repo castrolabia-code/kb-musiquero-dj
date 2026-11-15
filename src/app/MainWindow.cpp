@@ -13,6 +13,8 @@ namespace kb::app
         enum MenuIds
         {
             idExit = 1,
+            idLoadDeck1,
+            idLoadDeck2,
             idOptionsAudio,
             idOptionsGeneral,
             idLanguageBase = 100,   // + índice del idioma
@@ -20,13 +22,14 @@ namespace kb::app
         };
     }
 
-    MainWindow::MainWindow (AppSettings& s, AudioDeviceService& a)
+    MainWindow::MainWindow (AppSettings& s, AudioDeviceService& a, PlayerController& player)
         : juce::DocumentWindow (tr ("app.title"), ui::palette::panelDark, juce::DocumentWindow::allButtons),
           settings (s),
           audio (a)
     {
         setUsingNativeTitleBar (true);
-        setContentOwned (new MainComponent (audio), false);
+        mainComponent = new MainComponent (audio, player);
+        setContentOwned (mainComponent, false);
         setMenuBar (this);
 
         setResizable (true, false);
@@ -87,6 +90,9 @@ namespace kb::app
         switch (topLevelMenuIndex)
         {
             case 0:
+                menu.addItem (idLoadDeck1, tr ("menu.file.loadDeck", { { "n", "1" } }));
+                menu.addItem (idLoadDeck2, tr ("menu.file.loadDeck", { { "n", "2" } }));
+                menu.addSeparator();
                 menu.addItem (idExit, tr ("menu.file.exit"));
                 break;
 
@@ -123,6 +129,11 @@ namespace kb::app
         if (menuItemID == idExit)
         {
             juce::JUCEApplication::getInstance()->systemRequestedQuit();
+        }
+        else if (menuItemID == idLoadDeck1 || menuItemID == idLoadDeck2)
+        {
+            if (mainComponent != nullptr)
+                mainComponent->openLoadDialog (menuItemID == idLoadDeck1 ? 0 : 1);
         }
         else if (menuItemID == idOptionsAudio)
         {
