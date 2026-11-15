@@ -19,6 +19,8 @@ if(WIN32)
         formats/MediaFoundationReader.h
         formats/MediaFoundationReader.cpp)
     target_link_libraries(kb_engine PRIVATE mfplat mfreadwrite mfuuid ole32)
+    # r8brain incluye <windows.h>: sin NOMINMAX sus macros min/max rompen std::min.
+    target_compile_definitions(kb_engine PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()
 
 target_include_directories(kb_engine PUBLIC "${PROJECT_SOURCE_DIR}/src")

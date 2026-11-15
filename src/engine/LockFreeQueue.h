@@ -12,6 +12,11 @@
 #include <cstddef>
 #include <type_traits>
 
+#if defined (_MSC_VER)
+ #pragma warning (push)
+ #pragma warning (disable: 4324)   // relleno por alignas(64): es intencional (evita false sharing)
+#endif
+
 namespace kb::engine
 {
     template <typename T, std::size_t Capacity>
@@ -65,3 +70,7 @@ namespace kb::engine
         alignas (64) std::atomic<std::size_t> tail { 0 };   // escribe el consumidor
     };
 } // namespace kb::engine
+
+#if defined (_MSC_VER)
+ #pragma warning (pop)
+#endif
