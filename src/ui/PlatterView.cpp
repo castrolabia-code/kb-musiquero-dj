@@ -1,5 +1,6 @@
 #include "ui/PlatterView.h"
 
+#include "app/I18n.h"
 #include "ui/DrawPrimitives.h"
 #include "ui/Palette.h"
 
@@ -12,13 +13,60 @@ namespace kb::ui
     PlatterView::PlatterView (int d) : deck (d)
     {
         setOpaque (false);
-        setInterceptsMouseClicks (false, false);   // Fase 4: jog (scratch / bend)
+        setMouseCursor (juce::MouseCursor::DraggingHandCursor);
     }
 
     double PlatterView::angleForPosition (double seconds) noexcept
     {
         const auto turns = seconds * kRevolutionsPerSecond;
         return (turns - std::floor (turns)) * juce::MathConstants<double>::twoPi;
+    }
+
+    juce::String PlatterView::getTooltip() { return tr ("tip.platter"); }
+
+    bool PlatterView::hitTest (int x, int y)
+    {
+        const auto c = getLocalBounds().toFloat().getCentre();
+        return c.getDistanceFrom ({ (float) x, (float) y }) <= getWidth() * 0.5f;
+    }
+
+    double PlatterView::angleAt (juce::Point<float> p) const
+    {
+        const auto c = getLocalBounds().toFloat().getCentre();
+        return std::atan2 ((double) (p.x - c.x), (double) (c.y - p.y));   // 0 arriba, + horario
+    }
+
+    void PlatterView::mouseDown (const juce::MouseEvent& e)
+    {
+        grabbed = true;
+        lastAngle = angleAt (e.position);
+        if (onTouch) onTouch (true);
+    }
+
+    void PlatterView::mouseDrag (const juce::MouseEvent& e)
+    {
+        if (! grabbed)
+            return;
+        const auto a = angleAt (e.position);
+        const auto delta = std::remainder (a - lastAngle, juce::MathConstants<double>::twoPi);
+        lastAngle = a;
+        // Muy cerca del centro el ángulo salta: se ignora.
+        if (e.position.getDistanceFrom (getLocalBounds().toFloat().getCentre()) < getWidth() * 0.08f)
+            return;
+        if (onTurn) onTurn (delta / juce::MathConstants<double>::twoPi);
+    }
+
+    void PlatterView::mouseUp (const juce::MouseEvent&)
+    {
+        if (! grabbed)
+            return;
+        grabbed = false;
+        if (onTouch) onTouch (false);
+    }
+
+    void PlatterView::mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& w)
+    {
+        if (onWheel) onWheel (w.deltaY);
     }
 
     void PlatterView::setState (double positionSeconds, bool isPlaying, bool isLoaded)

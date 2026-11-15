@@ -13,6 +13,7 @@
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include <cmath>
 #include <functional>
 
 namespace kb::ui
@@ -30,9 +31,16 @@ namespace kb::ui
         juce::String getTooltip() override;
 
         /** Tamaño de letra relativo al alto del botón (por defecto 0.2 redondo / 0.36 rectangular). */
-        void setTextScale (float s) { textScale = s; repaint(); }
+        void setTextScale (float s) { if (! juce::exactlyEqual (s, textScale)) { textScale = s; repaint(); } }
 
-        void setLabelKey (const juce::String& key) { labelKey = key; repaint(); }
+        void setLabelKey (const juce::String& key) { if (key != labelKey || labelText.isNotEmpty()) { labelKey = key; labelText = {}; repaint(); } }
+        /** Texto fijo (no se traduce): nombres de samples, números de cue... */
+        void setLabelText (const juce::String& newText) { if (newText != labelText || labelKey.isNotEmpty()) { labelText = newText; labelKey = {}; repaint(); } }
+        void setColour (juce::Colour c) { if (c != colour) { colour = c; repaint(); } }
+        /** Barra de avance abajo del botón (0..1); < 0 = sin barra. */
+        void setProgress (float p) { if (std::abs (p - progress) > 0.004f) { progress = p; repaint(); } }
+        /** Click derecho (en vez de apretar el botón). */
+        std::function<void()> onRightClick;
         void setLit (bool shouldBeLit);
         bool isLit() const noexcept { return lit; }
 
@@ -43,8 +51,11 @@ namespace kb::ui
         void paintButton (juce::Graphics& g, bool highlighted, bool down) override;
         void buttonStateChanged() override;
         void mouseDoubleClick (const juce::MouseEvent&) override;
+        void mouseDown (const juce::MouseEvent&) override;
+        juce::String label() const;
 
-        juce::String labelKey, tooltipKey;
+        juce::String labelKey, labelText, tooltipKey;
+        float progress = -1.0f;
         juce::Colour colour;
         bool round;
         ButtonIcon icon;

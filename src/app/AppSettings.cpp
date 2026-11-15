@@ -13,6 +13,7 @@ namespace kb::app
         static constexpr const char* masterPair   = "routing.masterOutputPair";
         static constexpr const char* split        = "routing.split";
         static constexpr const char* autoMixSecs  = "mixer.autoMixSeconds";
+        static constexpr const char* sampler      = "sampler.slots";
     }
 
     // Subir este número si cambia el formato de los ajustes (para migraciones).
@@ -101,6 +102,9 @@ namespace kb::app
 
     double AppSettings::getAutoMixSeconds() const       { return juce::jlimit (2.0, 60.0, file().getDoubleValue (keys::autoMixSecs, 10.0)); }
     void AppSettings::setAutoMixSeconds (double s)      { file().setValue (keys::autoMixSecs, s); }
+
+    juce::String AppSettings::getSamplerState() const       { return file().getValue (keys::sampler, {}); }
+    void AppSettings::setSamplerState (const juce::String& j) { file().setValue (keys::sampler, j); }
 
     bool AppSettings::flush()
     {

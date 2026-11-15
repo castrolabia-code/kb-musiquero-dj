@@ -135,6 +135,51 @@ namespace kb::ui
             }
         }
 
+        // --- Pads, modos, SHIFT / SLIP / VINYL y plato (Fase 4) ------------------------------
+        static const char* modeKeys[] = { "deck.mode.hotcue", "deck.mode.fx", "deck.mode.sampler", "deck.mode.loop" };
+        for (int d = 0; d < 2; ++d)
+        {
+            for (int i = 0; i < 4; ++i)
+            {
+                auto mb = std::make_unique<GlowButton> (modeKeys[i], orange, false);
+                mb->setTooltipKey ("tip.padModes");
+                mb->onPress = [this, d, i] { if (onPadMode) onPadMode (d, i); };
+                addAndMakeVisible (*mb);
+                modeButtons[(size_t) d][(size_t) i] = std::move (mb);
+
+                auto pb = std::make_unique<GlowButton> (juce::String(), cyan, false);
+                pb->setLabelText (juce::String (i + 1));
+                pb->setTooltipKey ("tip.pads");
+                pb->onPress   = [this, d, i] { if (onPad) onPad (d, i, true); };
+                pb->onRelease = [this, d, i] { if (onPad) onPad (d, i, false); };
+                auto* raw = pb.get();
+                pb->onRightClick = [this, d, i, raw] { if (onPadMenu) onPadMenu (d, i, raw); };
+                addAndMakeVisible (*pb);
+                padButtons[(size_t) d][(size_t) i] = std::move (pb);
+            }
+
+            shiftButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.shift", juce::Colours::white, false);
+            shiftButtons[(size_t) d]->setTooltipKey ("tip.shift");
+            shiftButtons[(size_t) d]->onPress   = [this, d] { if (onShift) onShift (d, true); };
+            shiftButtons[(size_t) d]->onRelease = [this, d] { if (onShift) onShift (d, false); };
+            slipButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.slip", cyan, false);
+            slipButtons[(size_t) d]->setTooltipKey ("tip.slip");
+            slipButtons[(size_t) d]->onPress = [this, d] { if (onSlip) onSlip (d); };
+            vinylButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.vinyl", orange, false);
+            vinylButtons[(size_t) d]->setTooltipKey ("tip.vinyl");
+            vinylButtons[(size_t) d]->onPress = [this, d] { if (onVinyl) onVinyl (d); };
+            for (auto* b : { shiftButtons[(size_t) d].get(), slipButtons[(size_t) d].get(), vinylButtons[(size_t) d].get() })
+            {
+                b->setTextScale (0.6f);
+                addAndMakeVisible (*b);
+            }
+
+            auto& pv = *platters[(size_t) d];
+            pv.onTouch = [this, d] (bool t) { if (onJogTouch) onJogTouch (d, t); };
+            pv.onTurn  = [this, d] (double turns) { if (onJogTurn) onJogTurn (d, turns); };
+            pv.onWheel = [this, d] (float w) { if (onJogWheel) onJogWheel (d, w); };
+        }
+
         // --- Tiras de canal (Fase 2) --------------------------------------------------
         static const char* stripKeys[] = { "mixer.gain", "mixer.high", "mixer.mid", "mixer.low", "mixer.filter" };
         for (int d = 0; d < 2; ++d)
@@ -255,12 +300,6 @@ namespace kb::ui
         {
             if (L.platter.contains (p))
                 return tr ("tip.platter");
-            for (const auto& pad : L.pads)
-                if (pad.contains (p))
-                    return tr ("tip.pads");
-            for (const auto& m : L.modes)
-                if (m.contains (p))
-                    return tr ("tip.padModes");
         }
         return {};
     }
@@ -329,6 +368,50 @@ namespace kb::ui
     }
     void ControllerView::setMaster (float v)     { masterKnob.setValue (v, juce::dontSendNotification); }
 
+    void ControllerView::setPadView (int d, const PadView& v)
+    {
+        if (! juce::isPositiveAndBelow (d, 2))
+            return;
+        static const char* primaryKeys[]   = { "deck.mode.hotcue",  "deck.mode.fx",   "deck.mode.sampler",  "deck.mode.loop" };
+        static const char* secondaryKeys[] = { "deck.mode.hotcue2", "deck.mode.roll", "deck.mode.sampler2", "deck.mode.loopManual" };
+        for (int i = 0; i < 4; ++i)
+        {
+            auto& mb = *modeButtons[(size_t) d][(size_t) i];
+            // Con SHIFT apretado los botones muestran su modo secundario.
+            const bool showSecondary = v.shift || (i == v.group && v.secondary);
+            mb.setLabelKey (showSecondary ? secondaryKeys[i] : primaryKeys[i]);
+            mb.setLit (i == v.group);
+
+            auto& pb = *padButtons[(size_t) d][(size_t) i];
+            const auto& text = v.labels[(size_t) i];
+            pb.setLabelText (text);
+            // Letra según el largo: números grandes, palabras y nombres de samples más chicos.
+            const auto len = (float) juce::jmax (1, text.length());
+            pb.setTextScale (len <= 2.0f ? 0.42f : len <= 6.0f ? 0.3f : juce::jmax (0.15f, 0.3f * 6.0f / len));
+            pb.setColour (v.colours[(size_t) i]);
+            pb.setLit (v.lit[(size_t) i]);
+            pb.setProgress (v.progress[(size_t) i]);
+        }
+        padGroup[(size_t) d] = v.group;
+        padSecondary[(size_t) d] = v.secondary;
+        shiftButtons[(size_t) d]->setLit (v.shift);
+        slipButtons[(size_t) d]->setLit (v.slip);
+        vinylButtons[(size_t) d]->setLit (v.vinyl);
+    }
+
+    int ControllerView::padAt (juce::Point<int> p, int& padIndex) const
+    {
+        for (int d = 0; d < 2; ++d)
+            for (int i = 0; i < 4; ++i)
+                if (deckLayouts[(size_t) d].pads[(size_t) i].contains (p.toFloat()))
+                {
+                    padIndex = i;
+                    return d;
+                }
+        padIndex = -1;
+        return -1;
+    }
+
     void ControllerView::setDropTarget (int deck)
     {
         if (dropTarget != deck)
@@ -364,6 +447,15 @@ namespace kb::ui
             keyLockButtons[(size_t) d]->setBounds (dl.keyLock.toNearestInt());
             keyDownButtons[(size_t) d]->setBounds (dl.keyDown.toNearestInt());
             keyUpButtons[(size_t) d]->setBounds (dl.keyUp.toNearestInt());
+            shiftButtons[(size_t) d]->setBounds (dl.shift.toNearestInt());
+            slipButtons[(size_t) d]->setBounds (dl.slip.toNearestInt());
+            vinylButtons[(size_t) d]->setBounds (dl.vinyl.toNearestInt());
+            for (int i = 0; i < 4; ++i)
+            {
+                modeButtons[(size_t) d][(size_t) i]->setBounds (dl.modes[(size_t) i].expanded (unit * 0.3f).toNearestInt());
+                modeButtons[(size_t) d][(size_t) i]->setTextScale (0.42f);
+                padButtons[(size_t) d][(size_t) i]->setBounds (dl.pads[(size_t) i].expanded (unit * 0.3f).toNearestInt());
+            }
             rangeButtons[(size_t) d]->setTextScale (0.62f);
         }
 
@@ -447,13 +539,19 @@ namespace kb::ui
                 {
                     L.keyUp   = keys.removeFromRight (unit * 11.0f);  keys.removeFromRight (gapKeys);
                     L.keyDown = keys.removeFromRight (unit * 11.0f);  keys.removeFromRight (gapKeys);
-                    L.keyLock = keys.removeFromRight (unit * 16.0f);
+                    L.keyLock = keys.removeFromRight (unit * 16.0f);  keys.removeFromRight (gapKeys * 3.0f);
+                    L.vinyl   = keys.removeFromRight (unit * 13.0f);  keys.removeFromRight (gapKeys);
+                    L.slip    = keys.removeFromRight (unit * 11.0f);  keys.removeFromRight (gapKeys);
+                    L.shift   = keys.removeFromRight (unit * 13.0f);
                 }
                 else
                 {
                     L.keyLock = keys.removeFromLeft (unit * 16.0f);  keys.removeFromLeft (gapKeys);
                     L.keyDown = keys.removeFromLeft (unit * 11.0f);  keys.removeFromLeft (gapKeys);
-                    L.keyUp   = keys.removeFromLeft (unit * 11.0f);
+                    L.keyUp   = keys.removeFromLeft (unit * 11.0f);  keys.removeFromLeft (gapKeys * 3.0f);
+                    L.vinyl   = keys.removeFromLeft (unit * 13.0f);  keys.removeFromLeft (gapKeys);
+                    L.slip    = keys.removeFromLeft (unit * 11.0f);  keys.removeFromLeft (gapKeys);
+                    L.shift   = keys.removeFromLeft (unit * 13.0f);
                 }
             }
 
@@ -670,13 +768,7 @@ namespace kb::ui
 
         // SYNC, PLAY y CUE son componentes.
 
-        // Modos de pads y pads (Fase 4)
-        const char* modeKeys[] = { "deck.mode.hotcue", "deck.mode.fx", "deck.mode.sampler", "deck.mode.loop" };
-        for (int i = 0; i < 4; ++i)
-            draw::button (g, L.modes[(size_t) i], orange, tr (modeKeys[i]), i == 0, false, textH * 0.78f);
-        for (int i = 0; i < 4; ++i)
-            draw::button (g, L.pads[(size_t) i], cyan, juce::String (i + 1), false, false, L.pads[(size_t) i].getHeight() * 0.32f);
-
+        // Modos de pads, pads, SHIFT, SLIP y VINYL son componentes (Fase 4).
     }
 
     void ControllerView::paintMixer (Graphics& g) const

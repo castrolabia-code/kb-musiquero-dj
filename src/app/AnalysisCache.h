@@ -9,6 +9,7 @@
 // =============================================================================
 #include <juce_core/juce_core.h>
 
+#include <array>
 #include <functional>
 #include <map>
 #include <optional>
@@ -37,6 +38,12 @@ namespace kb::app
         /** Se llama cada vez que se guarda un resultado nuevo. */
         void addListener (std::function<void (const juce::File&)> callback) { listeners.push_back (std::move (callback)); }
 
+        /** Hot cues de una pista (8 posiciones en segundos; < 0 = vacío). Se guardan
+            aparte del análisis: re-analizar no los borra. */
+        using HotCues = std::array<double, 8>;
+        std::optional<HotCues> findHotCues (const juce::File& file) const;
+        void storeHotCues (const juce::File& file, const HotCues& cues);
+
         bool save();
         int  size() const noexcept { return (int) entries.size(); }
 
@@ -52,6 +59,7 @@ namespace kb::app
 
         juce::File storage;
         std::map<juce::String, Stored> entries;
+        std::map<juce::String, HotCues> hotCues;
         std::vector<std::function<void (const juce::File&)>> listeners;
         bool dirty = false;
 

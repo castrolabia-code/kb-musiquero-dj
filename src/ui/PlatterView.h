@@ -10,9 +10,12 @@
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include <functional>
+
 namespace kb::ui
 {
-    class PlatterView final : public juce::Component
+    class PlatterView final : public juce::Component,
+                              public juce::TooltipClient
     {
     public:
         static constexpr double kRevolutionsPerSecond = (100.0 / 3.0) / 60.0;   // 33⅓ rpm
@@ -27,7 +30,21 @@ namespace kb::ui
 
         void paint (juce::Graphics& g) override;
 
+        // Jog (Fase 4): tocar/soltar, giro en vueltas (+ horario) y rueda del mouse.
+        std::function<void (bool touching)>  onTouch;
+        std::function<void (double turns)>   onTurn;
+        std::function<void (float delta)>    onWheel;
+        void mouseDown (const juce::MouseEvent&) override;
+        void mouseDrag (const juce::MouseEvent&) override;
+        void mouseUp (const juce::MouseEvent&) override;
+        void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+        bool hitTest (int x, int y) override;
+        juce::String getTooltip() override;
+
     private:
+        double angleAt (juce::Point<float> p) const;
+        double lastAngle = 0.0;
+        bool grabbed = false;
         int deck;
         double angle = 0.0;
         bool playing = false, loaded = false;

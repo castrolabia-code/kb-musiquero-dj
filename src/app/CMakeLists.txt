@@ -35,6 +35,7 @@ target_sources(KBMusiqueroDJ PRIVATE
     OptionsComponent.h      OptionsComponent.cpp
     AudioDeviceService.h    AudioDeviceService.cpp
     PlayerController.h      PlayerController.cpp
+    PerformanceController.h PerformanceController.cpp
     TrackLibrary.h          TrackLibrary.cpp
     LibraryView.h           LibraryView.cpp
     ../ui/Palette.h

@@ -1,5 +1,7 @@
 #include "app/AnalysisCache.h"
 
+#include <algorithm>
+
 namespace kb::app
 {
     AnalysisCache::AnalysisCache (juce::File f) : storage (std::move (f))
@@ -40,9 +42,51 @@ namespace kb::app
             l (file);
     }
 
+    std::optional<AnalysisCache::HotCues> AnalysisCache::findHotCues (const juce::File& file) const
+    {
+        const auto it = hotCues.find (file.getFullPathName());
+        if (it == hotCues.end())
+            return std::nullopt;
+        return it->second;
+    }
+
+    void AnalysisCache::storeHotCues (const juce::File& file, const HotCues& cues)
+    {
+        const auto path = file.getFullPathName();
+        const bool empty = std::all_of (cues.begin(), cues.end(), [] (double c) { return c < 0.0; });
+        const auto it = hotCues.find (path);
+        if (empty)
+        {
+            if (it == hotCues.end())
+                return;
+            hotCues.erase (it);
+        }
+        else
+        {
+            if (it != hotCues.end() && it->second == cues)
+                return;
+            hotCues[path] = cues;
+        }
+        dirty = true;
+    }
+
     void AnalysisCache::load()
     {
         const auto json = juce::JSON::parse (storage);
+        if (const auto* cueList = json.getProperty ("hotCues", {}).getArray())
+        {
+            for (const auto& v : *cueList)
+            {
+                HotCues c;
+                c.fill (-1.0);
+                if (const auto* arr = v.getProperty ("cues", {}).getArray())
+                    for (int i = 0; i < juce::jmin (8, arr->size()); ++i)
+                        c[(size_t) i] = (double) (*arr)[i];
+                const auto path = v.getProperty ("path", {}).toString();
+                if (path.isNotEmpty())
+                    hotCues[path] = c;
+            }
+        }
         const auto* list = json.getProperty ("entries", {}).getArray();
         if (list == nullptr)
             return;
@@ -89,6 +133,19 @@ namespace kb::app
         auto* root = new juce::DynamicObject();
         root->setProperty ("version", 2);
         root->setProperty ("entries", list);
+
+        juce::Array<juce::var> cueList;
+        for (const auto& [path, c] : hotCues)
+        {
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("path", path);
+            juce::Array<juce::var> arr;
+            for (auto x : c)
+                arr.add (x);
+            o->setProperty ("cues", arr);
+            cueList.add (juce::var (o));
+        }
+        root->setProperty ("hotCues", cueList);
 
         storage.getParentDirectory().createDirectory();
         const auto ok = storage.replaceWithText (juce::JSON::toString (juce::var (root)));

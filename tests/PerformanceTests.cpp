@@ -379,3 +379,21 @@ TEST_CASE ("Fase 4: ningún comando reserva memoria en el hilo de audio", "[perf
     CHECK (allocations == 0);
 }
 
+
+TEST_CASE ("Loop: no se crea pasado el final de la pista", "[performance][loop]")
+{
+    Rig rig;
+    rig.engine.seek (0, 60.0);   // fin
+    rig.seconds (0.01);
+    rig.engine.autoLoop (0, 4.0);
+    rig.seconds (0.01);
+    CHECK_FALSE (rig.engine.getDeckStatus (0).loopActive);
+
+    rig.engine.seek (0, 59.5);   // 8 beats no entran: el loop termina en el final
+    rig.seconds (0.01);
+    rig.engine.autoLoop (0, 8.0);
+    rig.seconds (0.01);
+    const auto st = rig.engine.getDeckStatus (0);
+    CHECK (st.loopActive);
+    CHECK (st.loopOutSeconds <= 60.0 + 1.0e-6);
+}

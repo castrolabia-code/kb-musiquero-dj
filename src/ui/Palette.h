@@ -42,4 +42,11 @@ namespace kb::ui::palette
 
     /** Color de cada deck (0 = deck 1, 1 = deck 2). */
     inline juce::Colour deckColour (int deckIndex) { return deckIndex == 0 ? waveDeck1 : waveDeck2; }
+    /** Colores de los 8 hot cues (iguales en pads y waveform). */
+    inline juce::Colour hotCueColour (int index)
+    {
+        static const juce::uint32 colours[8] = { 0xffFF4A3D, 0xffFF8A00, 0xffF5D90A, 0xff2BEA5A,
+                                                 0xff19E3F5, 0xff3D7BFF, 0xffA85CFF, 0xffFF4FB4 };
+        return juce::Colour (colours[(size_t) juce::jlimit (0, 7, index)]);
+    }
 } // namespace kb::ui::palette

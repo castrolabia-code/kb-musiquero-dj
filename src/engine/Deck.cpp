@@ -393,8 +393,12 @@ namespace kb::engine
 
     void Deck::setLoop (double inFrames, double beats) noexcept
     {
+        // Sin loops pasado el final de la pista (ni que terminen afuera).
+        const auto length = main.track != nullptr ? (double) main.track->getLengthFrames() : 0.0;
+        if (inFrames + 16.0 >= length)
+            return;
         loopIn     = std::max (0.0, inFrames);
-        loopOut    = loopIn + std::max (16.0, beats * framesPerBeat());
+        loopOut    = std::min (length, loopIn + std::max (16.0, beats * framesPerBeat()));
         loopBeats  = beats;
         loopActive = true;
         manualInPending = false;

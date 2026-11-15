@@ -101,6 +101,16 @@ namespace kb::app
 
         engine.loadTrack (deck, track);
 
+        // Hot cues guardados de esta canción (Fase 4).
+        savedCues[(size_t) deck].fill (-1.0);
+        if (const auto cues = cache.findHotCues (file))
+        {
+            savedCues[(size_t) deck] = *cues;
+            for (int i = 0; i < 8; ++i)
+                if ((*cues)[(size_t) i] >= 0.0)
+                    engine.setHotCue (deck, i, (*cues)[(size_t) i]);
+        }
+
         juce::Logger::writeToLog ("Deck " + juce::String (deck + 1) + ": " + track->getInfo().file.getFullPathName()
                                   + " (" + track->getInfo().formatName + ", "
                                   + juce::String (track->getInfo().sourceSampleRate, 0) + " Hz)");
@@ -154,6 +164,29 @@ namespace kb::app
     void PlayerController::timerCallback()
     {
         engine.collectGarbage();
+
+        // Hot cues: si cambiaron en el deck, se guardan en el cache de esa canción.
+        for (int d = 0; d < kNumDecks; ++d)
+        {
+            const auto& t = tracks[(size_t) d];
+            if (t == nullptr)
+                continue;
+            const auto st = engine.getDeckStatus (d);
+            if (st.trackId != t->getId())
+                continue;   // el motor todavía no tomó la pista (y sus cues)
+            AnalysisCache::HotCues now;
+            for (int i = 0; i < 8; ++i)
+                now[(size_t) i] = st.hotCues[(size_t) i] < 0.0 ? -1.0 : std::round (st.hotCues[(size_t) i] * 1000.0) / 1000.0;
+            if (now != savedCues[(size_t) d])
+            {
+                // Recién cargada: esperar a que el motor aplique los cues guardados.
+                if (++cueSettleTicks[(size_t) d] < 3)
+                    continue;
+                savedCues[(size_t) d] = now;
+                cache.storeHotCues (t->getInfo().file, now);
+            }
+            cueSettleTicks[(size_t) d] = 0;
+        }
 
         // Los análisis nuevos se guardan cada 5 s (no solo al cerrar: si la PC se
         // apaga de golpe no se pierden).

@@ -80,6 +80,8 @@ namespace kb::app
         std::array<bool, kNumDecks>          loading {};
         std::set<std::uint64_t>              analysingIds;
         int ticks = 0;
+        std::array<AnalysisCache::HotCues, kNumDecks> savedCues {};
+        std::array<int, kNumDecks> cueSettleTicks {};
         std::vector<Listener*> listeners;
 
         JUCE_DECLARE_WEAK_REFERENCEABLE (PlayerController)

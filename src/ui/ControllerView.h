@@ -55,6 +55,32 @@ namespace kb::ui
         /** Duración de la mezcla automática elegida con la perilla MIX, en segundos. */
         std::function<void (double seconds)>        onAutoMixTime;
 
+        // --- Performance (Fase 4) --------------------------------------------------------
+        /** group: 0 HOT CUE, 1 FX, 2 SAMPLER, 3 LOOP. */
+        std::function<void (int deck, int group)>             onPadMode;
+        std::function<void (int deck, int pad, bool down)>    onPad;
+        std::function<void (int deck, int pad, juce::Component* target)> onPadMenu;
+        std::function<void (int deck, bool down)>             onShift;
+        std::function<void (int deck)>                        onSlip;
+        std::function<void (int deck)>                        onVinyl;
+        std::function<void (int deck, bool touching)>         onJogTouch;
+        std::function<void (int deck, double turns)>          onJogTurn;
+        std::function<void (int deck, float delta)>           onJogWheel;
+
+        struct PadView
+        {
+            int  group = 0;
+            bool secondary = false;
+            std::array<juce::String, 4> labels;
+            std::array<juce::Colour, 4> colours;
+            std::array<bool, 4>  lit {};
+            std::array<float, 4> progress { -1.0f, -1.0f, -1.0f, -1.0f };
+            bool shift = false, slip = false, vinyl = true;
+        };
+        void setPadView (int deck, const PadView& view);
+        /** Pad debajo de un punto (coordenadas locales): devuelve el deck y escribe el pad, o -1. */
+        int padAt (juce::Point<int> p, int& padIndex) const;
+
         // --- Estado a mostrar -------------------------------------------------------
         struct DeckLights
         {
@@ -113,7 +139,7 @@ namespace kb::ui
         struct DeckLayout
         {
             juce::Rectangle<float> area, tempoLabel, tempoSlot, tempoRange, header, platter, sync, cue, pause, play;
-            juce::Rectangle<float> keyLock, keyDown, keyUp;
+            juce::Rectangle<float> keyLock, keyDown, keyUp, shift, slip, vinyl;
             juce::Rectangle<float> artInner, artOuter, artHeader;   // zonas amarillas libres para los tribales
             std::array<juce::Rectangle<float>, 4> modes, pads;
             bool mirrored = false;
@@ -165,6 +191,12 @@ namespace kb::ui
         std::array<std::unique_ptr<GlowButton>, 2>  syncButtons, rangeButtons;
         std::array<std::unique_ptr<GlowButton>, 2>  keyLockButtons, keyDownButtons, keyUpButtons;
         std::array<std::unique_ptr<PlatterView>, 2> platters;
+        // Performance (Fase 4)
+        std::array<std::array<std::unique_ptr<GlowButton>, 4>, 2> modeButtons, padButtons;
+        std::array<std::unique_ptr<GlowButton>, 2> shiftButtons, slipButtons, vinylButtons;
+        std::array<int, 2> padGroup { -1, -1 };
+        std::array<bool, 2> padSecondary { false, false };
+
         std::array<int, 2>   rangeIndex { 0, 0 };
         std::array<float, 2> tempoPercent { 0.0f, 0.0f };
 

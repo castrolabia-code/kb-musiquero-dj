@@ -12,6 +12,7 @@
 #include "app/AppSettings.h"
 #include "app/I18n.h"
 #include "app/LibraryView.h"
+#include "app/PerformanceController.h"
 #include "app/PlayerController.h"
 #include "ui/ControllerView.h"
 #include "ui/DeckDisplay.h"
@@ -81,6 +82,9 @@ namespace kb::app
         double autoMixSeconds = 10.0;
         void toggleAutoMix();
         PlayerController&   player;
+        std::unique_ptr<PerformanceController> performance;
+        /** Archivo soltado sobre un pad en modo SAMPLER: se carga ahí. */
+        bool dropOnPad (int x, int y, const juce::File& file);
 
         ui::TopBar             topBar;
         ui::ControllerView     controller;

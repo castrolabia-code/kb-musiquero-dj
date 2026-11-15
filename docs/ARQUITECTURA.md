@@ -250,3 +250,11 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D23 | AUTO MIX dentro del motor (hilo de audio), no en la UI | El crossfader avanza muestra a muestra: el pase es exacto y no depende de que la ventana esté libre. La UI solo lo pide/cancela y muestra el progreso (atómico). Mover el crossfader a mano lo cancela. |
 | D24 | AUTO MIX: curva suave forzada + bass swap a mitad del pase | Potencia constante (sin "pozo" en el medio) y sin dos bombos a la vez; los graves vuelven a su lugar al terminar. Si los BPM difieren más de ±12 % no se toca el tempo. |
 | D25 | Tribales y marco amarillo dibujados por código (Paths) y cacheados | Nítidos en 1080p/4K sin PNG; costo cero por cuadro. Los renders finales (Fase 7) pueden reemplazarlos. |
+| D26 | Saltos de loop con el mismo fundido "fantasma" de 3 ms | Un solo mecanismo anti-click para play, pausa, cue, hot cues y loops (incluso de 1/32 de beat). El fantasma toma su largo decodificado al nacer, no al comienzo del bloque. |
+| D27 | Slip como posición fantasma que avanza a velocidad normal | Loop roll, censor, backspin y (con SLIP) loops, scratch y reversa vuelven a donde la pista habría estado, sin lógica especial por efecto. |
+| D28 | Scratch por "resorte" (la posición sigue a la mano en ~12 ms, suavizado ~4 ms) | El mouse (y en la Fase 8 los jogs MIDI) mandan movimientos irregulares; el resorte los convierte en velocidad continua, sin zumbidos. Volumen proporcional a la velocidad cerca de 0 (como un vinilo). |
+| D29 | Key Lock suspendido durante scratch, reversa y efectos de deck | Esos efectos tienen que sonar como un disco; el cambio usa fundido. |
+| D30 | Sampler al bus master, 16 ranuras (8 por deck) | Como en los controladores: suena aunque el crossfader esté del otro lado. Muestras cargadas con el mismo TrackLoader (todos los formatos). |
+| D31 | Hot cues guardados aparte del análisis en analysis.json | Re-analizar una pista no los borra; pasan a SQLite en la Fase 6. |
+| D32 | Lógica de pads en PerformanceController (app), no en la vista ni en el motor | La vista solo dibuja; el motor solo ejecuta. El mismo controlador servirá para MIDI (Fase 8). |
+| D33 | FX de los pads en Fase 4 = efectos de deck (freno, spin, censor, reversa) | Los efectos de audio (Echo, Reverb...) llegan en la Fase 5 con las unidades de FX. |

@@ -46,6 +46,10 @@ namespace kb::app
         double getAutoMixSeconds() const;
         void   setAutoMixSeconds (double seconds);
 
+        /** Ranuras del sampler (JSON: archivo, volumen y modo de cada una). */
+        juce::String getSamplerState() const;
+        void setSamplerState (const juce::String& json);
+
         /** Escribe a disco inmediatamente (por defecto se guarda con demora). */
         bool flush();
 

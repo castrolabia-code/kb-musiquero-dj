@@ -3,6 +3,25 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.7.0] — Fase 4: performance (platos, hot cues, loops, pads y sampler)
+
+### Agregado
+- **Platos (jog)**: botón **VINYL** por deck. Con VINYL, agarrar el plato con el mouse hace **scratch** (también con la canción en pausa); sin VINYL, girarlo hace **pitch bend** (empujar = más rápido, frenar = más lento). La rueda del mouse sobre el plato también hace pitch bend.
+- **8 hot cues por canción** con colores (rojo, naranja, amarillo, verde, cyan, azul, violeta, rosa). Pad vacío = graba; pad grabado = salta y reproduce. SHIFT + pad o click derecho: borrar. **Se guardan por canción** y vuelven al cargarla otra vez (también después de reiniciar).
+- **Loops**: auto-loop de 1/32 a 32 beats cuantizado a la grilla, **IN / OUT** manual, **½ / ×2**, salir y **reloop**, y **loop roll** (al soltar sigue donde habría estado). Sin clicks, incluso con loops de 1/32 de beat.
+- **SLIP**: con SLIP encendido, al terminar un loop, scratch o reversa la canción sigue donde habría estado.
+- **Pads en 4 modos** (y su modo secundario con **SHIFT**, botón o tecla Shift):
+  - HOT CUE: cues 1-4 · SHIFT: cues 5-8.
+  - FX: **FRENO**, **SPIN** (backspin), **CENSOR** (reversa mientras se mantiene, con slip) y **REVERSA** · SHIFT: **ROLL** 1/8, 1/4, 1/2 y 1 beat.
+  - SAMPLER: samples 1-4 · SHIFT: samples 5-8.
+  - LOOP: auto-loops de 1, 2, 4 y 8 beats · SHIFT: loop manual (IN, OUT, ½, ×2).
+- **Sampler**: 8 samples por deck. Se cargan soltando un archivo (del Explorador o de la lista) sobre un pad en modo SAMPLER, tocando un pad vacío o con click derecho. Cada sample tiene **volumen** propio y modo **one-shot** o **loop**; se guardan entre sesiones. Suena por el master.
+- **Waveform**: marcas de hot cues con su número y color, zona del loop (verde activo, gris guardado) y línea punteada del slip.
+- Pruebas: hot cues, auto-loop cuantizado y sin clicks, loop de 1/32, ½/×2, IN/OUT/reloop, loop roll, slip con reversa, censor, freno, backspin, scratch (en reproducción y en pausa), pitch bend, sampler (one-shot, loop, volumen, liberar memoria) y cero allocations en el hilo de audio.
+
+### Corregido
+- Al saltar dentro de un bloque de audio, el fundido "fantasma" podía quedar mudo hasta el bloque siguiente (no afectaba a versiones anteriores porque los saltos solo ocurrían entre bloques).
+
 ## [0.6.1] — Diseño tribal polinesio y perillas más grandes
 
 ### Cambiado

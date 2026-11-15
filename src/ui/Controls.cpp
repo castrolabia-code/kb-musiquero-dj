@@ -51,7 +51,15 @@ namespace kb::ui
 
         if (icon == ButtonIcon::none)
         {
-            draw::button (g, r, c, tr (labelKey), lit || down, round, r.getHeight() * scale);
+            draw::button (g, r, c, label(), lit || down, round, r.getHeight() * scale);
+            if (progress >= 0.0f)
+            {
+                const auto bar = r.reduced (r.getWidth() * 0.12f, 0.0f).removeFromBottom (r.getHeight() * 0.12f).translated (0.0f, -r.getHeight() * 0.08f);
+                g.setColour (palette::panelDark.withAlpha (0.6f));
+                g.fillRoundedRectangle (bar, bar.getHeight() * 0.5f);
+                g.setColour (lit ? palette::panelDark : c);
+                g.fillRoundedRectangle (bar.withWidth (bar.getWidth() * juce::jlimit (0.0f, 1.0f, progress)), bar.getHeight() * 0.5f);
+            }
             return;
         }
 
@@ -60,8 +68,23 @@ namespace kb::ui
         const auto ink = (lit || down) ? palette::panelDark : c;
         const auto iconArea = r.withSizeKeepingCentre (r.getWidth() * 0.4f, r.getHeight() * 0.34f).translated (0.0f, -r.getHeight() * 0.12f);
         draw::icon (g, (int) icon, iconArea, ink);
-        draw::text (g, tr (labelKey), r.withTrimmedTop (r.getHeight() * 0.56f).withTrimmedBottom (r.getHeight() * 0.1f),
+        draw::text (g, label(), r.withTrimmedTop (r.getHeight() * 0.56f).withTrimmedBottom (r.getHeight() * 0.1f),
                     r.getHeight() * 0.19f, ink);
+    }
+
+    juce::String GlowButton::label() const
+    {
+        return labelKey.isNotEmpty() ? tr (labelKey) : labelText;
+    }
+
+    void GlowButton::mouseDown (const juce::MouseEvent& e)
+    {
+        if (e.mods.isPopupMenu() && onRightClick)
+        {
+            onRightClick();
+            return;
+        }
+        juce::Button::mouseDown (e);
     }
 
     void GlowButton::mouseDoubleClick (const juce::MouseEvent&)

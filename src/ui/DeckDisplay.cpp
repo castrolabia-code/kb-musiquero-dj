@@ -96,7 +96,10 @@ namespace kb::ui
             << "|" << (int) (v.status.positionSeconds * 10.0) << "|" << juce::String (v.status.cueSeconds, 3)
             << "|" << (t != nullptr ? juce::String (t->getBpm(), 3) + juce::String (t->getKey())
                                       + juce::String (t->getDetailBinsReady()) : juce::String())
-            << "|" << (int) zoomSeconds;
+            << "|" << (int) zoomSeconds << "|" << (int) v.status.loopActive << juce::String (v.status.loopInSeconds, 3)
+            << juce::String (v.status.loopOutSeconds, 3) << (int) v.status.slipping << (int) (v.status.slipSeconds * 20.0);
+        for (auto c : v.status.hotCues)
+            sig << "," << juce::String (c, 2);
         if (sig != lastSignature)
         {
             lastSignature = sig;
@@ -341,6 +344,63 @@ namespace kb::ui
         g.setColour (panelDark.withAlpha (0.35f));
         g.fillRect (Rectangle<float>::leftTopRightBottom (area.getX(), area.getY(), area.getCentreX(), area.getBottom()));
 
+        // Loop: zona sombreada (verde si está activo, gris si solo está guardado).
+        const auto& st = view.status;
+        if (st.loopInSeconds >= 0.0 && st.loopOutSeconds > st.loopInSeconds)
+        {
+            const auto x0 = juce::jmax (area.getX(), xFor (st.loopInSeconds));
+            const auto x1 = juce::jmin (area.getRight(), xFor (st.loopOutSeconds));
+            if (x1 > x0)
+            {
+                const auto c = st.loopActive ? play : textSecondary;
+                g.setColour (c.withAlpha (st.loopActive ? 0.22f : 0.10f));
+                g.fillRect (Rectangle<float>::leftTopRightBottom (x0, area.getY(), x1, area.getBottom()));
+                g.setColour (c.withAlpha (0.9f));
+                for (auto x : { xFor (st.loopInSeconds), xFor (st.loopOutSeconds) })
+                    if (x >= area.getX() && x <= area.getRight())
+                        g.fillRect (x - 1.0f, area.getY(), 2.0f, area.getHeight());
+            }
+        }
+        else if (st.loopInSeconds >= 0.0)
+        {
+            const auto x = xFor (st.loopInSeconds);   // IN marcado, esperando OUT
+            if (x >= area.getX() && x <= area.getRight())
+            {
+                g.setColour (play);
+                g.fillRect (x - 1.0f, area.getY(), 2.0f, area.getHeight());
+            }
+        }
+
+        // Hot cues: línea y etiqueta con su número, en su color.
+        for (int i = 0; i < 8; ++i)
+        {
+            const auto sec = st.hotCues[(size_t) i];
+            if (sec < 0.0)
+                continue;
+            const auto x = xFor (sec);
+            if (x < area.getX() - 20.0f || x > area.getRight())
+                continue;
+            const auto c = palette::hotCueColour (i);
+            g.setColour (c);
+            g.fillRect (x - 1.0f, area.getY(), 2.0f, area.getHeight());
+            const auto tagH = juce::jmax (12.0f, area.getHeight() * 0.22f);
+            const Rectangle<float> tag (x, area.getBottom() - tagH, tagH * 0.95f, tagH);
+            g.fillRoundedRectangle (tag, 2.0f);
+            draw::text (g, juce::String (i + 1), tag, tagH * 0.8f, panelDark);
+        }
+
+        // Slip: dónde estaría la canción (línea punteada).
+        if (st.slipping)
+        {
+            const auto x = xFor (st.slipSeconds);
+            if (x >= area.getX() && x <= area.getRight())
+            {
+                g.setColour (cyan.withAlpha (0.9f));
+                for (auto y = area.getY(); y < area.getBottom(); y += 6.0f)
+                    g.fillRect (x - 1.0f, y, 2.0f, 3.0f);
+            }
+        }
+
         // Cue.
         const auto xCue = xFor (view.status.cueSeconds);
         if (xCue >= area.getX() && xCue <= area.getRight())
@@ -437,6 +497,23 @@ namespace kb::ui
         const auto zx = area.getWidth() * (float) (zoomSeconds * (1.0 + view.tempo / 100.0) / len);
         g.setColour (juce::Colours::white.withAlpha (0.10f));
         g.fillRect (Rectangle<float> (zx, area.getHeight()).withCentre ({ xPlay, area.getCentreY() }).getIntersection (area));
+
+        auto xOf = [&] (double sec) { return area.getX() + area.getWidth() * (float) juce::jlimit (0.0, 1.0, sec / len); };
+        const auto& st = view.status;
+        if (st.loopInSeconds >= 0.0 && st.loopOutSeconds > st.loopInSeconds)
+        {
+            g.setColour ((st.loopActive ? play : textSecondary).withAlpha (0.45f));
+            g.fillRect (Rectangle<float>::leftTopRightBottom (xOf (st.loopInSeconds), area.getY(),
+                                                              juce::jmax (xOf (st.loopInSeconds) + 2.0f, xOf (st.loopOutSeconds)), area.getBottom()));
+        }
+        for (int i = 0; i < 8; ++i)
+            if (st.hotCues[(size_t) i] >= 0.0)
+            {
+                g.setColour (palette::hotCueColour (i));
+                const auto x = xOf (st.hotCues[(size_t) i]);
+                g.fillRect (x - 1.0f, area.getY(), 2.0f, area.getHeight());
+                g.fillRect (x - 1.0f, area.getY(), 5.0f, juce::jmax (3.0f, area.getHeight() * 0.2f));
+            }
 
         g.setColour (orange);
         g.fillRect (xCue - 1.0f, area.getY(), 2.0f, area.getHeight());

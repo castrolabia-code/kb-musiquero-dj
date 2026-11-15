@@ -47,6 +47,19 @@ namespace kb::app
             engine.setKeyShift (d, delta == 0 ? 0 : engine.getKeyShift (d) + delta);
         };
 
+        // --- Performance: pads, plato, SHIFT / SLIP / VINYL (Fase 4) -------------------------
+        performance = std::make_unique<PerformanceController> (player, settings);
+        auto* perf = performance.get();
+        controller.onPadMode  = [perf] (int d, int g) { perf->modeButton (d, g); };
+        controller.onPad      = [perf] (int d, int i, bool down) { perf->pad (d, i, down); };
+        controller.onPadMenu  = [perf] (int d, int i, juce::Component* t) { perf->padMenu (d, i, t); };
+        controller.onShift    = [perf] (int d, bool down) { perf->shift (d, down); };
+        controller.onSlip     = [perf] (int d) { perf->toggleSlip (d); };
+        controller.onVinyl    = [perf] (int d) { perf->toggleVinyl (d); };
+        controller.onJogTouch = [perf] (int d, bool t) { perf->jogTouch (d, t); };
+        controller.onJogTurn  = [perf] (int d, double turns) { perf->jogMove (d, turns); };
+        controller.onJogWheel = [perf] (int d, float w) { perf->jogWheel (d, w); };
+
         // --- AUTO MIX ------------------------------------------------------------------------
         autoMixSeconds = settings.getAutoMixSeconds();
         controller.setAutoMixSeconds (autoMixSeconds);
@@ -301,8 +314,20 @@ namespace kb::app
     {
         const auto deck = deckForDrop (d.localPosition.x, d.localPosition.y);
         setDropTarget (-1);
+        const juce::File file (d.description.toString().fromFirstOccurrenceOf (LibraryView::kDragPrefix, false, false));
+        if (dropOnPad (d.localPosition.x, d.localPosition.y, file))
+            return;
         if (deck >= 0)
-            player.loadFile (deck, juce::File (d.description.toString().fromFirstOccurrenceOf (LibraryView::kDragPrefix, false, false)));
+            player.loadFile (deck, file);
+    }
+
+    bool MainComponent::dropOnPad (int x, int y, const juce::File& file)
+    {
+        if (! controller.getBounds().contains (x, y) || ! engine::formats::isSupportedFile (file))
+            return false;
+        int padIndex = -1;
+        const auto d = controller.padAt (juce::Point<int> (x, y) - controller.getPosition(), padIndex);
+        return d >= 0 && performance->dropOnPad (d, padIndex, file);
     }
 
     int MainComponent::deckForDrop (int x, int y) const
@@ -363,10 +388,12 @@ namespace kb::app
         if (deck < 0)
             return;
 
-        // Se carga el primer archivo de audio válido.
+        // Se carga el primer archivo de audio válido (en un pad del sampler, o en el deck).
         for (const auto& f : files)
         {
             const juce::File file (f);
+            if (dropOnPad (x, y, file))
+                return;
             if (engine::formats::isSupportedFile (file))
             {
                 player.loadFile (deck, file);
@@ -399,6 +426,7 @@ namespace kb::app
             controller.setTempo (d, engine.getTempo (d));
             controller.setSyncLit (d, engine.getSync (d));
             controller.setKeyState (d, engine.getKeyLock (d), engine.getKeyShift (d));
+            controller.setPadView (d, performance->makePadView (d));
         }
 
         // Colores de compatibilidad armónica en la lista: respecto de lo que está sonando.
