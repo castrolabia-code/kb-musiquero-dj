@@ -1,0 +1,53 @@
+# =============================================================================
+#  kb_app_core: piezas de la app que no son la ventana (i18n, ajustes).
+#  Separadas en una librería para poder probarlas en kb_tests.
+# =============================================================================
+add_library(kb_app_core STATIC
+    I18n.h
+    I18n.cpp
+    AppSettings.h
+    AppSettings.cpp)
+add_library(kb::app_core ALIAS kb_app_core)
+
+target_include_directories(kb_app_core PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(kb_app_core PUBLIC kb::juce kb_assets)
+set_target_properties(kb_app_core PROPERTIES FOLDER "KB")
+
+# =============================================================================
+#  Aplicación de escritorio
+# =============================================================================
+juce_add_gui_app(KBMusiqueroDJ
+    PRODUCT_NAME      "${KB_PRODUCT_NAME}"
+    COMPANY_NAME      "${KB_COMPANY_NAME}"
+    BUNDLE_ID         "${KB_BUNDLE_ID}"
+    VERSION           "${PROJECT_VERSION}"
+    COMPANY_COPYRIGHT "Copyright (c) Castro Labs. Todos los derechos reservados."
+    # ICON_BIG / ICON_SMALL: se agregan en la Fase 7 con el ícono final.
+    NEEDS_CURL        FALSE
+    NEEDS_WEB_BROWSER FALSE)
+
+target_sources(KBMusiqueroDJ PRIVATE
+    Main.cpp
+    MainWindow.h            MainWindow.cpp
+    MainComponent.h         MainComponent.cpp
+    OptionsComponent.h      OptionsComponent.cpp
+    AudioDeviceService.h    AudioDeviceService.cpp
+    ../ui/Palette.h
+    ../ui/KbLookAndFeel.h   ../ui/KbLookAndFeel.cpp
+    ../ui/SkinPlaceholders.h ../ui/SkinPlaceholders.cpp)
+
+target_compile_definitions(KBMusiqueroDJ PRIVATE
+    KB_PRODUCT_NAME="KB - MUSIQUERO DJ"
+    KB_VERSION_STRING="${PROJECT_VERSION}")
+
+target_link_libraries(KBMusiqueroDJ PRIVATE
+    kb::app_core
+    kb::engine
+    kb::juce)
+
+set_target_properties(KBMusiqueroDJ PROPERTIES FOLDER "KB")
+
+if(MSVC)
+    # Proyecto de inicio en Visual Studio.
+    set_property(DIRECTORY "${PROJECT_SOURCE_DIR}" PROPERTY VS_STARTUP_PROJECT KBMusiqueroDJ)
+endif()

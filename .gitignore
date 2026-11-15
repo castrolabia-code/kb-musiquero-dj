@@ -1,0 +1,19 @@
+# Builds
+/build/
+/out/
+/cmake-build-*/
+CMakeUserPresets.json
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# SDKs que NO se distribuyen en el repo (ver docs/LICENCIAS.md)
+/third_party/asiosdk*/
+
+# Sistema
+.DS_Store
+Thumbs.db

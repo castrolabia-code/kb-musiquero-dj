@@ -1,0 +1,122 @@
+language: English
+countries: en gb us au ca nz ie za
+
+// =============================================================================
+//  KB - MUSIQUERO DJ · ENGLISH translation
+//  Format: "key" = "text"   (UTF-8, one entry per line)
+//  Every key here MUST also exist in es.txt (checked by kb_tests).
+//  Variables in braces: {version}, {latency}, etc.
+// =============================================================================
+
+// --- Application ----------------------------------------------------------------
+"app.title" = "KB - MUSIQUERO DJ"
+"app.brand" = "BY CASTRO LABS"
+"app.logo" = "KB MUSIQUERO DJ"
+
+// --- Menu ---------------------------------------------------------------------
+"menu.file" = "File"
+"menu.file.exit" = "Exit"
+"menu.options" = "Options"
+"menu.options.audio" = "Audio..."
+"menu.options.general" = "Preferences..."
+"menu.options.language" = "Language"
+"menu.help" = "Help"
+"menu.help.about" = "About KB - MUSIQUERO DJ..."
+
+// --- Options window ---------------------------------------------------------------
+"options.title" = "Options"
+"options.tab.audio" = "Audio"
+"options.tab.general" = "General"
+"options.language" = "Interface language:"
+"options.language.note" = "Changes apply immediately."
+"options.audio.hint" = "For the lowest latency use \"Windows Audio (Exclusive Mode)\" or ASIO, with a 128 to 256 sample buffer."
+"options.audio.latency" = "Estimated output latency: {latency} ms"
+"options.audio.noDevice" = "No audio device is open."
+
+// --- Languages (each shown in its own name) ----------------------------------------
+"language.es" = "Español"
+"language.en" = "English"
+
+// --- Audio status ----------------------------------------------------------------
+"audio.status.running" = "{type} · {device} · {rate} Hz · {buffer} samples · {latency} ms · {outputs} outputs · CPU {cpu} %"
+"audio.status.noDevice" = "No audio device. Set it up in Options > Audio."
+"audio.error.open" = "Could not open the audio device: {error}"
+
+// --- About -----------------------------------------------------------------------
+"about.title" = "About"
+"about.body" = "KB - MUSIQUERO DJ\nVersion {version}\n\nby Castro Labs\n© {year} Castro Labs. All rights reserved."
+"common.ok" = "OK"
+
+// --- Controller labels (skin placeholder) ----------------------------------------
+"deck.name" = "DECK {n}"
+"deck.tempo" = "TEMPO"
+"deck.sync" = "SYNC"
+"deck.cue" = "CUE"
+"deck.play" = "PLAY"
+"deck.mode.hotcue" = "HOT CUE"
+"deck.mode.fx" = "FX"
+"deck.mode.sampler" = "SAMPLER"
+"deck.mode.loop" = "LOOP"
+"mixer.title" = "MIXER"
+"mixer.gain" = "GAIN"
+"mixer.high" = "HIGH"
+"mixer.mid" = "MID"
+"mixer.low" = "LOW"
+"mixer.filter" = "FILTER"
+"mixer.master" = "MASTER"
+"mixer.headphones" = "PHONES"
+"mixer.cueMix" = "CUE MIX"
+"mixer.cue" = "CUE"
+
+// --- Waveform area -----------------------------------------------------------------
+"wave.empty" = "No track loaded"
+"wave.bpm" = "BPM"
+"wave.key" = "KEY"
+
+// --- Library -----------------------------------------------------------------------
+"library.sidebar" = "FOLDERS & PLAYLISTS"
+"library.allTracks" = "All tracks"
+"library.history" = "History"
+"library.playlists" = "Playlists"
+"library.dropHint" = "Drop songs or folders here (available from Phase 1)"
+"library.col.number" = "#"
+"library.col.title" = "Title"
+"library.col.artist" = "Artist"
+"library.col.bpm" = "BPM"
+"library.col.key" = "Key"
+"library.col.duration" = "Length"
+"library.col.genre" = "Genre"
+"library.col.rating" = "Rating"
+"library.col.artwork" = "Artwork"
+
+// =============================================================================
+//  JUCE internal strings (audio device selector and WASAPI errors).
+//  In English they map to themselves; they are listed so both files share
+//  exactly the same key set.
+// =============================================================================
+"Audio device type:" = "Audio device type:"
+"Output:" = "Output:"
+"Input:" = "Input:"
+"Device:" = "Device:"
+"Sample rate:" = "Sample rate:"
+"Audio buffer size:" = "Audio buffer size:"
+"Active output channels:" = "Active output channels:"
+"Active input channels:" = "Active input channels:"
+"Show advanced settings..." = "Show advanced settings..."
+"Control Panel" = "Control Panel"
+"Opens the device's own control panel" = "Opens the device's own control panel"
+"Reset Device" = "Reset Device"
+"Resets the audio interface - sometimes needed after changing a device's properties in its custom control panel" = "Resets the audio interface - sometimes needed after changing a device's properties in its custom control panel"
+"Test" = "Test"
+"Plays a test tone" = "Plays a test tone"
+"none" = "none"
+"(no audio output channels found)" = "(no audio output channels found)"
+"(no audio input channels found)" = "(no audio input channels found)"
+"Error when trying to open audio device!" = "Error when trying to open audio device!"
+"OK" = "OK"
+"Couldn't open the output device!" = "Couldn't open the output device!"
+"Couldn't open the input device!" = "Couldn't open the input device!"
+"Couldn't start the output device!" = "Couldn't start the output device!"
+"Couldn't start the input device!" = "Couldn't start the input device!"
+"Couldn't open the output device (buffer size mismatch)" = "Couldn't open the output device (buffer size mismatch)"
+"The input and output devices don't share a common sample rate!" = "The input and output devices don't share a common sample rate!"
