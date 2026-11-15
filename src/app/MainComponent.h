@@ -9,6 +9,7 @@
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include "app/AppSettings.h"
 #include "app/I18n.h"
 #include "app/LibraryView.h"
 #include "app/PlayerController.h"
@@ -33,7 +34,7 @@ namespace kb::app
                                 private juce::Timer
     {
     public:
-        MainComponent (AudioDeviceService& audio, PlayerController& player, TrackLibrary& library);
+        MainComponent (AudioDeviceService& audio, PlayerController& player, TrackLibrary& library, AppSettings& settings);
         ~MainComponent() override;
 
         /** Abre el diálogo para elegir un archivo y cargarlo en un deck. */
@@ -76,6 +77,9 @@ namespace kb::app
         static juce::String describeError (engine::LoadError error);
 
         AudioDeviceService& audio;
+        AppSettings& settings;
+        double autoMixSeconds = 10.0;
+        void toggleAutoMix();
         PlayerController&   player;
 
         ui::TopBar             topBar;

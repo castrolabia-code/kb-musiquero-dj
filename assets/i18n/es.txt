@@ -73,6 +73,7 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "about.title" = "Acerca de"
 "about.body" = "KB - MUSIQUERO DJ\nVersión {version}\n\nby Castro Labs\n© {year} Castro Labs. Todos los derechos reservados."
 "common.ok" = "Aceptar"
+"common.cancel" = "Cancelar"
 
 // --- Etiquetas del controlador (placeholder del skin) ------------------------------
 "deck.name" = "DECK {n}"
@@ -103,6 +104,10 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "mixer.cueMix" = "CUE MIX"
 "mixer.cue" = "CUE"
 "mixer.split" = "SPLIT"
+"mixer.autoMix" = "AUTO MIX"
+"mixer.mixTime" = "MIX {s} s"
+"automix.title" = "AUTO MIX"
+"automix.needTrack" = "Cargá una canción en el DECK {deck} para mezclar hacia ella."
 "meter.limit" = "LIMIT"
 
 // --- Zona de waveforms -------------------------------------------------------------
@@ -130,6 +135,9 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "library.col.rating" = "Rating"
 "library.col.artwork" = "Carátula"
 "library.add" = "+"
+"library.clear" = "BORRAR LISTA"
+"library.clearConfirmTitle" = "Borrar lista"
+"library.clearConfirmBody" = "¿Quitar las {n} canciones de la lista? Los archivos NO se borran de la PC."
 "library.addFiles" = "Agregar canciones..."
 "library.addFolder" = "Agregar una carpeta..."
 "library.remove" = "Quitar de la lista"
@@ -165,6 +173,9 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "tip.waveform" = "Vista de la canción completa: hacé click o arrastrá para saltar a esa parte. La línea naranja es el punto de cue."
 "tip.deckInfo" = "Canción cargada: título, artista, BPM (con el tempo aplicado), tempo en %, tiempo transcurrido y restante."
 "tip.libraryAdd" = "Agregar canciones o una carpeta entera a la lista."
+"tip.libraryClear" = "Borrar lista: quita todas las canciones de la lista (los archivos quedan en la PC)."
+"tip.autoMix" = "AUTO MIX: pasa sola y pareja a la otra bandeja (la arranca, la sincroniza, cambia los graves y mueve el crossfader). Click de nuevo para cancelar."
+"tip.mixTime" = "Velocidad del AUTO MIX: cuántos segundos dura la mezcla (2 a 60 s). Doble click: 10 s."
 "tip.waveformDetail" = "Waveform ampliada: graves (color oscuro), medios y agudos (claro). Las líneas son los beats; las más fuertes, cada 4. Rueda del mouse: zoom."
 "tip.keyShift" = "Cambia el tono de la canción de a un semitono (sin cambiar la velocidad), para que dos temas combinen. Doble click: tono original."
 "tip.keyLock" = "KEY LOCK (master tempo): al cambiar el TEMPO la canción se acelera o frena sin cambiar el tono."

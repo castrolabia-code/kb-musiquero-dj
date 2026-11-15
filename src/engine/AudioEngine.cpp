@@ -334,7 +334,117 @@ namespace kb::engine
         return juce::isPositiveAndBelow (d, kNumDecks) ? channel[(size_t) d].keyShift.load (std::memory_order_relaxed) : 0;
     }
 
-    void AudioEngine::setCrossfader (float p) noexcept       { crossfader.store (juce::jlimit (-1.0f, 1.0f, p), std::memory_order_relaxed); }
+    void AudioEngine::setCrossfader (float p) noexcept
+    {
+        crossfader.store (juce::jlimit (-1.0f, 1.0f, p), std::memory_order_relaxed);
+        // Si el DJ toca el crossfader durante un AUTO MIX, manda el DJ.
+        if (isAutoMixing())
+            cancelAutoMix();
+    }
+
+    // =========================================================================
+    //  AUTO MIX
+    // =========================================================================
+    int AudioEngine::autoMixSource (float cf, bool reverse, bool playingA, bool playingB) noexcept
+    {
+        if (reverse)
+            cf = -cf;
+        if (cf < -0.05f) return 0;
+        if (cf >  0.05f) return 1;
+        if (playingB && ! playingA) return 1;
+        return 0;
+    }
+
+    void AudioEngine::startAutoMix (double seconds)
+    {
+        send ({ Command::Type::autoMixStart, 0, nullptr, juce::jlimit (1.0, 120.0, seconds) });
+    }
+
+    void AudioEngine::cancelAutoMix()
+    {
+        send ({ Command::Type::autoMixStop, 0, nullptr, 0.0 });
+    }
+
+    void AudioEngine::beginAutoMix (double seconds) noexcept
+    {
+        const auto sr = sampleRate.load (std::memory_order_relaxed);
+        if (amActive || sr <= 0.0)
+            return;
+
+        const auto reverse = xfReverse.load (std::memory_order_relaxed);
+        const auto source = autoMixSource (crossfader.load (std::memory_order_relaxed), reverse,
+                                           decks[0].isPlaying(), decks[1].isPlaying());
+        const auto target = 1 - source;
+        auto& tgt = decks[(size_t) target];
+        if (tgt.getTrack() == nullptr)
+            return;   // no hay nada para mezclar
+
+        // Tempo y golpes iguales, si los BPM no están demasiado lejos.
+        const auto* ts = tgt.getTrack();
+        const auto* tm = decks[(size_t) source].getTrack();
+        if (! tgt.isPlaying() && ts != nullptr && tm != nullptr && ts->getBpm() > 0.0 && tm->getBpm() > 0.0)
+        {
+            const auto masterFactor = 1.0 + channel[(size_t) source].tempo.load (std::memory_order_relaxed) / 100.0;
+            const auto ratio = syncRatio (tm->getBpm() * masterFactor, ts->getBpm());
+            if (std::abs (ratio - 1.0) <= kAutoMixMaxTempoChange)
+            {
+                channel[(size_t) target].sync.store (true, std::memory_order_relaxed);
+                channel[(size_t) source].sync.store (false, std::memory_order_relaxed);
+            }
+        }
+        if (! tgt.isPlaying())
+        {
+            tgt.play();
+            if (channel[(size_t) target].sync.load (std::memory_order_relaxed))
+                engageSync (target);
+        }
+
+        amActive = true;
+        amSource = source;
+        amTarget = target;
+        amTotal  = seconds * sr;
+        amDone   = 0.0;
+        amStart  = crossfader.load (std::memory_order_relaxed);
+        // Punta del crossfader que deja sonando solo al deck que entra.
+        amEnd    = ((target == 1) != reverse) ? 1.0f : -1.0f;
+        autoMixProgress.store (0.0f, std::memory_order_relaxed);
+    }
+
+    void AudioEngine::advanceAutoMix (int n) noexcept
+    {
+        if (! amActive)
+            return;
+
+        amDone += n;
+        const auto p = (float) juce::jlimit (0.0, 1.0, amDone / juce::jmax (1.0, amTotal));
+        // Curva "S" suave: arranca y termina despacio.
+        const auto s = p * p * (3.0f - 2.0f * p);
+        crossfader.store (amStart + (amEnd - amStart) * s, std::memory_order_relaxed);
+
+        // Bass swap a la mitad: nunca suenan los dos bajos juntos.
+        amLowMultiplier[(size_t) amSource] = p < 0.5f ? 1.0f : 0.0f;
+        amLowMultiplier[(size_t) amTarget] = p < 0.5f ? 0.0f : 1.0f;
+        autoMixProgress.store (p, std::memory_order_relaxed);
+
+        if (p >= 1.0f)
+            endAutoMix (true);
+    }
+
+    void AudioEngine::endAutoMix (bool completed) noexcept
+    {
+        if (! amActive)
+            return;
+        if (completed)
+        {
+            crossfader.store (amEnd, std::memory_order_relaxed);
+            decks[(size_t) amSource].pause();
+            // La bandeja que entró queda libre (si siguiera en SYNC, seguiría a la que salió).
+            channel[(size_t) amTarget].sync.store (false, std::memory_order_relaxed);
+        }
+        amLowMultiplier = { 1.0f, 1.0f };
+        amActive = false;
+        autoMixProgress.store (-1.0f, std::memory_order_relaxed);
+    }
     void AudioEngine::setMasterVolume (float p) noexcept     { store01 (masterVolume, p); }
     void AudioEngine::setHeadphoneVolume (float p) noexcept  { store01 (phonesVolume, p); }
     void AudioEngine::setCueMix (float p) noexcept           { store01 (cueMix, p); }
@@ -405,6 +515,8 @@ namespace kb::engine
             case Command::Type::syncOff:
                 channel[(size_t) c.deck].sync.store (false, std::memory_order_relaxed);
                 break;
+            case Command::Type::autoMixStart: beginAutoMix (c.value); break;
+            case Command::Type::autoMixStop:  endAutoMix (false);     break;
         }
     }
 
@@ -452,6 +564,7 @@ namespace kb::engine
     {
         auto* W = work.getArrayOfWritePointers();
 
+        advanceAutoMix (n);
         updateTempo (n);
 
         // 1) Decks y tiras de canal (trim, EQ, filtro, vúmetro de canal).
@@ -468,12 +581,15 @@ namespace kb::engine
             p.mid    = load (c.mid);
             p.high   = load (c.high);
             p.filter = load (c.filter);
+            p.lowMultiplier = amLowMultiplier[(size_t) d];
             strips[(size_t) d].process (L, R, n, p);
         }
 
         // 2) Ganancias objetivo.
         float xA = 1.0f, xB = 1.0f;
-        crossfaderGains (load (crossfader), (CrossfaderCurve) xfCurve.load (std::memory_order_relaxed),
+        // Durante el AUTO MIX siempre curva suave (con "corte" el pase sería brusco).
+        crossfaderGains (load (crossfader),
+                         amActive ? CrossfaderCurve::smooth : (CrossfaderCurve) xfCurve.load (std::memory_order_relaxed),
                          xfReverse.load (std::memory_order_relaxed), xA, xB);
         const float xfade[kNumDecks] = { xA, xB };
 

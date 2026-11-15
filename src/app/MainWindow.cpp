@@ -32,7 +32,7 @@ namespace kb::app
           player (p)
     {
         setUsingNativeTitleBar (true);
-        mainComponent = new MainComponent (audio, player, library);
+        mainComponent = new MainComponent (audio, player, library, settings);
         setContentOwned (mainComponent, false);
         setMenuBar (this);
 

@@ -56,7 +56,7 @@ namespace kb::ui
     Rectangle<float> DeckDisplay::infoArea() const
     {
         auto row = getLocalBounds().toFloat().reduced (0.0f, 2.0f);
-        return row.withWidth (juce::jmax (row.getHeight() * 4.2f, row.getWidth() * 0.22f));
+        return row.withWidth (juce::jmax (row.getHeight() * 5.0f, row.getWidth() * 0.27f));
     }
 
     Rectangle<float> DeckDisplay::detailArea() const
@@ -154,66 +154,71 @@ namespace kb::ui
         g.fillRoundedRectangle (info, 4.0f);
         info = info.reduced (h * 0.08f);
 
-        auto art = info.removeFromLeft (info.getHeight());
+        auto art = info.removeFromLeft (info.getHeight() * 0.8f).withSizeKeepingCentre (info.getHeight() * 0.8f, info.getHeight() * 0.8f);
         g.setColour (panelEdge);
         g.fillRoundedRectangle (art, 3.0f);
         draw::text (g, juce::String (deck + 1), art, art.getHeight() * 0.5f, colour);   // carátula: Fase 6
         info.removeFromLeft (h * 0.1f);
 
-        const auto lineH = info.getHeight() / 4.4f;
+        // Dos columnas para aprovechar el ancho con letras grandes
+        // (draw::text agranda 1,6x: se pasa ~la mitad del alto de cada fila).
+        const auto H = info.getHeight();
+        auto col2 = info.removeFromRight (info.getWidth() * 0.42f);
+        auto col1 = info.withTrimmedRight (H * 0.1f);
         const auto* t = view.track.get();
         const auto len = t != nullptr ? t->getLengthSeconds() : 0.0;
 
+        auto titleRow  = col1.removeFromTop (H * 0.38f);
+        auto artistRow = col1.removeFromTop (H * 0.27f);
+        auto timeRow   = col1;
         if (t != nullptr)
         {
-            draw::text (g, t->getInfo().title, info.removeFromTop (lineH), lineH * 0.8f, textPrimary, Justification::centredLeft, true);
-            draw::text (g, t->getInfo().artist, info.removeFromTop (lineH * 0.8f), lineH * 0.62f, textSecondary, Justification::centredLeft, false);
+            draw::text (g, t->getInfo().title, titleRow, titleRow.getHeight() * 0.5f, textPrimary, Justification::centredLeft, true);
+            draw::text (g, t->getInfo().artist, artistRow, artistRow.getHeight() * 0.45f, textSecondary, Justification::centredLeft, false);
         }
         else
         {
-            draw::text (g, tr (view.loading ? "wave.loadingShort" : "wave.empty"), info.removeFromTop (lineH),
-                        lineH * 0.7f, textPrimary, Justification::centredLeft, false);
-            info.removeFromTop (lineH * 0.8f);
+            draw::text (g, tr (view.loading ? "wave.loadingShort" : "wave.empty"), titleRow, titleRow.getHeight() * 0.42f,
+                        textPrimary, Justification::centredLeft, false);
         }
+        draw::text (g, formatTime (view.status.positionSeconds) + "  " + formatTime (len - view.status.positionSeconds, true),
+                    timeRow, timeRow.getHeight() * 0.48f, textPrimary, Justification::centredLeft);
 
-        // --- BPM grande + tempo ---------------------------------------------------------
+        // --- Columna 2: BPM grande, tonalidad, tempo y Key Lock -----------------------------------
         juce::String bpmText = "--";
         if (t != nullptr && t->getBpm() > 0.0)
             bpmText = formatBpm (t->getBpm() * (1.0 + view.tempo / 100.0));
         else if (view.analysing)
             bpmText = "...";
+        auto bpmRow = col2.removeFromTop (H * 0.48f);
+        draw::text (g, tr ("wave.bpm"), bpmRow.removeFromLeft (bpmRow.getHeight() * 1.0f), bpmRow.getHeight() * 0.26f,
+                    colour, Justification::centredLeft);
+        draw::text (g, bpmText, bpmRow, bpmRow.getHeight() * 0.52f, textPrimary, Justification::centredLeft);
 
-        auto bpmLine = info.removeFromTop (lineH * 1.3f);
-        draw::text (g, tr ("wave.bpm"), bpmLine.removeFromLeft (lineH * 1.5f), lineH * 0.55f, colour, Justification::centredLeft);
-        draw::text (g, bpmText, bpmLine.removeFromLeft (lineH * 3.7f), lineH * 1.05f, textPrimary, Justification::centredLeft);
-        draw::text (g, (view.tempo >= 0.0f ? "+" : "") + juce::String (view.tempo, 2) + "%", bpmLine,
-                    lineH * 0.6f, colour, Justification::centredLeft);
-
-        // --- Tonalidad (con key shift) y Key Lock ------------------------------------------
-        auto keyLine = info.removeFromTop (lineH);
         juce::String keyText = view.analysing ? juce::String ("...") : juce::String ("--");
         if (t != nullptr && t->getKey() >= 0)
         {
             const auto shift = effectiveShift (view.tempo, view.keyLock, view.keyShift);
             const auto k = MusicalKey::transpose (t->getKey(), shift);
-            keyText = juce::String (MusicalKey::camelot (k)) + "  " + juce::String (MusicalKey::name (k));
+            keyText = juce::String (MusicalKey::camelot (k)) + " " + juce::String (MusicalKey::name (k));
             if (shift != 0)
-                keyText << "  (" << (shift > 0 ? "+" : "") << shift << ")";
+                keyText << " (" << (shift > 0 ? "+" : "") << shift << ")";
         }
-        draw::text (g, tr ("wave.key"), keyLine.removeFromLeft (lineH * 1.5f), lineH * 0.55f, colour, Justification::centredLeft);
-        auto keyValue = keyLine.removeFromLeft (lineH * 5.0f);
-        draw::text (g, keyText, keyValue, lineH * 0.7f, textPrimary, Justification::centredLeft);
+        auto keyRow = col2.removeFromTop (H * 0.28f);
+        draw::text (g, tr ("wave.key"), keyRow.removeFromLeft (bpmRow.getHeight() * 1.0f), keyRow.getHeight() * 0.4f,
+                    colour, Justification::centredLeft);
+        draw::text (g, keyText, keyRow, keyRow.getHeight() * 0.55f, textPrimary, Justification::centredLeft);
+
+        auto tempoRow = col2;
         if (view.keyLock)
         {
-            const auto badge = keyLine.removeFromLeft (lineH * 1.6f).reduced (0.0f, lineH * 0.12f);
+            const auto badge = tempoRow.removeFromRight (tempoRow.getHeight() * 2.6f).reduced (0.0f, tempoRow.getHeight() * 0.08f);
             g.setColour (orange);
             g.fillRoundedRectangle (badge, 3.0f);
-            draw::text (g, tr ("deck.keyLockShort"), badge, lineH * 0.5f, panelDark);
+            draw::text (g, tr ("deck.keyLockShort"), badge, badge.getHeight() * 0.5f, panelDark);
         }
-
-        // --- Tiempos -------------------------------------------------------------------------
-        draw::text (g, formatTime (view.status.positionSeconds) + "   " + formatTime (len - view.status.positionSeconds, true),
-                    info.removeFromTop (lineH), lineH * 0.72f, textPrimary, Justification::centredLeft);
+        draw::text (g, (view.tempo >= 0.0f ? "+" : "") + juce::String (view.tempo, 2) + "%", tempoRow,
+                    tempoRow.getHeight() * 0.5f, colour, Justification::centredLeft);
     }
 
     // =========================================================================

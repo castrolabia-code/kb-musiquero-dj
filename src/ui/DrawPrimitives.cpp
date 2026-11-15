@@ -144,6 +144,34 @@ namespace kb::ui
             }
         }
 
+        void neonText (Graphics& g, const juce::String& text, Rectangle<float> area, Colour c, Justification j)
+        {
+            juce::GlyphArrangement ga;
+            ga.addFittedText (KbLookAndFeel::displayFont (area.getHeight() * 0.86f), text,
+                              area.getX(), area.getY(), area.getWidth(), area.getHeight(), j, 1, 0.9f);
+            juce::Path p;
+            ga.createPath (p);
+            const auto h = area.getHeight();
+
+            // Extrusión 3D (sombreado) hacia abajo-derecha.
+            const auto depth = juce::jmax (2, juce::roundToInt (h * 0.1f));
+            for (int k = depth; k >= 1; --k)
+            {
+                g.setColour (juce::Colour (0xff0a2a44).withAlpha (0.95f));
+                g.fillPath (p, juce::AffineTransform::translation ((float) k * 0.6f, (float) k * 0.85f));
+            }
+            // Resplandor de tubo de neón.
+            juce::DropShadow (c.withAlpha (0.75f), juce::roundToInt (h * 0.35f), {}).drawForPath (g, p);
+            juce::DropShadow (c.withAlpha (0.9f), juce::roundToInt (h * 0.12f), {}).drawForPath (g, p);
+            // Relleno: núcleo casi blanco arriba, color abajo.
+            const auto pb = p.getBounds();
+            g.setGradientFill (juce::ColourGradient (c.interpolatedWith (juce::Colours::white, 0.75f), 0.0f, pb.getY(),
+                                                     c, 0.0f, pb.getBottom(), false));
+            g.fillPath (p);
+            g.setColour (juce::Colours::white.withAlpha (0.6f));
+            g.strokePath (p, juce::PathStrokeType (juce::jmax (0.8f, h * 0.022f)));
+        }
+
         /** Ranura de fader con su tapa. pos01: 0 = abajo/izquierda, 1 = arriba/derecha. */
         void fader (Graphics& g, Rectangle<float> r, bool vertical, float pos01)
         {

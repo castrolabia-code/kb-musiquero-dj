@@ -50,6 +50,10 @@ namespace kb::ui
         std::function<void (int deck)>              onKeyLock;
         /** delta = -1 / +1 semitono; 0 = volver al tono original. */
         std::function<void (int deck, int delta)>   onKeyShift;
+        /** Botón AUTO MIX: empezar (o cancelar si ya está mezclando). */
+        std::function<void()>                       onAutoMix;
+        /** Duración de la mezcla automática elegida con la perilla MIX, en segundos. */
+        std::function<void (double seconds)>        onAutoMixTime;
 
         // --- Estado a mostrar -------------------------------------------------------
         struct DeckLights
@@ -72,6 +76,13 @@ namespace kb::ui
         void setPhones (float value);
         void setCueMix (float value);
         void setSplit (bool on);
+        /** progress: 0..1 mientras mezcla, < 0 si no. */
+        void setAutoMixState (float progress);
+        void setAutoMixSeconds (double seconds);
+
+        static constexpr double kAutoMixMinSeconds = 2.0, kAutoMixMaxSeconds = 60.0;
+        static double knobToMixSeconds (double v01);
+        static double mixSecondsToKnob (double seconds);
 
         /** Tempo actual en % (lo puede cambiar el SYNC). No pisa al usuario mientras arrastra. */
         void setTempo (int deck, float percent);
@@ -110,7 +121,9 @@ namespace kb::ui
 
         struct MixerLayout
         {
-            juce::Rectangle<float> panel, title, crossfader;
+            juce::Rectangle<float> panel, title, crossfader, autoMix;
+            juce::Point<float> mixTimeCentre;
+            float mixTimeRadius = 6.0f;
             std::array<std::array<juce::Point<float>, 5>, 2> eqCentres {};
             float eqRadius = 8.0f;
             std::array<juce::Rectangle<float>, 2> cueButtons, faders;
@@ -144,6 +157,8 @@ namespace kb::ui
         std::array<std::unique_ptr<LevelMeter>, 2> channelMeters;
         KbKnob phonesKnob { "mixer.headphones" }, cueMixKnob { "mixer.cueMix" };
         GlowButton splitButton { "mixer.split", palette::orange, false };
+        GlowButton autoMixButton { "mixer.autoMix", palette::cyan, false };
+        KbKnob     mixTimeKnob { "mixer.mixTime" };
 
         // Tempo, SYNC y platos (Fase 3)
         std::array<std::unique_ptr<KbFader>, 2>     tempoFaders;

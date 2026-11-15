@@ -104,6 +104,20 @@ namespace kb::engine
         static double syncRatio (double masterEffectiveBpm, double slaveBpm) noexcept;
         static constexpr float kMaxTempoPercent = 50.0f;
 
+        // --- AUTO MIX ---------------------------------------------------------------------
+        /** Pasa de la bandeja que suena a la otra en 'seconds' segundos: iguala tempo y
+            golpes (si los BPM están a menos de ±12 %), arranca la otra bandeja, mueve el
+            crossfader con curva pareja, hace "bass swap" a la mitad y al final pausa la
+            bandeja que salió. Si ya hay una mezcla en curso, no hace nada. */
+        void  startAutoMix (double seconds);
+        void  cancelAutoMix();
+        bool  isAutoMixing() const noexcept { return autoMixProgress.load (std::memory_order_relaxed) >= 0.0f; }
+        /** 0..1 durante la mezcla, -1 si no hay mezcla. */
+        float getAutoMixProgress() const noexcept { return autoMixProgress.load (std::memory_order_relaxed); }
+        /** Deck que está sonando "al aire" según el crossfader (0 o 1): el que sale en un AUTO MIX. */
+        static int autoMixSource (float crossfader, bool reverse, bool playingA, bool playingB) noexcept;
+        static constexpr double kAutoMixMaxTempoChange = 0.12;
+
         // --- Key Lock y key shift -----------------------------------------------------------
         /** Key Lock (master tempo): cambiar el tempo no cambia el tono. */
         void setKeyLock (int deck, bool enabled) noexcept;
@@ -180,7 +194,7 @@ namespace kb::engine
     private:
         struct Command
         {
-            enum class Type : std::uint8_t { load, play, pause, togglePlay, cueDown, cueUp, seek, syncOn, syncOff };
+            enum class Type : std::uint8_t { load, play, pause, togglePlay, cueDown, cueUp, seek, syncOn, syncOff, autoMixStart, autoMixStop };
             Type         type  = Type::play;
             std::int8_t  deck  = 0;
             TrackBuffer* track = nullptr;
@@ -194,6 +208,9 @@ namespace kb::engine
         void handleCommand (const Command& c) noexcept;
         void renderBlock (float* const* outputs, int numOutputs, int offset, int numSamples) noexcept;
         void updateTempo (int numSamples) noexcept;
+        void beginAutoMix (double seconds) noexcept;
+        void advanceAutoMix (int numSamples) noexcept;
+        void endAutoMix (bool completed) noexcept;
         void engageSync (int deck) noexcept;
         /** Fase de beat del deck esclavo respecto del master (en beats del esclavo, -0.5..0.5). */
         bool syncPhaseError (int slave, double ratio, double& errorBeats) const noexcept;
@@ -247,6 +264,14 @@ namespace kb::engine
         std::atomic<std::uint64_t> processedBlocks { 0 };
         std::atomic<std::uint64_t> clippedSamples  { 0 };
         std::atomic<float>         limiterReductionDb { 0.0f };
+
+        // AUTO MIX (estado del hilo de audio; el progreso se publica)
+        std::atomic<float> autoMixProgress { -1.0f };
+        bool   amActive = false;
+        int    amSource = 0, amTarget = 1;
+        double amTotal = 0.0, amDone = 0.0;
+        float  amStart = -1.0f, amEnd = 1.0f;
+        std::array<float, kNumDecks> amLowMultiplier { 1.0f, 1.0f };
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioEngine)
     };

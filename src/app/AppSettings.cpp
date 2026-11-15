@@ -12,6 +12,7 @@ namespace kb::app
         static constexpr const char* xfReverse    = "mixer.crossfaderReverse";
         static constexpr const char* masterPair   = "routing.masterOutputPair";
         static constexpr const char* split        = "routing.split";
+        static constexpr const char* autoMixSecs  = "mixer.autoMixSeconds";
     }
 
     // Subir este número si cambia el formato de los ajustes (para migraciones).
@@ -97,6 +98,9 @@ namespace kb::app
     void AppSettings::setMasterOutputPair (int p)       { file().setValue (keys::masterPair, juce::jlimit (0, 1, p)); }
     bool AppSettings::getSplit() const                  { return file().getBoolValue (keys::split, false); }
     void AppSettings::setSplit (bool s)                 { file().setValue (keys::split, s); }
+
+    double AppSettings::getAutoMixSeconds() const       { return juce::jlimit (2.0, 60.0, file().getDoubleValue (keys::autoMixSecs, 10.0)); }
+    void AppSettings::setAutoMixSeconds (double s)      { file().setValue (keys::autoMixSecs, s); }
 
     bool AppSettings::flush()
     {

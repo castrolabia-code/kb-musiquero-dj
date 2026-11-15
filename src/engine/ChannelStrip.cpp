@@ -26,7 +26,7 @@ namespace kb::engine
     void ChannelStrip::process (float* left, float* right, int n, const Params& p) noexcept
     {
         trimGain.setTargetValue (trimKnobToGain (p.trim));
-        lowGain.setTargetValue  (dsp::eqKnobToGain (p.low));
+        lowGain.setTargetValue  (dsp::eqKnobToGain (p.low) * p.lowMultiplier);
         midGain.setTargetValue  (dsp::eqKnobToGain (p.mid));
         highGain.setTargetValue (dsp::eqKnobToGain (p.high));
 

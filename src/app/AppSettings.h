@@ -42,6 +42,9 @@ namespace kb::app
         void setMasterOutputPair (int pair);
         bool getSplit() const;
         void setSplit (bool split);
+        /** Duración del AUTO MIX (perilla MIX), 2..60 s. */
+        double getAutoMixSeconds() const;
+        void   setAutoMixSeconds (double seconds);
 
         /** Escribe a disco inmediatamente (por defecto se guarda con demora). */
         bool flush();

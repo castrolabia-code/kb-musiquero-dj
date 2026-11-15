@@ -1,5 +1,7 @@
 #include "ui/ControllerView.h"
 
+#include <cmath>
+
 #include "app/I18n.h"
 #include "ui/DrawPrimitives.h"
 #include "ui/Palette.h"
@@ -51,6 +53,21 @@ namespace kb::ui
         crossfader.setDoubleClickReturnValue (true, 0.0);
         crossfader.onValueChange = [this] { if (onCrossfader) onCrossfader ((float) crossfader.getValue()); };
         addAndMakeVisible (crossfader);
+
+        // --- AUTO MIX ----------------------------------------------------------------------
+        autoMixButton.setTooltipKey ("tip.autoMix");
+        autoMixButton.onPress = [this] { if (onAutoMix) onAutoMix(); };
+        addAndMakeVisible (autoMixButton);
+
+        mixTimeKnob.setTooltipKey ("tip.mixTime");
+        mixTimeKnob.setLabelFormatter ([] (double v)
+        {
+            return tr ("mixer.mixTime").replace ("{s}", juce::String (juce::roundToInt (knobToMixSeconds (v))));
+        });
+        mixTimeKnob.setDoubleClickReturnValue (true, mixSecondsToKnob (10.0));
+        mixTimeKnob.setValue (mixSecondsToKnob (10.0), juce::dontSendNotification);
+        mixTimeKnob.onValueChange = [this] { if (onAutoMixTime) onAutoMixTime (knobToMixSeconds (mixTimeKnob.getValue())); };
+        addAndMakeVisible (mixTimeKnob);
 
         masterKnob.setDoubleClickReturnValue (true, 0.85);
         masterKnob.onValueChange = [this] { if (onMaster) onMaster ((float) masterKnob.getValue()); };
@@ -113,7 +130,7 @@ namespace kb::ui
             keyUpButtons[(size_t) d]->onDoubleClick   = [this, d] { if (onKeyShift) onKeyShift (d, 0); };
             for (auto* b : { keyLockButtons[(size_t) d].get(), keyDownButtons[(size_t) d].get(), keyUpButtons[(size_t) d].get() })
             {
-                b->setTextScale (0.58f);
+                b->setTextScale (0.6f);
                 addAndMakeVisible (*b);
             }
         }
@@ -282,7 +299,34 @@ namespace kb::ui
             volumeFaders[(size_t) deck]->setValue (v, juce::dontSendNotification);
     }
 
-    void ControllerView::setCrossfader (float v) { crossfader.setValue (v, juce::dontSendNotification); }
+    void ControllerView::setCrossfader (float v)
+    {
+        // El AUTO MIX lo mueve solo: se sigue al motor, salvo mientras el usuario lo arrastra.
+        if (! crossfader.isMouseButtonDown())
+            crossfader.setValue (v, juce::dontSendNotification);
+    }
+
+    // Perilla MIX logarítmica: 2 s .. 60 s (mitad de recorrido ≈ 11 s).
+    double ControllerView::knobToMixSeconds (double v)
+    {
+        return kAutoMixMinSeconds * std::pow (kAutoMixMaxSeconds / kAutoMixMinSeconds, juce::jlimit (0.0, 1.0, v));
+    }
+
+    double ControllerView::mixSecondsToKnob (double seconds)
+    {
+        const auto s = juce::jlimit (kAutoMixMinSeconds, kAutoMixMaxSeconds, seconds);
+        return std::log (s / kAutoMixMinSeconds) / std::log (kAutoMixMaxSeconds / kAutoMixMinSeconds);
+    }
+
+    void ControllerView::setAutoMixSeconds (double seconds)
+    {
+        mixTimeKnob.setValue (mixSecondsToKnob (seconds), juce::dontSendNotification);
+    }
+
+    void ControllerView::setAutoMixState (float progress)
+    {
+        autoMixButton.setLit (progress >= 0.0f);
+    }
     void ControllerView::setMaster (float v)     { masterKnob.setValue (v, juce::dontSendNotification); }
 
     void ControllerView::setDropTarget (int deck)
@@ -320,7 +364,7 @@ namespace kb::ui
             keyLockButtons[(size_t) d]->setBounds (dl.keyLock.toNearestInt());
             keyDownButtons[(size_t) d]->setBounds (dl.keyDown.toNearestInt());
             keyUpButtons[(size_t) d]->setBounds (dl.keyUp.toNearestInt());
-            rangeButtons[(size_t) d]->setTextScale (0.5f);
+            rangeButtons[(size_t) d]->setTextScale (0.62f);
         }
 
         for (int d = 0; d < 2; ++d)
@@ -333,10 +377,14 @@ namespace kb::ui
         }
 
         crossfader.setBounds (mixer.crossfader.toNearestInt());
-        masterKnob.setGeometry (mixer.masterRadius, unit * 2.6f * 0.8f);
+        autoMixButton.setBounds (mixer.autoMix.toNearestInt());
+        autoMixButton.setTextScale (0.56f);
+        mixTimeKnob.setGeometry (mixer.mixTimeRadius, unit * 3.0f);
+        mixTimeKnob.setBounds (mixTimeKnob.boundsForCentre (mixer.mixTimeCentre).toNearestInt());
+        masterKnob.setGeometry (mixer.masterRadius, unit * 2.6f);
         masterKnob.setBounds (masterKnob.boundsForCentre (mixer.masterCentre).toNearestInt());
 
-        const auto labelH = unit * 2.6f * 0.8f;
+        const auto labelH = unit * 2.6f;
         for (int d = 0; d < 2; ++d)
         {
             for (int k = 0; k < 5; ++k)
@@ -346,17 +394,17 @@ namespace kb::ui
                 knob.setBounds (knob.boundsForCentre (mixer.eqCentres[(size_t) d][(size_t) k]).toNearestInt());
             }
             channelCueButtons[(size_t) d]->setBounds (mixer.cueButtons[(size_t) d].expanded (mixer.cueButtons[(size_t) d].getHeight() * 0.1f).toNearestInt());
-            channelCueButtons[(size_t) d]->setTextScale (0.5f);
+            channelCueButtons[(size_t) d]->setTextScale (0.62f);
         }
         channelMeters[0]->setBounds (mixer.meterL.toNearestInt());
         channelMeters[1]->setBounds (mixer.meterR.toNearestInt());
 
         for (auto* k : { &phonesKnob, &cueMixKnob })
-            k->setGeometry (mixer.smallRadius, unit * 2.6f * 0.7f);
+            k->setGeometry (mixer.smallRadius, unit * 2.4f);
         phonesKnob.setBounds (phonesKnob.boundsForCentre (mixer.phonesCentre).toNearestInt());
         cueMixKnob.setBounds (cueMixKnob.boundsForCentre (mixer.cueMixCentre).toNearestInt());
         splitButton.setBounds (mixer.split.toNearestInt());
-        splitButton.setTextScale (0.5f);
+        splitButton.setTextScale (0.62f);
     }
 
     void ControllerView::computeLayout()
@@ -389,22 +437,22 @@ namespace kb::ui
             L.tempoRange = tempoCol.removeFromBottom (unit * 6.5f).reduced (0.0f, unit * 0.3f);
             L.tempoSlot  = tempoCol.reduced (0.0f, unit * 1.0f);
 
-            L.header = r.removeFromTop (textH * 1.4f);
+            L.header = r.removeFromTop (textH * 2.5f);   // alto: "DECK 1" en neón grande
             {
                 // [KEY LOCK] [KEY -] [KEY +] del lado interior del encabezado (mismo orden visual en ambos decks).
-                auto keys = L.header.reduced (0.0f, unit * 0.2f);
+                auto keys = L.header.withSizeKeepingCentre (L.header.getWidth(), unit * 5.0f);
                 const auto gapKeys = unit * 0.8f;
                 if (! L.mirrored)
                 {
-                    L.keyUp   = keys.removeFromRight (unit * 9.0f);  keys.removeFromRight (gapKeys);
-                    L.keyDown = keys.removeFromRight (unit * 9.0f);  keys.removeFromRight (gapKeys);
-                    L.keyLock = keys.removeFromRight (unit * 12.0f);
+                    L.keyUp   = keys.removeFromRight (unit * 11.0f);  keys.removeFromRight (gapKeys);
+                    L.keyDown = keys.removeFromRight (unit * 11.0f);  keys.removeFromRight (gapKeys);
+                    L.keyLock = keys.removeFromRight (unit * 16.0f);
                 }
                 else
                 {
-                    L.keyLock = keys.removeFromLeft (unit * 12.0f);  keys.removeFromLeft (gapKeys);
-                    L.keyDown = keys.removeFromLeft (unit * 9.0f);   keys.removeFromLeft (gapKeys);
-                    L.keyUp   = keys.removeFromLeft (unit * 9.0f);
+                    L.keyLock = keys.removeFromLeft (unit * 16.0f);  keys.removeFromLeft (gapKeys);
+                    L.keyDown = keys.removeFromLeft (unit * 11.0f);  keys.removeFromLeft (gapKeys);
+                    L.keyUp   = keys.removeFromLeft (unit * 11.0f);
                 }
             }
 
@@ -417,8 +465,8 @@ namespace kb::ui
             const auto rightZone = platterArea.withLeft (L.platter.getRight()).reduced (unit * 1.2f, unit * 1.0f);
             L.artOuter = L.mirrored ? rightZone : leftZone;
             L.artInner = L.mirrored ? leftZone : rightZone;
-            L.artHeader = L.mirrored ? L.header.withLeft (L.keyUp.getRight() + unit * 2.0f).withTrimmedRight (unit * 16.0f)
-                                     : L.header.withRight (L.keyLock.getX() - unit * 2.0f).withTrimmedLeft (unit * 16.0f);
+            L.artHeader = L.mirrored ? L.header.withLeft (L.keyUp.getRight() + unit * 2.0f).withTrimmedRight (unit * 38.0f)
+                                     : L.header.withRight (L.keyLock.getX() - unit * 2.0f).withTrimmedLeft (unit * 38.0f);
             L.artHeader = L.artHeader.reduced (0.0f, unit * 0.5f);
 
             r.removeFromTop (unit * 2.0f);
@@ -455,8 +503,14 @@ namespace kb::ui
         auto area = inner.reduced (unit * 1.5f);
         M.title = area.removeFromTop (unit * 5.0f);
 
-        auto xfaderArea = area.removeFromBottom (unit * 10.0f);
-        M.crossfader = xfaderArea.reduced (xfaderArea.getWidth() * 0.16f, unit * 0.8f);
+        auto xfaderArea = area.removeFromBottom (unit * 13.0f);
+        // [AUTO MIX] [==== crossfader ====] [perilla MIX]
+        auto amArea = xfaderArea.removeFromLeft (xfaderArea.getWidth() * 0.25f);
+        auto mtArea = xfaderArea.removeFromRight (xfaderArea.getWidth() * 0.28f);
+        M.autoMix = amArea.withSizeKeepingCentre (amArea.getWidth() * 0.96f, juce::jmin (amArea.getHeight() * 0.62f, unit * 7.5f));
+        M.crossfader = xfaderArea.reduced (unit * 1.2f, unit * 1.2f);
+        M.mixTimeRadius = juce::jmin (mtArea.getHeight() * 0.25f, mtArea.getWidth() * 0.2f);
+        M.mixTimeCentre = { mtArea.getCentreX(), mtArea.getY() + mtArea.getHeight() * 0.38f };
 
         const auto stripW = area.getWidth() * 0.35f;
         Rectangle<float> strips[2] = { area.removeFromLeft (stripW), area.removeFromRight (stripW) };
@@ -535,8 +589,8 @@ namespace kb::ui
         {
             juce::Graphics::ScopedSaveState save (g);
             g.reduceClipRegion (chassisPath);
-            g.setColour (juce::Colours::black.withAlpha (0.07f));
-            g.fillPath (tribal::texture (chassis, unit * 9.0f));
+            g.setColour (juce::Colours::black.withAlpha (0.12f));
+            g.fillPath (tribal::texture (chassis, unit * 11.0f));
         }
 
         // Tribales negros tipo grafiti en las zonas libres de cada deck, con una
@@ -548,17 +602,20 @@ namespace kb::ui
             g.setColour (juce::Colours::black.withAlpha (0.9f));
             g.fillPath (p);
         };
+        int seed = 1;
         for (const auto& L : deckLayouts)
         {
+            // Diseños libres y asimétricos, cada uno distinto, que llenan las zonas libres.
             for (auto zone : { L.artOuter, L.artInner })
             {
+                ++seed;
                 if (zone.getWidth() < unit * 6.0f || zone.getHeight() < unit * 12.0f)
                     continue;
-                const auto w = juce::jmin (zone.getWidth(), zone.getHeight() * 0.62f);
-                paintTribal (tribal::flame (zone.withSizeKeepingCentre (w, zone.getHeight())));
+                paintTribal (tribal::sweep (zone.expanded (unit * 0.8f), seed, (seed % 2) == 0));
             }
-            if (L.artHeader.getWidth() > unit * 20.0f)
-                paintTribal (tribal::band (L.artHeader));
+            // Encabezado: banda tribal fina entre el título y los botones.
+            if (L.artHeader.getWidth() > unit * 14.0f)
+                paintTribal (tribal::band (L.artHeader.withSizeKeepingCentre (L.artHeader.getWidth(), unit * 3.2f)));
         }
 
         g.setColour (juce::Colours::white.withAlpha (0.35f));
@@ -588,15 +645,20 @@ namespace kb::ui
         const auto accent = deckColour (deckIndex);
 
         // TEMPO (Fase 3)
-        draw::text (g, tr ("deck.tempo"), L.tempoLabel, textH * 0.85f, textOnChassis);
+        draw::text (g, tr ("deck.tempo"), L.tempoLabel, textH * 0.95f, textOnChassis);
         g.setColour (panelDark.withAlpha (0.85f));
         g.fillRoundedRectangle (L.tempoSlot, unit * 1.2f);
         // Marcas de "-" arriba y "+" abajo (el fader es un componente).
         draw::text (g, "-", L.tempoSlot.withHeight (unit * 3.0f).translated (0.0f, -unit * 0.2f), unit * 3.0f, textSecondary);
         draw::text (g, "+", L.tempoSlot.withTrimmedTop (L.tempoSlot.getHeight() - unit * 3.0f), unit * 3.0f, textSecondary);
 
-        draw::text (g, tr ("deck.name", { { "n", juce::String (deckIndex + 1) } }), L.header, textH,
-                    textOnChassis, L.mirrored ? Justification::centredRight : Justification::centredLeft);
+        // "DECK 1" / "DECK 2" en neón celeste con sombreado 3D.
+        {
+            const auto titleW = unit * 36.0f;
+            const auto title = L.mirrored ? L.header.withLeft (L.header.getRight() - titleW) : L.header.withWidth (titleW);
+            draw::neonText (g, tr ("deck.name", { { "n", juce::String (deckIndex + 1) } }), title.reduced (0.0f, unit * 0.3f),
+                            juce::Colour (0xff5fd7ff), L.mirrored ? Justification::centredRight : Justification::centredLeft);
+        }
 
         // Plato / jog wheel (animado en la Fase 4)
         const auto& platter = L.platter;
@@ -619,7 +681,7 @@ namespace kb::ui
         // Modos de pads y pads (Fase 4)
         const char* modeKeys[] = { "deck.mode.hotcue", "deck.mode.fx", "deck.mode.sampler", "deck.mode.loop" };
         for (int i = 0; i < 4; ++i)
-            draw::button (g, L.modes[(size_t) i], orange, tr (modeKeys[i]), i == 0, false, textH * 0.62f);
+            draw::button (g, L.modes[(size_t) i], orange, tr (modeKeys[i]), i == 0, false, textH * 0.78f);
         for (int i = 0; i < 4; ++i)
             draw::button (g, L.pads[(size_t) i], cyan, juce::String (i + 1), false, false, L.pads[(size_t) i].getHeight() * 0.32f);
 

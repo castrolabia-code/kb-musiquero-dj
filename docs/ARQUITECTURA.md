@@ -247,3 +247,6 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D20 | Key Lock con Signalsmith Stretch (preset por defecto) | Calidad alta con ~1,7 % de CPU por deck; MIT. El stretch se usa solo con Key Lock o key shift: sin ellos el audio sale sin procesar. |
 | D21 | Posición publicada = posición escuchada | Con latencias distintas entre decks (stretch vs. directo), el SYNC tiene que alinear lo que se oye. |
 | D22 | Waveform de 3 bandas en colores del deck (no RGB clásico) | Respeta la paleta de la referencia (cyan / naranja) y mantiene la lectura por frecuencia. |
+| D23 | AUTO MIX dentro del motor (hilo de audio), no en la UI | El crossfader avanza muestra a muestra: el pase es exacto y no depende de que la ventana esté libre. La UI solo lo pide/cancela y muestra el progreso (atómico). Mover el crossfader a mano lo cancela. |
+| D24 | AUTO MIX: curva suave forzada + bass swap a mitad del pase | Potencia constante (sin "pozo" en el medio) y sin dos bombos a la vez; los graves vuelven a su lugar al terminar. Si los BPM difieren más de ±12 % no se toca el tempo. |
+| D25 | Tribales y marco amarillo dibujados por código (Paths) y cacheados | Nítidos en 1080p/4K sin PNG; costo cero por cuadro. Los renders finales (Fase 7) pueden reemplazarlos. |

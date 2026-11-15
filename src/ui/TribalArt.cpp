@@ -121,6 +121,40 @@ namespace kb::ui::tribal
         return p;
     }
 
+    Path sweep (Rectangle<float> r, int seed, bool flip)
+    {
+        // Se compone en unidades del ANCHO (así las espirales quedan redondas) y
+        // las posiciones verticales se reparten en el alto. Variaciones según 'seed'.
+        auto rnd = [seed] (int k) { return 0.5f + 0.5f * std::sin ((float) seed * 12.9898f + (float) k * 78.233f); };
+        const auto w = r.getWidth();
+        const auto h = r.getHeight();
+        auto P = [&] (float fx, float fy) { return Point<float> (fx * w, fy * h); };
+        const auto a = rnd (1) * 0.1f, b = rnd (2) * 0.1f, c = rnd (3) * 0.08f;
+
+        Path p;
+        // Espiral grande arriba (enrollada hacia adentro) y una chica abajo, al revés.
+        p.addPath (koru (P (0.42f + a, 0.17f + c), w * 0.3f, 2.0f, 4.0f + a * 6.0f, 1.0f, w * 0.075f));
+        p.addPath (koru (P (0.62f - b, 0.8f), w * 0.18f, 1.8f, 1.0f + b * 6.0f, -1.0f, w * 0.05f));
+
+        // Cuchilla principal: nace junto a la espiral y barre en diagonal hasta abajo.
+        p.addPath (thorn (P (0.55f + a, 0.28f), P (0.7f + a, 0.33f), P (0.04f, 0.97f), 0.3f));
+        // Cuchilla larga que sube hacia el otro lado.
+        p.addPath (thorn (P (0.2f, 0.6f + c), P (0.34f, 0.64f + c), P (0.98f, 0.04f + b), -0.25f));
+        // Ramas con púas.
+        p.addPath (thorn (P (0.38f, 0.48f), P (0.46f, 0.52f), P (0.97f, 0.5f - c), 0.25f));
+        p.addPath (thorn (P (0.22f, 0.76f), P (0.3f, 0.79f), P (0.02f, 0.56f + a), -0.32f));
+        p.addPath (thorn (P (0.5f, 0.9f), P (0.58f, 0.92f), P (0.98f, 0.99f), 0.18f));
+        // Ganchos sueltos (detalle grafiti).
+        p.addPath (thorn (P (0.06f, 0.36f), P (0.14f, 0.4f), P (0.03f, 0.05f + b), 0.4f));
+        p.addPath (thorn (P (0.86f, 0.34f + c), P (0.94f, 0.37f + c), P (0.66f, 0.62f), -0.4f));
+
+        auto t = juce::AffineTransform();
+        if (flip)
+            t = t.scaled (-1.0f, 1.0f).translated (w, 0.0f);
+        p.applyTransform (t.translated (r.getX(), r.getY()));
+        return p;
+    }
+
     Path corner (Rectangle<float> r, int quadrant)
     {
         // Se dibuja para la esquina superior izquierda y se espeja.

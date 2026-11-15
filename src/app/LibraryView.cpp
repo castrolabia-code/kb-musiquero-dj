@@ -43,6 +43,11 @@ namespace kb::app
         addButton.onPress = [this] { showAddMenu(); };
         addAndMakeVisible (addButton);
 
+        clearButton.setTooltipKey ("tip.libraryClear");
+        clearButton.setTextScale (0.5f);
+        clearButton.onPress = [this] { confirmClear(); };
+        addAndMakeVisible (clearButton);
+
         library.onChanged = [this] { refresh(); };
         I18n::getInstance().addListener (this);
         rebuildOrder();
@@ -310,6 +315,29 @@ namespace kb::app
         return item >= 0 ? juce::var (juce::String (kDragPrefix) + library[item].file.getFullPathName()) : juce::var();
     }
 
+    void LibraryView::confirmClear()
+    {
+        if (library.size() == 0)
+            return;
+
+        juce::Component::SafePointer<LibraryView> safe (this);
+        juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+                                          .withIconType (juce::MessageBoxIconType::QuestionIcon)
+                                          .withTitle (tr ("library.clearConfirmTitle"))
+                                          .withMessage (tr ("library.clearConfirmBody", { { "n", juce::String (library.size()) } }))
+                                          .withButton (tr ("library.clear"))
+                                          .withButton (tr ("common.cancel"))
+                                          .withAssociatedComponent (this),
+                                      [safe] (int result)
+                                      {
+                                          if (safe != nullptr && result == 1)
+                                          {
+                                              safe->table.deselectAllRows();
+                                              safe->library.clear();
+                                          }
+                                      });
+    }
+
     // =========================================================================
     //  Layout
     // =========================================================================
@@ -323,6 +351,10 @@ namespace kb::app
         const auto rowH = juce::jlimit (18, 40, getHeight() / 10);
         addButton.setBounds (juce::Rectangle<int> (rowH + 6, rowH + 6)
                                  .withCentre ({ sidebar.getRight() - rowH / 2 - 8, sidebar.getY() + rowH / 2 + 6 }));
+
+        // "Borrar lista": abajo de todo en la columna de carpetas.
+        auto bottom = sidebar.reduced (8, 6).removeFromBottom (juce::roundToInt (rowH * 1.25f));
+        clearButton.setBounds (bottom);
     }
 
     void LibraryView::paint (juce::Graphics& g)
@@ -359,6 +391,7 @@ namespace kb::app
                             juce::Justification::centredLeft, false);
         }
 
+        side.removeFromBottom (rowH * 1.25f + 6.0f);   // botón "Borrar lista"
         if (library.getNumPendingAnalyses() > 0)
             ui::draw::text (g, tr ("library.analysing", { { "n", juce::String (library.getNumPendingAnalyses()) } }),
                             side.removeFromBottom (rowH), textH * 0.85f, cyan.withAlpha (0.8f),

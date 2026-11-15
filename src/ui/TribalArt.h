@@ -20,6 +20,11 @@ namespace kb::ui::tribal
     /** Ornamento vertical simétrico (llama + espirales) para zonas altas y angostas. */
     juce::Path flame (juce::Rectangle<float> area);
 
+    /** Diseño libre y ASIMÉTRICO (estilo grafiti) que llena el rectángulo: espiral
+        grande, cuchillas largas que barren la zona y ramas con púas. 'seed' cambia
+        la composición; 'flip' la espeja. */
+    juce::Path sweep (juce::Rectangle<float> area, int seed, bool flip);
+
     /** Esquinero: espiral + espinas que siguen los dos bordes. quadrant: 0 sup-izq, 1 sup-der, 2 inf-der, 3 inf-izq. */
     juce::Path corner (juce::Rectangle<float> area, int quadrant);
 

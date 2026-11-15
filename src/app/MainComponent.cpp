@@ -10,8 +10,8 @@ namespace kb::app
 {
     static constexpr int kUiRefreshHz = 30;
 
-    MainComponent::MainComponent (AudioDeviceService& a, PlayerController& p, TrackLibrary& lib)
-        : audio (a), player (p), library (lib), libraryView (lib)
+    MainComponent::MainComponent (AudioDeviceService& a, PlayerController& p, TrackLibrary& lib, AppSettings& s)
+        : audio (a), settings (s), player (p), library (lib), libraryView (lib)
     {
         setOpaque (true);
         for (auto* c : std::initializer_list<juce::Component*> { &topBar, &controller, &deckDisplays[0],
@@ -47,6 +47,16 @@ namespace kb::app
             engine.setKeyShift (d, delta == 0 ? 0 : engine.getKeyShift (d) + delta);
         };
 
+        // --- AUTO MIX ------------------------------------------------------------------------
+        autoMixSeconds = settings.getAutoMixSeconds();
+        controller.setAutoMixSeconds (autoMixSeconds);
+        controller.onAutoMix     = [this] { toggleAutoMix(); };
+        controller.onAutoMixTime = [this] (double secs)
+        {
+            autoMixSeconds = secs;
+            settings.setAutoMixSeconds (secs);
+        };
+
         for (int d = 0; d < 2; ++d)
         {
             controller.setVolume (d, engine.getChannelVolume (d));
@@ -80,7 +90,7 @@ namespace kb::app
 
     int MainComponent::frameThickness() const
     {
-        return juce::jmax (12, juce::roundToInt (getHeight() * 0.022));
+        return juce::jmax (14, juce::roundToInt (getHeight() * 0.028));
     }
 
     void MainComponent::paint (juce::Graphics& g)
@@ -126,7 +136,7 @@ namespace kb::app
             juce::Graphics::ScopedSaveState save (g);
             g.reduceClipRegion (frame);
             g.setColour (juce::Colours::black.withAlpha (0.86f));
-            const auto bandH = f * 0.8f;
+            const auto bandH = f * 0.9f;
             const auto margin = outerR * 1.6f;
             g.fillPath (ui::tribal::band ({ margin, (f - bandH) * 0.5f, b.getWidth() - 2.0f * margin, bandH }));
             g.fillPath (ui::tribal::band ({ margin, b.getBottom() - f + (f - bandH) * 0.5f, b.getWidth() - 2.0f * margin, bandH }));
@@ -137,7 +147,7 @@ namespace kb::app
             g.fillPath (side, juce::AffineTransform::rotation (juce::MathConstants<float>::halfPi)
                                   .translated (b.getRight() - (f - bandH) * 0.5f, margin));
 
-            const auto cs = outerR * 1.5f;
+            const auto cs = outerR * 1.9f;
             g.fillPath (ui::tribal::corner ({ 0.0f, 0.0f, cs, cs }, 0));
             g.fillPath (ui::tribal::corner ({ b.getRight() - cs, 0.0f, cs, cs }, 1));
             g.fillPath (ui::tribal::corner ({ b.getRight() - cs, b.getBottom() - cs, cs, cs }, 2));
@@ -203,6 +213,33 @@ namespace kb::app
                                           .withButton (tr ("common.ok"))
                                           .withAssociatedComponent (this),
                                       nullptr);
+    }
+
+    void MainComponent::toggleAutoMix()
+    {
+        auto& engine = player.getEngine();
+        if (engine.isAutoMixing())
+        {
+            engine.cancelAutoMix();
+            return;
+        }
+
+        const auto source = engine::AudioEngine::autoMixSource (engine.getCrossfader(), engine.getCrossfaderReverse(),
+                                                                engine.getDeckStatus (0).playing,
+                                                                engine.getDeckStatus (1).playing);
+        const auto target = 1 - source;
+        if (player.getTrack (target) == nullptr)
+        {
+            juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+                                              .withIconType (juce::MessageBoxIconType::InfoIcon)
+                                              .withTitle (tr ("automix.title"))
+                                              .withMessage (tr ("automix.needTrack", { { "deck", juce::String (target + 1) } }))
+                                              .withButton (tr ("common.ok"))
+                                              .withAssociatedComponent (this),
+                                          nullptr);
+            return;
+        }
+        engine.startAutoMix (autoMixSeconds);
     }
 
     juce::String MainComponent::describeError (engine::LoadError error)
@@ -374,6 +411,10 @@ namespace kb::app
                     v.track->getKey(), ui::DeckDisplay::effectiveShift (v.tempo, v.keyLock, v.keyShift)));
         }
         libraryView.setReferenceKeys (playingKeys);
+
+        // El AUTO MIX mueve el crossfader solo: la perilla lo sigue.
+        controller.setCrossfader (player.getEngine().getCrossfader());
+        controller.setAutoMixState (player.getEngine().getAutoMixProgress());
 
         // SPLIT también se cambia desde Opciones: reflejarlo en el botón.
         controller.setSplit (player.getEngine().getSplit());

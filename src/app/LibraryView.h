@@ -67,6 +67,8 @@ namespace kb::app
         TrackLibrary& library;
         juce::TableListBox table { "tracks", this };
         ui::GlowButton addButton { "library.add", juce::Colour (0xff19E3F5), true };
+        ui::GlowButton clearButton { "library.clear", juce::Colour (0xffFF4A3D), false };
+        void confirmClear();
         std::vector<int> order;   // fila visible -> índice en la biblioteca
         std::vector<int> referenceKeys;
         int sortColumn = 0;

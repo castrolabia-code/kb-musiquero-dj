@@ -3,6 +3,19 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.6.0] — Pedidos del usuario: AUTO MIX, Borrar lista y nuevo diseño
+
+### Agregado
+- **AUTO MIX** (en el mixer, a la izquierda del crossfader): pasa sola y de forma pareja a la otra bandeja. Arranca la pista del otro deck, la sincroniza (si los BPM están a menos de ±12 %), cambia los graves a mitad de camino (*bass swap*) y mueve el crossfader con curva de potencia constante. Al terminar, el deck que salió queda en pausa. Click de nuevo o mover el crossfader a mano: cancela.
+- **Perilla MIX** (a la derecha del crossfader): velocidad de la mezcla automática, de 2 a 60 s (doble click: 10 s). Se guarda entre sesiones.
+- **Botón "BORRAR LISTA"** en la columna de carpetas: vacía la lista con confirmación (los archivos no se borran de la PC).
+- Pruebas del AUTO MIX: pase completo en ambos sentidos, nivel parejo durante todo el pase, cancelación, sin pista en el otro deck y BPM demasiado distintos.
+
+### Cambiado
+- **Nuevo diseño**: recuadro amarillo redondeado alrededor de todo el programa con **tribales negros tipo grafiti** (asimétricos) en las partes amarillas; logo **KB MUSIQUERO DJ** en neón 3D (Orbitron); títulos **DECK 1 / DECK 2** grandes en neón celeste con sombreado.
+- **Letras más grandes** en toda la interfaz (botones, perillas, menús, lista y ayudas) con las fuentes Rajdhani y Orbitron (licencia OFL, incluidas).
+- El display de cada deck muestra la información en dos columnas, más grande y legible.
+
 ## [0.5.0] — Fase 3 completa: tonalidad, Key Lock, key shift y waveform por frecuencia
 
 ### Agregado

@@ -47,7 +47,7 @@ namespace kb::ui
             r = r.reduced (r.getHeight() * 0.03f);
 
         const auto c = highlighted && ! lit ? colour.brighter (0.25f) : colour;
-        const auto scale = textScale > 0.0f ? textScale : (round ? 0.2f : 0.36f);
+        const auto scale = textScale > 0.0f ? textScale : (round ? 0.25f : 0.46f);
 
         if (icon == ButtonIcon::none)
         {
@@ -58,10 +58,10 @@ namespace kb::ui
         // Símbolo arriba y texto chico abajo.
         draw::button (g, r, c, {}, lit || down, round, r.getHeight() * scale);
         const auto ink = (lit || down) ? palette::panelDark : c;
-        const auto iconArea = r.withSizeKeepingCentre (r.getWidth() * 0.42f, r.getHeight() * 0.36f).translated (0.0f, -r.getHeight() * 0.1f);
+        const auto iconArea = r.withSizeKeepingCentre (r.getWidth() * 0.4f, r.getHeight() * 0.34f).translated (0.0f, -r.getHeight() * 0.12f);
         draw::icon (g, (int) icon, iconArea, ink);
-        draw::text (g, tr (labelKey), r.withTrimmedTop (r.getHeight() * 0.58f).withTrimmedBottom (r.getHeight() * 0.14f),
-                    r.getHeight() * 0.16f, ink);
+        draw::text (g, tr (labelKey), r.withTrimmedTop (r.getHeight() * 0.56f).withTrimmedBottom (r.getHeight() * 0.1f),
+                    r.getHeight() * 0.19f, ink);
     }
 
     void GlowButton::mouseDoubleClick (const juce::MouseEvent&)
@@ -131,6 +131,7 @@ namespace kb::ui
     {
         const auto arc = radius * 1.32f;
         const juce::Point<float> centre (getWidth() * 0.5f, arc + 3.0f);
-        draw::knob (g, centre, radius, (float) valueToProportionOfLength (getValue()), tr (labelKey), labelHeight, bipolar);
+        draw::knob (g, centre, radius, (float) valueToProportionOfLength (getValue()),
+                    labelFormatter ? labelFormatter (getValue()) : tr (labelKey), labelHeight, bipolar);
     }
 } // namespace kb::ui

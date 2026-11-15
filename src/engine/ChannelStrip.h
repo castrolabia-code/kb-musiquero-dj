@@ -26,6 +26,7 @@ namespace kb::engine
             float mid    = 0.5f;
             float high   = 0.5f;
             float filter = 0.5f;   // 0..1  (LPF <- 0.5 -> HPF)
+            float lowMultiplier = 1.0f;   // ganancia extra de graves (bass swap del AUTO MIX)
         };
 
         void prepare (double sampleRate) noexcept;

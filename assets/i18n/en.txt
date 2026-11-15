@@ -73,6 +73,7 @@ countries: en gb us au ca nz ie za
 "about.title" = "About"
 "about.body" = "KB - MUSIQUERO DJ\nVersion {version}\n\nby Castro Labs\n© {year} Castro Labs. All rights reserved."
 "common.ok" = "OK"
+"common.cancel" = "Cancel"
 
 // --- Controller labels (skin placeholder) ----------------------------------------
 "deck.name" = "DECK {n}"
@@ -103,6 +104,10 @@ countries: en gb us au ca nz ie za
 "mixer.cueMix" = "CUE MIX"
 "mixer.cue" = "CUE"
 "mixer.split" = "SPLIT"
+"mixer.autoMix" = "AUTO MIX"
+"mixer.mixTime" = "MIX {s} s"
+"automix.title" = "AUTO MIX"
+"automix.needTrack" = "Load a song on DECK {deck} to mix into it."
 "meter.limit" = "LIMIT"
 
 // --- Waveform area -----------------------------------------------------------------
@@ -130,6 +135,9 @@ countries: en gb us au ca nz ie za
 "library.col.rating" = "Rating"
 "library.col.artwork" = "Artwork"
 "library.add" = "+"
+"library.clear" = "CLEAR LIST"
+"library.clearConfirmTitle" = "Clear list"
+"library.clearConfirmBody" = "Remove all {n} songs from the list? The files are NOT deleted from your PC."
 "library.addFiles" = "Add songs..."
 "library.addFolder" = "Add a folder..."
 "library.remove" = "Remove from list"
@@ -165,6 +173,9 @@ countries: en gb us au ca nz ie za
 "tip.waveform" = "Whole-song view: click or drag to jump there. The orange line is the cue point."
 "tip.deckInfo" = "Loaded song: title, artist, BPM (with tempo applied), tempo %, elapsed and remaining time."
 "tip.libraryAdd" = "Add songs or a whole folder to the list."
+"tip.libraryClear" = "Clear list: removes every song from the list (the files stay on your PC)."
+"tip.autoMix" = "AUTO MIX: smoothly hands over to the other deck (starts it, syncs it, swaps the bass and moves the crossfader). Click again to cancel."
+"tip.mixTime" = "AUTO MIX speed: how many seconds the mix lasts (2 to 60 s). Double-click: 10 s."
 "tip.waveformDetail" = "Zoomed waveform: lows (dark colour), mids and highs (light). Lines are beats; stronger ones every 4. Mouse wheel: zoom."
 "tip.keyShift" = "Shifts the song's pitch one semitone at a time (speed unchanged) so two songs match. Double-click: original key."
 "tip.keyLock" = "KEY LOCK (master tempo): changing TEMPO speeds the song up or down without changing its pitch."

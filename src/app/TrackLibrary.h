@@ -36,6 +36,8 @@ namespace kb::app
         /** Busca audio en la carpeta (y subcarpetas) en segundo plano y lo agrega. */
         void addFolder (const juce::File& folder);
         void remove (const std::vector<int>& indices);
+        /** Vacía la lista (no borra ningún archivo del disco ni el caché de análisis). */
+        void clear();
 
         int  size() const noexcept { return (int) items.size(); }
         const LibraryItem& operator[] (int i) const { return items[(size_t) i]; }

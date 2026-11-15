@@ -27,6 +27,10 @@ namespace kb::ui::draw
     /** Símbolo de un botón (ver ui::ButtonIcon): 1 play, 2 pausa, 3 cue, 4 sync. */
     void icon (juce::Graphics& g, int iconId, juce::Rectangle<float> area, juce::Colour colour);
 
+    /** Texto en neón con sombreado 3D (Orbitron Black): extrusión, resplandor y brillo. */
+    void neonText (juce::Graphics& g, const juce::String& text, juce::Rectangle<float> area,
+                   juce::Colour colour, juce::Justification justification);
+
     /** Ranura de fader con su tapa. pos01: 0 = abajo/izquierda, 1 = arriba/derecha. */
     void fader (juce::Graphics& g, juce::Rectangle<float> r, bool vertical, float pos01);
 

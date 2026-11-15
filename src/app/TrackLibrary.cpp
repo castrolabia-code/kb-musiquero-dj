@@ -93,6 +93,13 @@ namespace kb::app
         notify();
     }
 
+    void TrackLibrary::clear()
+    {
+        items.clear();
+        save();
+        notify();
+    }
+
     std::optional<AnalysisEntry> TrackLibrary::analysisFor (int i) const
     {
         return juce::isPositiveAndBelow (i, (int) items.size()) ? cache.find (items[(size_t) i].file) : std::nullopt;
