@@ -34,7 +34,7 @@ namespace
     };
 }
 
-TEST_CASE ("AudioEngine: prepare guarda la configuración", "[engine]")
+TEST_CASE ("AudioEngine: prepare guarda la configuracion", "[engine]")
 {
     AudioEngine engine;
     REQUIRE_FALSE (engine.isPrepared());
@@ -49,7 +49,7 @@ TEST_CASE ("AudioEngine: prepare guarda la configuración", "[engine]")
     CHECK_FALSE (engine.isPrepared());
 }
 
-TEST_CASE ("AudioEngine: limita los canales al máximo soportado", "[engine]")
+TEST_CASE ("AudioEngine: limita los canales al maximo soportado", "[engine]")
 {
     AudioEngine engine;
     engine.prepare ({ 48000.0, 128, 16 });
@@ -67,19 +67,19 @@ TEST_CASE ("AudioEngine: en la Fase 0 genera silencio en todas las salidas", "[e
     CHECK (engine.getProcessedBlocks() == 1);
 }
 
-TEST_CASE ("AudioEngine: process es robusto ante entradas atípicas", "[engine]")
+TEST_CASE ("AudioEngine: process es robusto ante entradas atipicas", "[engine]")
 {
     AudioEngine engine;
     engine.prepare ({ 48000.0, 64, 2 });
 
-    SECTION ("bloque más grande que maxBlockSize")
+    SECTION ("bloque mas grande que maxBlockSize")
     {
         Outputs out (2, 1024);
         engine.process (out.ptrs.data(), 2, 1024);
         CHECK (out.allZero());
     }
 
-    SECTION ("punteros nulos y bloques vacíos")
+    SECTION ("punteros nulos y bloques vacios")
     {
         engine.process (nullptr, 2, 64);
         Outputs out (2, 64);

@@ -1,3 +1,6 @@
+// Nota: los nombres de las pruebas van en ASCII (CTest en Windows no pasa bien
+// las tildes a Catch2 al filtrar por nombre).
+//
 // Pruebas de internacionalización: los dos idiomas deben estar completos y
 // toda clave usada en el código debe existir en los archivos de traducción.
 #include <catch2/catch_test_macros.hpp>
@@ -28,7 +31,7 @@ namespace
     }
 }
 
-TEST_CASE ("I18n: español e inglés tienen exactamente las mismas claves", "[i18n]")
+TEST_CASE ("I18n: espanol e ingles tienen exactamente las mismas claves", "[i18n]")
 {
     const auto es = keysOf (Language::Spanish);
     const auto en = keysOf (Language::English);
@@ -83,7 +86,7 @@ TEST_CASE ("I18n: tr() traduce y cambia de idioma en vivo", "[i18n]")
     i18n.removeListener (&probe);
 }
 
-TEST_CASE ("I18n: códigos de idioma", "[i18n]")
+TEST_CASE ("I18n: codigos de idioma", "[i18n]")
 {
     CHECK (I18n::fromCode ("es") == Language::Spanish);
     CHECK (I18n::fromCode ("es-AR") == Language::Spanish);
@@ -92,7 +95,7 @@ TEST_CASE ("I18n: códigos de idioma", "[i18n]")
     CHECK (I18n::toCode (Language::English) == "en");
 }
 
-TEST_CASE ("I18n: toda clave usada con tr(\"...\") en el código existe", "[i18n]")
+TEST_CASE ("I18n: toda clave usada con tr() en el codigo existe", "[i18n]")
 {
     const auto keys = keysOf (Language::Spanish);
     const juce::File src = juce::File (KB_SOURCE_DIR).getChildFile ("src");
