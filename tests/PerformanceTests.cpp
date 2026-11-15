@@ -109,7 +109,7 @@ TEST_CASE ("Loop de 1/32 de beat: sin clicks", "[performance][loop]")
     CHECK (test::maxStep (out.left, 512) < kClickThreshold);
 }
 
-TEST_CASE ("Loop: ½ y ×2, IN/OUT manual y reloop", "[performance][loop]")
+TEST_CASE ("Loop: 1/2 y x2, IN/OUT manual y reloop", "[performance][loop]")
 {
     Rig rig;
     rig.engine.seek (0, 2.0);
@@ -149,7 +149,7 @@ TEST_CASE ("Loop: ½ y ×2, IN/OUT manual y reloop", "[performance][loop]")
     CHECK (rig.pos() == Approx (st.loopInSeconds + 0.1).margin (0.02));
 }
 
-TEST_CASE ("Loop roll: al soltar sigue donde habría estado", "[performance][roll]")
+TEST_CASE ("Loop roll: al soltar sigue donde habria estado", "[performance][roll]")
 {
     Rig rig;
     rig.engine.seek (0, 10.0);
@@ -166,7 +166,7 @@ TEST_CASE ("Loop roll: al soltar sigue donde habría estado", "[performance][rol
     CHECK (rig.pos() == Approx (start + 1.1).margin (0.02));
 }
 
-TEST_CASE ("Slip + reversa: vuelve a donde habría estado", "[performance][slip]")
+TEST_CASE ("Slip + reversa: vuelve a donde habria estado", "[performance][slip]")
 {
     Rig rig;
     rig.engine.seek (0, 10.0);
@@ -223,7 +223,7 @@ TEST_CASE ("Freno: la pista se detiene y al soltar sigue", "[performance][fx]")
     CHECK (rig.pos() == Approx (stopped + 0.5).margin (0.01));
 }
 
-TEST_CASE ("Backspin: va para atrás y al soltar vuelve (slip)", "[performance][fx]")
+TEST_CASE ("Backspin: va para atras y al soltar vuelve (slip)", "[performance][fx]")
 {
     Rig rig;
     rig.engine.seek (0, 10.0);
@@ -335,7 +335,7 @@ TEST_CASE ("Sampler: one-shot, loop, stop y volumen", "[performance][sampler]")
     CHECK (engine.getNumLiveTracks() == 1);
 }
 
-TEST_CASE ("Fase 4: ningún comando reserva memoria en el hilo de audio", "[performance][realtime]")
+TEST_CASE ("Fase 4: ningun comando reserva memoria en el hilo de audio", "[performance][realtime]")
 {
     Rig rig;
     auto sample = test::makeSineTrack (0.5, 800.0, kSr);
