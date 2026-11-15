@@ -9,7 +9,8 @@
 
 namespace kb::ui
 {
-    class TopBar final : public juce::Component
+    class TopBar final : public juce::Component,
+                         public juce::TooltipClient
     {
     public:
         TopBar();
@@ -19,6 +20,7 @@ namespace kb::ui
                          float limiterReductionDb, float dtSeconds);
 
         void paint (juce::Graphics& g) override;
+        juce::String getTooltip() override;
         void resized() override;
 
     private:

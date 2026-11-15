@@ -75,6 +75,11 @@ namespace kb::ui
         }
     }
 
+    juce::String DeckDisplay::getTooltip()
+    {
+        return waveArea().contains (getMouseXYRelative().toFloat()) ? tr ("tip.waveform") : tr ("tip.deckInfo");
+    }
+
     void DeckDisplay::refresh()
     {
         repaint();

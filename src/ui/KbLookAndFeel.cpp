@@ -37,6 +37,9 @@ namespace kb::ui
         setColour (juce::ListBox::backgroundColourId,         panelDark);
         setColour (juce::Label::textColourId,                 textPrimary);
         setColour (juce::ToggleButton::tickColourId,          cyan);
+        setColour (juce::TooltipWindow::backgroundColourId,   panelLight.brighter (0.1f));
+        setColour (juce::TooltipWindow::textColourId,         textPrimary);
+        setColour (juce::TooltipWindow::outlineColourId,      cyan.withAlpha (0.6f));
     }
 
     juce::Font KbLookAndFeel::labelFont (float height, bool bold)

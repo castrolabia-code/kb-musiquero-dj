@@ -8,7 +8,8 @@
 //    KbKnob     : perilla con arco de valor naranja.
 //
 //  Los textos se pasan como CLAVES de traducción y se traducen al pintar, así
-//  el cambio de idioma solo requiere repintar.
+//  el cambio de idioma solo requiere repintar. Lo mismo con la ayuda que
+//  aparece al pasar el mouse (tooltip): setTooltipKey ("tip.xxx").
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -16,10 +17,17 @@
 
 namespace kb::ui
 {
+    /** Símbolos que pueden llevar los botones (además del texto). */
+    enum class ButtonIcon { none, play, pause, cue, sync };
+
     class GlowButton final : public juce::Button
     {
     public:
-        GlowButton (juce::String labelKey, juce::Colour colour, bool round);
+        GlowButton (juce::String labelKey, juce::Colour colour, bool round, ButtonIcon icon = ButtonIcon::none);
+
+        /** Ayuda al pasar el mouse (clave de traducción). */
+        void setTooltipKey (const juce::String& key) { tooltipKey = key; }
+        juce::String getTooltip() override;
 
         /** Tamaño de letra relativo al alto del botón (por defecto 0.2 redondo / 0.36 rectangular). */
         void setTextScale (float s) { textScale = s; repaint(); }
@@ -35,9 +43,10 @@ namespace kb::ui
         void paintButton (juce::Graphics& g, bool highlighted, bool down) override;
         void buttonStateChanged() override;
 
-        juce::String labelKey;
+        juce::String labelKey, tooltipKey;
         juce::Colour colour;
         bool round;
+        ButtonIcon icon;
         float textScale = -1.0f;
         bool lit = false;
         bool wasDown = false;
@@ -49,8 +58,12 @@ namespace kb::ui
         explicit KbFader (bool vertical);
         void paint (juce::Graphics& g) override;
 
+        void setTooltipKey (const juce::String& key) { tooltipKey = key; }
+        juce::String getTooltip() override;
+
     private:
         bool vertical;
+        juce::String tooltipKey;
     };
 
     class KbKnob final : public juce::Slider
@@ -60,6 +73,9 @@ namespace kb::ui
 
         /** Radio de la perilla y alto de la etiqueta, en píxeles. */
         void setGeometry (float radius, float labelHeight);
+        void setTooltipKey (const juce::String& key) { tooltipKey = key; }
+        juce::String getTooltip() override;
+
         /** Arco desde el centro (EQ, GAIN, FILTER). */
         void setBipolar (bool b) { bipolar = b; repaint(); }
         /** Tamaño que necesita el componente para la geometría dada. */
@@ -68,7 +84,7 @@ namespace kb::ui
         void paint (juce::Graphics& g) override;
 
     private:
-        juce::String labelKey;
+        juce::String labelKey, tooltipKey;
         float radius = 12.0f, labelHeight = 8.0f;
         bool bipolar = false;
     };

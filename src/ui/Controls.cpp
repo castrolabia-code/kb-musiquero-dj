@@ -9,8 +9,8 @@ namespace kb::ui
     // =========================================================================
     //  GlowButton
     // =========================================================================
-    GlowButton::GlowButton (juce::String key, juce::Colour c, bool r)
-        : juce::Button (key), labelKey (std::move (key)), colour (c), round (r)
+    GlowButton::GlowButton (juce::String key, juce::Colour c, bool r, ButtonIcon i)
+        : juce::Button (key), labelKey (std::move (key)), colour (c), round (r), icon (i)
     {
         setMouseCursor (juce::MouseCursor::PointingHandCursor);
         setWantsKeyboardFocus (false);
@@ -48,8 +48,25 @@ namespace kb::ui
 
         const auto c = highlighted && ! lit ? colour.brighter (0.25f) : colour;
         const auto scale = textScale > 0.0f ? textScale : (round ? 0.2f : 0.36f);
-        draw::button (g, r, c, tr (labelKey), lit || down, round, r.getHeight() * scale);
+
+        if (icon == ButtonIcon::none)
+        {
+            draw::button (g, r, c, tr (labelKey), lit || down, round, r.getHeight() * scale);
+            return;
+        }
+
+        // Símbolo arriba y texto chico abajo.
+        draw::button (g, r, c, {}, lit || down, round, r.getHeight() * scale);
+        const auto ink = (lit || down) ? palette::panelDark : c;
+        const auto iconArea = r.withSizeKeepingCentre (r.getWidth() * 0.42f, r.getHeight() * 0.36f).translated (0.0f, -r.getHeight() * 0.1f);
+        draw::icon (g, (int) icon, iconArea, ink);
+        draw::text (g, tr (labelKey), r.withTrimmedTop (r.getHeight() * 0.58f).withTrimmedBottom (r.getHeight() * 0.14f),
+                    r.getHeight() * 0.16f, ink);
     }
+
+    juce::String GlowButton::getTooltip()  { return tooltipKey.isNotEmpty() ? tr (tooltipKey) : juce::String(); }
+    juce::String KbFader::getTooltip()     { return tooltipKey.isNotEmpty() ? tr (tooltipKey) : juce::String(); }
+    juce::String KbKnob::getTooltip()      { return tooltipKey.isNotEmpty() ? tr (tooltipKey) : juce::String(); }
 
     // =========================================================================
     //  KbFader

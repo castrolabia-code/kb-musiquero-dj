@@ -23,7 +23,8 @@ namespace kb::app
 
         // --- Controlador -> motor --------------------------------------------------------
         auto& engine = player.getEngine();
-        controller.onPlay       = [this] (int d) { player.togglePlay (d); };
+        controller.onPlay       = [this] (int d) { player.play (d); };
+        controller.onPause      = [this] (int d) { player.pause (d); };
         controller.onCueDown    = [this] (int d) { player.cueDown (d); };
         controller.onCueUp      = [this] (int d) { player.cueUp (d); };
         controller.onVolume     = [&engine] (int d, float v) { engine.setChannelVolume (d, v); };

@@ -90,6 +90,59 @@ namespace kb::ui
             text (g, label, r.reduced (r.getWidth() * 0.06f, 0.0f), textH, lit ? panelDark : colour);
         }
 
+        void icon (Graphics& g, int id, Rectangle<float> a, Colour colour)
+        {
+            g.setColour (colour);
+            const auto s = juce::jmin (a.getWidth(), a.getHeight());
+            const auto sq = Rectangle<float> (s, s).withCentre (a.getCentre());
+            juce::Path p;
+
+            switch (id)
+            {
+                case 1: // PLAY: triángulo
+                    p.addTriangle (sq.getX() + s * 0.18f, sq.getY(), sq.getX() + s * 0.18f, sq.getBottom(), sq.getRight() - s * 0.02f, sq.getCentreY());
+                    g.fillPath (p);
+                    break;
+
+                case 2: // PAUSA: dos barras
+                    g.fillRoundedRectangle (sq.getX() + s * 0.12f, sq.getY(), s * 0.28f, s, s * 0.06f);
+                    g.fillRoundedRectangle (sq.getRight() - s * 0.40f, sq.getY(), s * 0.28f, s, s * 0.06f);
+                    break;
+
+                case 3: // CUE: barra + triángulo hacia atrás (volver al punto)
+                    g.fillRoundedRectangle (sq.getX(), sq.getY(), s * 0.18f, s, s * 0.05f);
+                    p.addTriangle (sq.getRight(), sq.getY(), sq.getRight(), sq.getBottom(), sq.getX() + s * 0.24f, sq.getCentreY());
+                    g.fillPath (p);
+                    break;
+
+                case 4: // SYNC: dos flechas en círculo
+                {
+                    const auto c = sq.getCentre();
+                    const auto r = s * 0.42f;
+                    const auto w = juce::jmax (1.2f, s * 0.13f);
+                    for (int k = 0; k < 2; ++k)
+                    {
+                        const auto start = juce::MathConstants<float>::pi * (float) k + 0.35f;
+                        const auto end   = start + juce::MathConstants<float>::pi - 0.7f;
+                        juce::Path arc;
+                        arc.addCentredArc (c.x, c.y, r, r, 0.0f, start, end, true);
+                        g.strokePath (arc, juce::PathStrokeType (w, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+                        // Punta de flecha al final del arco.
+                        const auto tip = c.getPointOnCircumference (r, end);
+                        const auto back1 = c.getPointOnCircumference (r + w * 1.4f, end - 0.45f);
+                        const auto back2 = c.getPointOnCircumference (r - w * 1.4f, end - 0.45f);
+                        juce::Path head;
+                        head.addTriangle (tip.translated (0, 0), back1, back2);
+                        g.fillPath (head);
+                    }
+                    break;
+                }
+
+                default:
+                    break;
+            }
+        }
+
         /** Ranura de fader con su tapa. pos01: 0 = abajo/izquierda, 1 = arriba/derecha. */
         void fader (Graphics& g, Rectangle<float> r, bool vertical, float pos01)
         {

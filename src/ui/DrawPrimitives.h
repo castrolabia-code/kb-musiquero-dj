@@ -24,6 +24,9 @@ namespace kb::ui::draw
     void button (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour colour, const juce::String& label,
                  bool lit, bool round, float textHeight);
 
+    /** Símbolo de un botón (ver ui::ButtonIcon): 1 play, 2 pausa, 3 cue, 4 sync. */
+    void icon (juce::Graphics& g, int iconId, juce::Rectangle<float> area, juce::Colour colour);
+
     /** Ranura de fader con su tapa. pos01: 0 = abajo/izquierda, 1 = arriba/derecha. */
     void fader (juce::Graphics& g, juce::Rectangle<float> r, bool vertical, float pos01);
 

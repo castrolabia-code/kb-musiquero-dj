@@ -54,6 +54,8 @@ namespace kb::app
 
         // Transporte
         void togglePlay (int deck)              { engine.togglePlay (deck); }
+        void play (int deck)                    { engine.play (deck); }
+        void pause (int deck)                   { engine.pause (deck); }
         void toggleSync (int deck)              { engine.toggleSync (deck); }
         void setTempo (int deck, float percent) { engine.setTempo (deck, percent); }
         void cueDown (int deck)                 { engine.cueDown (deck); }

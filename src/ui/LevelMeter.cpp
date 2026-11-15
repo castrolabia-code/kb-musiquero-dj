@@ -1,5 +1,6 @@
 #include "ui/LevelMeter.h"
 
+#include "app/I18n.h"
 #include "ui/Palette.h"
 
 #include <array>
@@ -102,6 +103,11 @@ namespace kb::ui
     }
 
     void LevelMeter::resized() {}
+
+    juce::String LevelMeter::getTooltip()
+    {
+        return tooltipKey.isNotEmpty() ? tr (tooltipKey) : juce::String();
+    }
 
     void LevelMeter::mouseDown (const juce::MouseEvent&)
     {

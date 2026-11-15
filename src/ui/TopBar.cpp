@@ -11,8 +11,15 @@ namespace kb::ui
     TopBar::TopBar()
     {
         setOpaque (true);
+        meterL.setTooltipKey ("tip.masterMeter");
+        meterR.setTooltipKey ("tip.masterMeter");
         addAndMakeVisible (meterL);
         addAndMakeVisible (meterR);
+    }
+
+    juce::String TopBar::getTooltip()
+    {
+        return limitArea.expanded (4.0f).contains (getMouseXYRelative().toFloat()) ? tr ("tip.limit") : juce::String();
     }
 
     void TopBar::pushMaster (const engine::MeterSource::Reading& l, const engine::MeterSource::Reading& r,

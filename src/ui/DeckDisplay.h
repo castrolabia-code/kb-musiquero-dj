@@ -19,7 +19,8 @@
 
 namespace kb::ui
 {
-    class DeckDisplay final : public juce::Component
+    class DeckDisplay final : public juce::Component,
+                              public juce::TooltipClient
     {
     public:
         explicit DeckDisplay (int deckIndex);
@@ -39,6 +40,7 @@ namespace kb::ui
         void refresh();
 
         void paint (juce::Graphics& g) override;
+        juce::String getTooltip() override;
         void resized() override;
         void mouseDown (const juce::MouseEvent& e) override;
         void mouseDrag (const juce::MouseEvent& e) override;

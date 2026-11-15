@@ -17,10 +17,14 @@
 
 namespace kb::ui
 {
-    class LevelMeter final : public juce::Component
+    class LevelMeter final : public juce::Component,
+                             public juce::TooltipClient
     {
     public:
         LevelMeter (bool vertical, int numSegments);
+
+        void setTooltipKey (const juce::String& key) { tooltipKey = key; }
+        juce::String getTooltip() override;
 
         /** Llamar a cada cuadro (60 fps) con la lectura del motor. */
         void push (const engine::MeterSource::Reading& reading, float dtSeconds);
@@ -39,6 +43,7 @@ namespace kb::ui
 
         bool vertical;
         int  numSegments;
+        juce::String tooltipKey;
         std::vector<float> segmentDb;   // dB del borde superior de cada segmento
         engine::MeterBallistics ballistics;
 

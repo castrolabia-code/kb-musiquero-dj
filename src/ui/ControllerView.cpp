@@ -19,11 +19,18 @@ namespace kb::ui
 
         for (int d = 0; d < 2; ++d)
         {
-            playButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.play", play, true);
-            cueButtons[(size_t) d]  = std::make_unique<GlowButton> ("deck.cue", alert, true);
+            playButtons[(size_t) d]  = std::make_unique<GlowButton> ("deck.play", play, true, ButtonIcon::play);
+            pauseButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.pause", orange, true, ButtonIcon::pause);
+            cueButtons[(size_t) d]   = std::make_unique<GlowButton> ("deck.cue", alert, true, ButtonIcon::cue);
             volumeFaders[(size_t) d] = std::make_unique<KbFader> (true);
 
+            playButtons[(size_t) d]->setTooltipKey ("tip.play");
+            pauseButtons[(size_t) d]->setTooltipKey ("tip.pause");
+            cueButtons[(size_t) d]->setTooltipKey ("tip.cue");
+            volumeFaders[(size_t) d]->setTooltipKey ("tip.volume");
+
             playButtons[(size_t) d]->onPress   = [this, d] { if (onPlay) onPlay (d); };
+            pauseButtons[(size_t) d]->onPress  = [this, d] { if (onPause) onPause (d); };
             cueButtons[(size_t) d]->onPress    = [this, d] { if (onCueDown) onCueDown (d); };
             cueButtons[(size_t) d]->onRelease  = [this, d] { if (onCueUp) onCueUp (d); };
 
@@ -32,10 +39,13 @@ namespace kb::ui
             fader.onValueChange = [this, d, &fader] { if (onVolume) onVolume (d, (float) fader.getValue()); };
 
             addAndMakeVisible (*playButtons[(size_t) d]);
+            addAndMakeVisible (*pauseButtons[(size_t) d]);
             addAndMakeVisible (*cueButtons[(size_t) d]);
             addAndMakeVisible (fader);
         }
 
+        crossfader.setTooltipKey ("tip.crossfader");
+        masterKnob.setTooltipKey ("tip.master");
         crossfader.setRange (-1.0, 1.0);
         crossfader.setDoubleClickReturnValue (true, 0.0);
         crossfader.onValueChange = [this] { if (onCrossfader) onCrossfader ((float) crossfader.getValue()); };
@@ -54,6 +64,7 @@ namespace kb::ui
             auto fader = std::make_unique<KbFader> (true);
             fader->setRange (-1.0, 1.0);
             fader->setDoubleClickReturnValue (true, 0.0);
+            fader->setTooltipKey ("tip.tempo");
             auto* rawFader = fader.get();
             // Como en un CDJ: hacia abajo = más rápido (+), hacia arriba = más lento (-).
             fader->onValueChange = [this, d, rawFader]
@@ -64,11 +75,13 @@ namespace kb::ui
             addAndMakeVisible (*fader);
             tempoFaders[(size_t) d] = std::move (fader);
 
-            syncButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.sync", cyan, true);
+            syncButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.sync", cyan, true, ButtonIcon::sync);
+            syncButtons[(size_t) d]->setTooltipKey ("tip.sync");
             syncButtons[(size_t) d]->onPress = [this, d] { if (onSync) onSync (d); };
             addAndMakeVisible (*syncButtons[(size_t) d]);
 
             rangeButtons[(size_t) d] = std::make_unique<GlowButton> ("deck.range8", orange, false);
+            rangeButtons[(size_t) d]->setTooltipKey ("tip.tempoRange");
             rangeButtons[(size_t) d]->onPress = [this, d]
             {
                 rangeIndex[(size_t) d] = (rangeIndex[(size_t) d] + 1) % 3;
@@ -105,6 +118,8 @@ namespace kb::ui
                     else             { if (onEq)     onEq (d, 3 - k, v); }   // HIGH=2, MID=1, LOW=0
                 };
                 addAndMakeVisible (*knob);
+                static const char* tips[] = { "tip.gain", "tip.high", "tip.mid", "tip.low", "tip.filter" };
+                knob->setTooltipKey (tips[k]);
                 stripKnobs[(size_t) d][(size_t) k] = std::move (knob);
             }
 
@@ -116,12 +131,17 @@ namespace kb::ui
                 if (onChannelCue) onChannelCue (d, rawCue->isLit());
             };
             addAndMakeVisible (*cue);
+            cue->setTooltipKey ("tip.channelCue");
             channelCueButtons[(size_t) d] = std::move (cue);
 
             channelMeters[(size_t) d] = std::make_unique<LevelMeter> (true, 16);
+            channelMeters[(size_t) d]->setTooltipKey ("tip.channelMeter");
             addAndMakeVisible (*channelMeters[(size_t) d]);
         }
 
+        phonesKnob.setTooltipKey ("tip.phones");
+        cueMixKnob.setTooltipKey ("tip.cueMix");
+        splitButton.setTooltipKey ("tip.split");
         phonesKnob.setDoubleClickReturnValue (true, 0.7);
         phonesKnob.onValueChange = [this] { if (onPhones) onPhones ((float) phonesKnob.getValue()); };
         cueMixKnob.setBipolar (true);
@@ -183,6 +203,23 @@ namespace kb::ui
             platters[(size_t) d]->setState (positionSeconds, playing, loaded);
     }
 
+    juce::String ControllerView::getTooltip()
+    {
+        const auto p = getMouseXYRelative().toFloat();
+        for (const auto& L : deckLayouts)
+        {
+            if (L.platter.contains (p))
+                return tr ("tip.platter");
+            for (const auto& pad : L.pads)
+                if (pad.contains (p))
+                    return tr ("tip.pads");
+            for (const auto& m : L.modes)
+                if (m.contains (p))
+                    return tr ("tip.padModes");
+        }
+        return {};
+    }
+
     void ControllerView::invalidateBackground()
     {
         background = {};
@@ -204,7 +241,9 @@ namespace kb::ui
             return;
 
         // PLAY: encendido reproduciendo; titila en pausa con pista cargada (CDJ).
-        playButtons[(size_t) deck]->setLit (l.playing || (l.loaded && ! l.playing && blinkPhase));
+        playButtons[(size_t) deck]->setLit (l.playing && ! l.cuePreview);
+        // PAUSA: titila con una pista cargada en pausa (encendido fijo durante la preescucha de CUE: no).
+        pauseButtons[(size_t) deck]->setLit (l.loaded && ! l.playing && blinkPhase);
         // CUE: encendido en pausa sobre el cue o durante la preescucha.
         cueButtons[(size_t) deck]->setLit (l.loaded && (l.cuePreview || (! l.playing && l.atCue)));
     }
@@ -257,6 +296,7 @@ namespace kb::ui
         {
             const auto& dl = deckLayouts[(size_t) d];
             playButtons[(size_t) d]->setBounds (dl.play.expanded (dl.play.getHeight() * 0.08f).toNearestInt());
+            pauseButtons[(size_t) d]->setBounds (dl.pause.expanded (dl.pause.getHeight() * 0.08f).toNearestInt());
             cueButtons[(size_t) d]->setBounds (dl.cue.expanded (dl.cue.getHeight() * 0.08f).toNearestInt());
             volumeFaders[(size_t) d]->setBounds (mixer.faders[(size_t) d].toNearestInt());
         }
@@ -325,13 +365,13 @@ namespace kb::ui
             L.platter = Rectangle<float> (diameter, diameter).withCentre (platterArea.getCentre());
 
             r.removeFromTop (unit * 2.0f);
-            auto transport = L.mirrored ? r.removeFromRight (r.getWidth() * 0.36f) : r.removeFromLeft (r.getWidth() * 0.36f);
+            auto transport = L.mirrored ? r.removeFromRight (r.getWidth() * 0.44f) : r.removeFromLeft (r.getWidth() * 0.44f);
             if (L.mirrored) r.removeFromRight (unit * 2.0f); else r.removeFromLeft (unit * 2.0f);
 
-            const auto btnD  = juce::jmin (transport.getWidth() / 3.3f, transport.getHeight() * 0.85f);
-            const auto cellW = transport.getWidth() / 3.0f;
-            Rectangle<float>* cells[] = { &L.sync, &L.cue, &L.play };
-            for (int i = 0; i < 3; ++i)
+            const auto btnD  = juce::jmin (transport.getWidth() / 4.2f, transport.getHeight() * 0.9f);
+            const auto cellW = transport.getWidth() / 4.0f;
+            Rectangle<float>* cells[] = { &L.sync, &L.cue, &L.pause, &L.play };
+            for (int i = 0; i < 4; ++i)
             {
                 const auto cell = transport.withWidth (cellW).withX (transport.getX() + cellW * (float) i);
                 *cells[i] = Rectangle<float> (btnD, btnD).withCentre (cell.getCentre());

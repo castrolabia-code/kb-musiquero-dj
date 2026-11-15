@@ -22,13 +22,15 @@
 
 namespace kb::ui
 {
-    class ControllerView final : public juce::Component
+    class ControllerView final : public juce::Component,
+                                 public juce::TooltipClient
     {
     public:
         ControllerView();
 
         // --- Acciones del usuario -----------------------------------------------------
         std::function<void (int deck)>              onPlay;
+        std::function<void (int deck)>              onPause;
         std::function<void (int deck)>              onCueDown;
         std::function<void (int deck)>              onCueUp;
         std::function<void (int deck, float value)> onVolume;
@@ -54,7 +56,7 @@ namespace kb::ui
             bool cuePreview = false;
             bool atCue      = false;
         };
-        /** blinkPhase alterna ~2 veces por segundo (PLAY titila en pausa, como un CDJ). */
+        /** blinkPhase alterna ~2 veces por segundo (PAUSA titila con la pista en pausa). */
         void setDeckLights (int deck, const DeckLights& lights, bool blinkPhase);
 
         void setVolume (int deck, float value);
@@ -89,10 +91,13 @@ namespace kb::ui
         void paint (juce::Graphics& g) override;
         void resized() override;
 
+        /** Ayuda para lo que está dibujado en el fondo (platos, pads, etc.). */
+        juce::String getTooltip() override;
+
     private:
         struct DeckLayout
         {
-            juce::Rectangle<float> area, tempoLabel, tempoSlot, tempoRange, header, platter, sync, cue, play;
+            juce::Rectangle<float> area, tempoLabel, tempoSlot, tempoRange, header, platter, sync, cue, pause, play;
             std::array<juce::Rectangle<float>, 4> modes, pads;
             bool mirrored = false;
         };
@@ -122,7 +127,7 @@ namespace kb::ui
         MixerLayout mixer;
         int dropTarget = -1;
 
-        std::array<std::unique_ptr<GlowButton>, 2> playButtons, cueButtons;
+        std::array<std::unique_ptr<GlowButton>, 2> playButtons, pauseButtons, cueButtons;
         std::array<std::unique_ptr<KbFader>, 2>    volumeFaders;
         KbFader crossfader { false };
         KbKnob  masterKnob { "mixer.master" };

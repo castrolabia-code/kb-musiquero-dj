@@ -37,6 +37,7 @@ namespace kb::app
         addAndMakeVisible (table);
 
         addButton.setTextScale (0.7f);
+        addButton.setTooltipKey ("tip.libraryAdd");
         addButton.onPress = [this] { showAddMenu(); };
         addAndMakeVisible (addButton);
 

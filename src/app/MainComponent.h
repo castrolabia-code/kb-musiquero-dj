@@ -85,6 +85,7 @@ namespace kb::app
         ui::StatusBar          statusBar;
 
         std::unique_ptr<juce::FileChooser> chooser;
+        juce::TooltipWindow tooltipWindow { this, 700 };   // ayuda al pasar el mouse (0,7 s)
         std::unique_ptr<juce::VBlankAttachment> vblank;
         double lastMeterTime = 0.0;
         int dropTarget = -1;

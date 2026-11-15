@@ -3,6 +3,13 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.4.1] — Pedidos del usuario: PLAY/PAUSA, símbolos y ayuda
+
+### Agregado
+- **Botón PAUSA** separado del **PLAY** en cada deck (PAUSA titila mientras el deck está en pausa).
+- **Símbolos** en los botones de transporte además del texto: PLAY ▶, PAUSA ❚❚, CUE |◀, SYNC ↻.
+- **Ayuda al pasar el mouse** (tooltips) en todos los controles: transporte, tempo, rango, platos, pads, perillas, faders, crossfader, CUE, PHONES, CUE MIX, SPLIT, vúmetros, LIMIT, display y vista de la canción, y el botón "+". En español e inglés.
+
 ## [0.4.0] — Fase 3 (parte 1): BPM, SYNC, tempo, platos y lista de canciones
 
 ### Agregado
