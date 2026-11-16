@@ -17,6 +17,10 @@ namespace kb::app
                                                                  &deckDisplays[1], &libraryView, &statusBar, &fxPanel })
             addAndMakeVisible (c);
 
+        libraryView.setArtworkCache (&artwork);
+        libraryView.restoreColumns (settings.getLibraryColumns());
+        libraryView.onColumnsChanged = [this] (const juce::String& st) { settings.setLibraryColumns (st); };
+
         libraryView.onLoadRequest = [this] (int deck, const juce::File& file)
         {
             player.loadFile (deck >= 0 ? deck : chooseFreeDeck(), file);
@@ -216,6 +220,7 @@ namespace kb::app
 
     void MainComponent::trackLoaded (int deck)
     {
+        playedMarked[(size_t) deck] = false;
         loadDeckMetadata (deck);
         deckDisplays[deck].update (makeDeckView (deck));
     }
@@ -414,7 +419,7 @@ namespace kb::app
     {
         const auto deck = deckForDrop (d.localPosition.x, d.localPosition.y);
         setDropTarget (-1);
-        const juce::File file (d.description.toString().fromFirstOccurrenceOf (LibraryView::kDragPrefix, false, false));
+        const auto file = LibraryView::fileFromDrag (d.description.toString());
         if (dropOnPad (d.localPosition.x, d.localPosition.y, file))
             return;
         if (deck >= 0)
@@ -527,6 +532,13 @@ namespace kb::app
             controller.setSyncLit (d, engine.getSync (d));
             controller.setKeyState (d, engine.getKeyLock (d), engine.getKeyShift (d));
             controller.setPadView (d, performance->makePadView (d));
+
+            // Historial: la canción cuenta como tocada cuando empieza a sonar.
+            if (st.playing && ! playedMarked[(size_t) d] && track != nullptr && st.trackId == track->getId())
+            {
+                playedMarked[(size_t) d] = true;
+                library.markPlayed (track->getInfo().file);
+            }
         }
 
         // Colores de compatibilidad armónica en la lista: respecto de lo que está sonando.

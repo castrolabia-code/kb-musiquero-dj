@@ -1,61 +1,162 @@
 #include "app/TrackLibrary.h"
 
+#include "analysis/KeyDetector.h"
+#include "app/I18n.h"
 #include "engine/AudioFileFormats.h"
-#include "engine/TrackLoader.h"
+#include "library/TagReader.h"
 
 #include <algorithm>
 
 namespace kb::app
 {
-    TrackLibrary::TrackLibrary (AnalysisCache& c, juce::File f)
-        : cache (c), storage (std::move (f))
+    TrackLibrary::TrackLibrary (AnalysisCache& c, library::LibraryDatabase& d)
+        : cache (c), db (d)
     {
-        load();
+        session = db.newSession();
 
-        // Cuando el cache recibe un análisis (de la lista o de un deck), refrescar.
+        // Cuando llega un análisis (de la lista o de un deck), refrescar.
         juce::WeakReference<TrackLibrary> weak (this);
         cache.addListener ([weak] (const juce::File& file)
         {
             if (auto* self = weak.get())
             {
                 self->pending.erase (file.getFullPathName());
+                self->rebuild();
                 self->notify();
             }
         });
+
+        // Pistas de la colección sin analizar o sin tags (p. ej. migradas): a la cola.
+        std::vector<juce::int64> needTags;
+        for (const auto& t : db.collection())
+        {
+            if (! t.file.existsAsFile())
+                continue;
+            if (! cache.find (t.file).has_value())
+                queueAnalysis (t.file);
+            if (! t.tagsRead)
+                needTags.push_back (t.id);
+        }
+        queueTags (needTags);
+        rebuild();
     }
 
     TrackLibrary::~TrackLibrary()
     {
-        save();
+        tagPool.removeAllJobs (true, 3000);
     }
 
+    // =========================================================================
+    //  Vista
+    // =========================================================================
+    void TrackLibrary::setSource (Source s)
+    {
+        source = s;
+        rebuild();
+        notify();
+    }
+
+    void TrackLibrary::setSearch (const juce::String& text)
+    {
+        if (text == search)
+            return;
+        search = text;
+        rebuild();
+        notify();
+    }
+
+    bool TrackLibrary::matches (const library::TrackRecord& t, const juce::StringArray& words) const
+    {
+        if (words.isEmpty())
+            return true;
+        juce::String hay;
+        hay << t.title << ' ' << t.artist << ' ' << t.album << ' ' << t.genre << ' ' << t.file.getFileName();
+        if (t.bpm > 0.0)
+            hay << ' ' << juce::roundToInt (t.bpm);
+        if (t.key >= 0)
+            hay << ' ' << analysis::MusicalKey::camelot (t.key) << ' ' << analysis::MusicalKey::name (t.key);
+        hay = hay.toLowerCase();
+        for (const auto& w : words)
+            if (! hay.contains (w))
+                return false;
+        return true;
+    }
+
+    void TrackLibrary::rebuild()
+    {
+        std::vector<library::TrackRecord> all;
+        switch (source.kind)
+        {
+            case SourceKind::collection:  all = db.collection(); break;
+            case SourceKind::history:     all = db.tracksById (db.historyTracks (session)); break;
+            case SourceKind::preparation: all = db.tracksById (db.playlistTracks (preparationId())); break;
+            case SourceKind::playlist:    all = db.tracksById (db.playlistTracks (source.playlistId)); break;
+        }
+
+        auto words = juce::StringArray::fromTokens (search.toLowerCase(), " ", "\"");
+        words.removeEmptyStrings();
+        rows.clear();
+        sourceIndices.clear();
+        for (int i = 0; i < (int) all.size(); ++i)
+        {
+            if (matches (all[(size_t) i], words))
+            {
+                rows.push_back (all[(size_t) i]);
+                sourceIndices.push_back (i);
+            }
+        }
+    }
+
+    void TrackLibrary::notify()
+    {
+        if (onChanged)
+            onChanged();
+    }
+
+    bool TrackLibrary::isAnalysing (int row) const
+    {
+        return juce::isPositiveAndBelow (row, size()) && pending.count (rows[(size_t) row].file.getFullPathName()) > 0;
+    }
+
+    // =========================================================================
+    //  Colección
+    // =========================================================================
     int TrackLibrary::addFiles (const juce::Array<juce::File>& files)
     {
-        int added = 0;
+        std::vector<juce::int64> ids;
+        const auto before = db.collectionSize();
+        db.begin();
         for (const auto& f : files)
         {
             if (! f.existsAsFile() || ! engine::formats::isSupportedFile (f))
                 continue;
-            const auto already = std::any_of (items.begin(), items.end(), [&f] (const auto& it) { return it.file == f; });
-            if (already)
+            const auto id = db.ensureTrack (f, true);
+            if (id == 0)
                 continue;
-
-            LibraryItem item;
-            item.file = f;
-            engine::TrackLoader::parseFileName (f, item.artist, item.title);
-            items.push_back (item);
-            ++added;
-
-            if (! cache.find (f).has_value())
-                queueAnalysis (f);
+            ids.push_back (id);
         }
+        db.commit();
 
-        if (added > 0)
+        // Agregadas estando en una playlist: también van a esa playlist.
+        if (source.kind == SourceKind::playlist || source.kind == SourceKind::preparation)
+            db.addToPlaylist (source.kind == SourceKind::playlist ? source.playlistId : preparationId(), ids);
+
+        std::vector<juce::int64> needTags;
+        for (auto id : ids)
         {
-            save();
-            notify();
+            const auto t = db.findById (id);
+            if (! t.has_value())
+                continue;
+            if (! t->tagsRead)
+                needTags.push_back (id);
+            if (! cache.find (t->file).has_value())
+                queueAnalysis (t->file);
         }
-        return added;
+        queueTags (needTags);
+
+        rebuild();
+        notify();
+        return db.collectionSize() - before;
     }
 
     void TrackLibrary::addFolder (const juce::File& folder)
@@ -69,7 +170,7 @@ namespace kb::app
                                                                     juce::File::findFiles))
             {
                 found.add (entry.getFile());
-                if (found.size() >= 20000)
+                if (found.size() >= 50000)
                     break;
             }
             found.sort();
@@ -82,33 +183,47 @@ namespace kb::app
         });
     }
 
-    void TrackLibrary::remove (const std::vector<int>& indices)
+    void TrackLibrary::queueTags (const std::vector<juce::int64>& ids)
     {
-        auto sorted = indices;
-        std::sort (sorted.rbegin(), sorted.rend());
-        for (auto i : sorted)
-            if (juce::isPositiveAndBelow (i, (int) items.size()))
-                items.erase (items.begin() + i);
-        save();
-        notify();
-    }
+        if (ids.empty())
+            return;
+        // Leer tags en segundo plano y guardarlos en lotes (hilo de mensajes).
+        std::vector<std::pair<juce::int64, juce::File>> work;
+        for (const auto& t : db.tracksById (ids))
+            work.emplace_back (t.id, t.file);
 
-    void TrackLibrary::clear()
-    {
-        items.clear();
-        save();
-        notify();
-    }
-
-    std::optional<AnalysisEntry> TrackLibrary::analysisFor (int i) const
-    {
-        return juce::isPositiveAndBelow (i, (int) items.size()) ? cache.find (items[(size_t) i].file) : std::nullopt;
-    }
-
-    bool TrackLibrary::isAnalysing (int i) const
-    {
-        return juce::isPositiveAndBelow (i, (int) items.size())
-               && pending.count (items[(size_t) i].file.getFullPathName()) > 0;
+        juce::WeakReference<TrackLibrary> weak (this);
+        tagPool.addJob ([weak, work]
+        {
+            std::vector<std::pair<juce::int64, library::TrackTags>> results;
+            auto flush = [&weak, &results]
+            {
+                juce::MessageManager::callAsync ([weak, batch = std::move (results)]
+                {
+                    if (auto* self = weak.get())
+                    {
+                        self->db.begin();
+                        for (const auto& [id, tags] : batch)
+                            self->db.setTags (id, tags.title, tags.artist, tags.album, tags.genre, tags.year,
+                                              tags.bpm, tags.durationSeconds);
+                        self->db.commit();
+                        self->rebuild();
+                        self->notify();
+                    }
+                });
+                results.clear();
+            };
+            for (const auto& [id, file] : work)
+            {
+                if (weak.get() == nullptr)
+                    return;
+                results.emplace_back (id, library::TagReader::read (file));
+                if (results.size() >= 50)
+                    flush();
+            }
+            if (! results.empty())
+                flush();
+        });
     }
 
     void TrackLibrary::queueAnalysis (const juce::File& file)
@@ -136,41 +251,99 @@ namespace kb::app
         });
     }
 
-    void TrackLibrary::notify()
+    void TrackLibrary::remove (const std::vector<int>& rowIndices)
     {
-        if (onChanged)
-            onChanged();
-    }
-
-    void TrackLibrary::load()
-    {
-        const auto json = juce::JSON::parse (storage);
-        if (const auto* list = json.getProperty ("files", {}).getArray())
+        if (source.kind == SourceKind::playlist || source.kind == SourceKind::preparation)
         {
-            for (const auto& v : *list)
-            {
-                const juce::File f (v.toString());
-                if (! f.existsAsFile())
-                    continue;   // el archivo ya no está
-                LibraryItem item;
-                item.file = f;
-                engine::TrackLoader::parseFileName (f, item.artist, item.title);
-                items.push_back (item);
-                if (! cache.find (f).has_value())
-                    queueAnalysis (f);
-            }
+            std::vector<int> positions;
+            for (auto r : rowIndices)
+                if (juce::isPositiveAndBelow (r, size()))
+                    positions.push_back (sourceIndices[(size_t) r]);
+            db.removeFromPlaylist (source.kind == SourceKind::playlist ? source.playlistId : preparationId(), positions);
         }
+        else if (source.kind == SourceKind::collection)
+        {
+            std::vector<juce::int64> ids;
+            for (auto r : rowIndices)
+                if (juce::isPositiveAndBelow (r, size()))
+                    ids.push_back (rows[(size_t) r].id);
+            db.setInCollection (ids, false);
+        }
+        rebuild();
+        notify();
     }
 
-    bool TrackLibrary::save()
+    void TrackLibrary::clear()
     {
-        juce::Array<juce::var> list;
-        for (const auto& it : items)
-            list.add (it.file.getFullPathName());
-        auto* root = new juce::DynamicObject();
-        root->setProperty ("version", 1);
-        root->setProperty ("files", list);
-        storage.getParentDirectory().createDirectory();
-        return storage.replaceWithText (juce::JSON::toString (juce::var (root)));
+        if (source.kind == SourceKind::playlist || source.kind == SourceKind::preparation)
+        {
+            std::vector<int> all;
+            for (int i = 0; i < (int) db.playlistTracks (source.kind == SourceKind::playlist ? source.playlistId : preparationId()).size(); ++i)
+                all.push_back (i);
+            db.removeFromPlaylist (source.kind == SourceKind::playlist ? source.playlistId : preparationId(), all);
+        }
+        else
+        {
+            db.clearCollection();
+        }
+        rebuild();
+        notify();
+    }
+
+    void TrackLibrary::setRating (int row, int rating)
+    {
+        if (! juce::isPositiveAndBelow (row, size()))
+            return;
+        db.setRating (rows[(size_t) row].id, rating);
+        rows[(size_t) row].rating = juce::jlimit (0, 5, rating);
+        notify();
+    }
+
+    // =========================================================================
+    //  Playlists e historial
+    // =========================================================================
+    juce::int64 TrackLibrary::createPlaylist (const juce::String& name)
+    {
+        const auto id = db.createPlaylist (name);
+        notify();
+        return id;
+    }
+
+    void TrackLibrary::renamePlaylist (juce::int64 id, const juce::String& name)
+    {
+        db.renamePlaylist (id, name);
+        notify();
+    }
+
+    void TrackLibrary::deletePlaylist (juce::int64 id)
+    {
+        db.deletePlaylist (id);
+        if (source.kind == SourceKind::playlist && source.playlistId == id)
+            source = {};
+        rebuild();
+        notify();
+    }
+
+    void TrackLibrary::addToPlaylist (juce::int64 playlistId, const std::vector<juce::int64>& trackIds)
+    {
+        db.addToPlaylist (playlistId, trackIds);
+        rebuild();
+        notify();
+    }
+
+    juce::int64 TrackLibrary::preparationId()
+    {
+        return db.preparationPlaylist (tr ("library.preparation"));
+    }
+
+    void TrackLibrary::markPlayed (const juce::File& file)
+    {
+        const auto id = db.ensureTrack (file, false);
+        if (id == 0)
+            return;
+        db.markPlayed (id, session);
+        if (source.kind == SourceKind::history)
+            rebuild();
+        notify();
     }
 } // namespace kb::app

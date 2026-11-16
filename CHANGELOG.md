@@ -3,6 +3,22 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.9.0] — Fase 6: biblioteca (SQLite, tags, carátulas, playlists, búsqueda)
+
+### Agregado
+- **Carátula de cada canción en el centro del plato, girando** con el disco (pedido del usuario), y en el display del deck. Sale de la imagen incrustada en el archivo (MP3, FLAC, M4A, OGG...) o, si no tiene, de `cover.jpg` / `folder.jpg` de la carpeta.
+- **Tags** con TagLib: título, artista, álbum, género, año y BPM/tonalidad del tag. Sin tags, se usa "Artista - Título" del nombre del archivo.
+- **Biblioteca en base de datos SQLite** (`library.db`): la lista, los análisis, los hot cues, ratings, reproducciones e historial. La lista y los hot cues de las versiones anteriores se **importan solos** la primera vez.
+- Columna izquierda: **Todas las pistas**, **Preparación** (para armar el set), **Historial** (lo que sonó en la sesión) y **playlists** (crear con "+", renombrar con doble click o click derecho, borrar). **Arrastrar canciones** de la lista a una playlist o a Preparación las agrega.
+- **Búsqueda instantánea** (título, artista, género, BPM o tonalidad) sobre la lista elegida.
+- Columnas nuevas: **Tapa**, **Género** y **Rating** (click en las estrellas). Las columnas se ordenan, se redimensionan, se **muestran u ocultan** (click derecho en el encabezado) y la configuración se guarda.
+- Menú con click derecho en una canción: cargar en deck 1/2, agregar a Preparación o a una playlist (o a una nueva), rating y quitar.
+- "BORRAR LISTA" vacía la lista elegida (la colección o una playlist).
+- Pruebas: tags y carátulas en MP3 y M4A (escribir y leer), carátula de la carpeta, archivo roto, caché de carátulas en disco, base de datos (pistas, análisis, rating, hot cues, persistencia, playlists, preparación, historial) y migración de los JSON.
+
+### Dependencias
+- **TagLib 2.0.2** (LGPL, como `tag.dll` al lado del ejecutable) y **SQLite 3.49.2** (dominio público). Ver `docs/LICENCIAS.md`.
+
 ## [0.8.0] — Fase 5: efectos
 
 ### Agregado

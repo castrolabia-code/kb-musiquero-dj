@@ -264,3 +264,8 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D37 | Echo/Delay/Reverb con cola (spill-over) | Al apagarlos dejan sonar las repeticiones, como en un mixer DJ; la unidad se desactiva sola cuando la cola queda en silencio (costo cero apagada). |
 | D38 | BPM de los FX de master = deck que más suena al aire | Con el crossfader de un lado, el eco sigue el tempo de lo que escucha el público. |
 | D39 | Reverb con juce::Reverb (Freeverb, licencia de JUCE) | Calidad suficiente, sin dependencias nuevas; se reemplaza por un algoritmo propio si hiciera falta. |
+| D40 | Biblioteca en SQLite (library.db, modo WAL), una sola conexión en el hilo de mensajes | Simple y segura: tags y análisis corren en hilos de fondo y guardan por lotes al terminar. WAL: un corte de luz no corrompe la base. |
+| D41 | TagLib como DLL + `complexProperties("PICTURE")` | Requisito LGPL (reemplazable por el usuario). La API de TagLib 2 da la carátula igual para ID3v2, FLAC, MP4, Ogg y APE. |
+| D42 | Carátulas achicadas a 512 px y guardadas en `artwork/` (JPEG) | Se extraen una sola vez; las imágenes siempre "software" (en Windows las nativas son Direct2D y no se deben crear en hilos de fondo). |
+| D43 | Migración automática de analysis.json / library.json | El usuario no pierde la lista, los análisis ni los hot cues de versiones anteriores; los JSON quedan como *.migrado. |
+| D44 | Carátula en el centro del plato, rotando con la posición de la pista | Pedido del usuario; se dibuja recortada en círculo dentro del PlatterView (sin costo extra: el plato ya se repinta al girar). |

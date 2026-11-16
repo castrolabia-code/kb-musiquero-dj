@@ -1,17 +1,18 @@
 #pragma once
 // =============================================================================
-//  AnalysisCache: resultados de análisis por archivo (BPM, grilla, duración),
-//  guardados en %APPDATA%\Castro Labs\KB Musiquero DJ\analysis.json.
+//  AnalysisCache: resultados de análisis por archivo (BPM, grilla, duración,
+//  tonalidad) y hot cues. Desde la Fase 6 se guardan en la base SQLite de la
+//  biblioteca (library.db); esta clase es la fachada que usa el resto de la app.
 //
-//  Si el archivo cambia (tamaño o fecha), su entrada deja de valer y se vuelve
-//  a analizar. En la Fase 6 esto pasa a la base de datos SQLite.
-//  Uso exclusivo desde el hilo de mensajes.
+//  Si el archivo cambia (tamaño o fecha), su análisis deja de valer y se vuelve
+//  a analizar. Uso exclusivo desde el hilo de mensajes.
 // =============================================================================
 #include <juce_core/juce_core.h>
 
+#include "library/LibraryDatabase.h"
+
 #include <array>
 #include <functional>
-#include <map>
 #include <optional>
 #include <vector>
 
@@ -29,39 +30,31 @@ namespace kb::app
     class AnalysisCache final
     {
     public:
-        explicit AnalysisCache (juce::File storageFile);
-        ~AnalysisCache();
+        explicit AnalysisCache (library::LibraryDatabase& database);
 
         std::optional<AnalysisEntry> find (const juce::File& file) const;
         void store (const juce::File& file, const AnalysisEntry& entry);
 
-        /** Se llama cada vez que se guarda un resultado nuevo. */
-        void addListener (std::function<void (const juce::File&)> callback) { listeners.push_back (std::move (callback)); }
-
-        /** Hot cues de una pista (8 posiciones en segundos; < 0 = vacío). Se guardan
-            aparte del análisis: re-analizar no los borra. */
-        using HotCues = std::array<double, 8>;
+        /** Hot cues de una pista (8 posiciones en segundos; < 0 = vacío). */
+        using HotCues = library::HotCues;
         std::optional<HotCues> findHotCues (const juce::File& file) const;
         void storeHotCues (const juce::File& file, const HotCues& cues);
 
-        bool save();
-        int  size() const noexcept { return (int) entries.size(); }
+        /** Se llama cada vez que se guarda un resultado nuevo. */
+        void addListener (std::function<void (const juce::File&)> callback) { listeners.push_back (std::move (callback)); }
+
+        /** Compatibilidad: la base guarda al instante (no hace falta "save"). */
+        bool save() { return true; }
+
+        /** Migración de las versiones 0.3-0.8 (analysis.json y library.json) a la base.
+            Los JSON quedan renombrados como *.migrado. Devuelve cuántas pistas importó. */
+        static int importLegacy (library::LibraryDatabase& db, const juce::File& analysisJson, const juce::File& libraryJson);
+
+        library::LibraryDatabase& getDatabase() noexcept { return db; }
 
     private:
-        struct Stored
-        {
-            AnalysisEntry entry;
-            juce::int64 fileSize = 0;
-            juce::int64 modified = 0;
-        };
-
-        void load();
-
-        juce::File storage;
-        std::map<juce::String, Stored> entries;
-        std::map<juce::String, HotCues> hotCues;
+        library::LibraryDatabase& db;
         std::vector<std::function<void (const juce::File&)>> listeners;
-        bool dirty = false;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AnalysisCache)
     };

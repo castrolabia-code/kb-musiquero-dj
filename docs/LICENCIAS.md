@@ -18,6 +18,9 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 | **Signalsmith Linear** | 0.6.4 | FFT/STFT que usa Signalsmith Stretch | MIT | ✅ | Incluir el aviso de copyright (© Signalsmith Audio) en "Créditos". |
 | **Orbitron** (Black, Bold) | 2018 (theleagueof/orbitron) | Logo y títulos | SIL OFL 1.1 | ✅ | Embebida en el ejecutable; texto de la licencia en `assets/fonts/OFL-Orbitron.txt` (se incluye con el instalador). No se vende la fuente por separado. |
 | **Rajdhani** (SemiBold, Bold) | Google Fonts | Toda la interfaz | SIL OFL 1.1 | ✅ | Igual que Orbitron: `assets/fonts/OFL-Rajdhani.txt`. **Eurostile NO** (comercial de Linotype). |
+| **TagLib** | 2.0.2 | Tags (título, artista, género, BPM, key) y carátulas de MP3, FLAC, OGG, M4A, WAV, AIFF | LGPL-2.1 (o MPL-1.1) | ⚠️ | Se compila como **biblioteca dinámica** (`tag.dll` / `libtag.so`) al lado del ejecutable: el usuario puede reemplazarla (requisito LGPL). Se incluye el texto de la licencia (`licenses/TagLib-LGPL-2.1.txt`) y se debe **ofrecer el código fuente de TagLib** (es el de github.com/taglib/taglib, tag v2.0.2, sin modificaciones): mencionarlo en "Créditos" y en el instalador (Fase 9). |
+| **utfcpp** | (submódulo de TagLib) | UTF-8 dentro de TagLib | Boost Software License 1.0 | ✅ | Texto en `licenses/utfcpp-BSL-1.0.txt`. |
+| **SQLite** | 3.49.2 | Base de datos de la biblioteca | Dominio público | ✅ | Sin obligaciones. Amalgamación incluida en `third_party/sqlite` (obtenida del paquete npm `better-sqlite3` 11.10.0, que trae la amalgamación oficial con un cambio cosmético: `30.0*86400.0` → `2592000.0`, el mismo valor). sqlite.org no es accesible desde el entorno de desarrollo. |
 | **Catch2** | 3.16.1 | Pruebas unitarias | BSL-1.0 | ✅ | Solo se usa en desarrollo; no se distribuye con el producto. |
 
 ## Opcionales (desactivadas por defecto)
@@ -30,8 +33,6 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 
 | Dependencia | Fase | Uso | Licencia | Estado | Notas |
 |---|---|---|---|---|---|
-| TagLib | 6 | Tags y carátulas | LGPL-2.1 **o** MPL-1.1 | ✅ ⏳ | Se enlaza como **DLL** (LGPL): el usuario debe poder reemplazarla; incluir texto de licencia y ofrecer el código de TagLib. |
-| SQLite | 6 | Base de datos de la biblioteca | Dominio público | ✅ ⏳ | Sin obligaciones. |
 | Inno Setup | 9 | Instalador | Licencia de Inno Setup (permite uso comercial) | ✅ ⏳ | Solo herramienta de build. |
 
 ## Descartadas

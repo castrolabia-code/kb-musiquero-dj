@@ -65,7 +65,7 @@ namespace kb::library
 
             juce::Image img;
             if (jpg.existsAsFile())
-                img = juce::ImageFileFormat::loadFrom (jpg);
+                img = juce::SoftwareImageType().convert (juce::ImageFileFormat::loadFrom (jpg));
             else if (! none.existsAsFile())
             {
                 img = TagReader::readArtwork (file, kSize);
@@ -126,7 +126,14 @@ namespace kb::library
             request (file, nullptr);
             return {};
         }
-        auto thumb = full.isValid() ? full.rescaled (size, size, juce::Graphics::mediumResamplingQuality) : juce::Image();
+        juce::Image thumb;
+        if (full.isValid())
+        {
+            thumb = juce::Image (juce::Image::RGB, size, size, true, juce::SoftwareImageType());
+            juce::Graphics g (thumb);
+            g.setImageResamplingQuality (juce::Graphics::mediumResamplingQuality);
+            g.drawImage (full, thumb.getBounds().toFloat());
+        }
         if (thumbnails.size() > 400)
             thumbnails.clear();
         thumbnails[key] = thumb;

@@ -125,13 +125,20 @@ namespace kb::library
         }
         if (! img.isValid())
             return {};
+        img = juce::SoftwareImageType().convert (img);
 
-        // Recorte cuadrado al centro y achicado de calidad.
+        // Recorte cuadrado al centro y achicado de calidad. Siempre imagen "software"
+        // (en memoria común): en Windows las imágenes nativas son de la GPU (Direct2D)
+        // y no se deben crear ni dibujar desde hilos de fondo.
         const auto side = juce::jmin (img.getWidth(), img.getHeight());
-        img = img.getClippedImage ({ (img.getWidth() - side) / 2, (img.getHeight() - side) / 2, side, side });
-        if (side > maxSize)
-            img = img.rescaled (maxSize, maxSize, juce::Graphics::highResamplingQuality);
-        return img.convertedToFormat (juce::Image::RGB);
+        const auto size = juce::jmin (side, maxSize);
+        juce::Image out (juce::Image::RGB, size, size, true, juce::SoftwareImageType());
+        {
+            juce::Graphics g (out);
+            g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+            g.drawImage (img, 0, 0, size, size, (img.getWidth() - side) / 2, (img.getHeight() - side) / 2, side, side);
+        }
+        return out;
     }
 
     bool TagReader::writeForTest (const juce::File& file, const TrackTags& tags, const juce::MemoryBlock& image)

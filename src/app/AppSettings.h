@@ -54,6 +54,10 @@ namespace kb::app
         juce::String getFxState() const;
         void setFxState (const juce::String& json);
 
+        /** Columnas de la biblioteca (orden, ancho y visibles). */
+        juce::String getLibraryColumns() const;
+        void setLibraryColumns (const juce::String& state);
+
         /** Escribe a disco inmediatamente (por defecto se guarda con demora). */
         bool flush();
 

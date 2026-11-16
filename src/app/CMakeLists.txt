@@ -12,7 +12,7 @@ add_library(kb_app_core STATIC
 add_library(kb::app_core ALIAS kb_app_core)
 
 target_include_directories(kb_app_core PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(kb_app_core PUBLIC kb::juce kb_assets)
+target_link_libraries(kb_app_core PUBLIC kb::juce kb::library kb_assets)
 set_target_properties(kb_app_core PROPERTIES FOLDER "KB")
 
 # =============================================================================
@@ -88,7 +88,9 @@ if(WIN32)
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:tag>" "$<TARGET_FILE_DIR:KBMusiqueroDJ>")
     install(FILES "$<TARGET_FILE:tag>" DESTINATION . COMPONENT app)
 endif()
-install(FILES "${PROJECT_SOURCE_DIR}/third_party/licenses/TagLib-LGPL-2.1.txt" DESTINATION licenses COMPONENT app OPTIONAL)
+install(FILES "${PROJECT_SOURCE_DIR}/third_party/licenses/TagLib-LGPL-2.1.txt"
+              "${PROJECT_SOURCE_DIR}/third_party/licenses/utfcpp-BSL-1.0.txt"
+        DESTINATION licenses COMPONENT app)
 
 # Componente "app": deja afuera los archivos que instalan JUCE y Catch2.
 install(TARGETS KBMusiqueroDJ

@@ -15,6 +15,7 @@ namespace kb::app
         static constexpr const char* autoMixSecs  = "mixer.autoMixSeconds";
         static constexpr const char* sampler      = "sampler.slots";
         static constexpr const char* fxState      = "fx.units";
+        static constexpr const char* libColumns   = "library.columns";
     }
 
     // Subir este número si cambia el formato de los ajustes (para migraciones).
@@ -109,6 +110,9 @@ namespace kb::app
 
     juce::String AppSettings::getFxState() const       { return file().getValue (keys::fxState, {}); }
     void AppSettings::setFxState (const juce::String& j) { file().setValue (keys::fxState, j); }
+
+    juce::String AppSettings::getLibraryColumns() const       { return file().getValue (keys::libColumns, {}); }
+    void AppSettings::setLibraryColumns (const juce::String& s) { file().setValue (keys::libColumns, s); }
 
     bool AppSettings::flush()
     {

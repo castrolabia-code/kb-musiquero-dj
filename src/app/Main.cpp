@@ -47,8 +47,17 @@ namespace kb::app
             const auto audioError = audio->initialise();
 
             const auto dataDir = AppSettings::getAppDataDirectory();
-            analysisCache = std::make_unique<AnalysisCache> (dataDir.getChildFile ("analysis.json"));
-            library = std::make_unique<TrackLibrary> (*analysisCache, dataDir.getChildFile ("library.json"));
+            // Biblioteca SQLite (Fase 6). La primera vez importa la lista y los análisis de las
+            // versiones anteriores (analysis.json / library.json).
+            database = std::make_unique<library::LibraryDatabase> (dataDir.getChildFile ("library.db"));
+            if (! database->isOpen())
+                juce::Logger::writeToLog ("No se pudo abrir library.db: " + database->getLastError());
+            const auto migrated = AnalysisCache::importLegacy (*database, dataDir.getChildFile ("analysis.json"),
+                                                               dataDir.getChildFile ("library.json"));
+            if (migrated > 0)
+                juce::Logger::writeToLog ("Biblioteca: " + juce::String (migrated) + " pistas importadas de la versión anterior");
+            analysisCache = std::make_unique<AnalysisCache> (*database);
+            library = std::make_unique<TrackLibrary> (*analysisCache, *database);
             player = std::make_unique<PlayerController> (*engine, *analysisCache);
             mainWindow = std::make_unique<MainWindow> (*settings, *audio, *player, *library);
 
@@ -135,6 +144,7 @@ namespace kb::app
         std::unique_ptr<ui::KbLookAndFeel>    lookAndFeel;
         std::unique_ptr<engine::AudioEngine>  engine;
         std::unique_ptr<AudioDeviceService>   audio;
+        std::unique_ptr<library::LibraryDatabase> database;
         std::unique_ptr<AnalysisCache>        analysisCache;
         std::unique_ptr<TrackLibrary>         library;
         std::unique_ptr<PlayerController>     player;

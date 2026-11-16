@@ -1,19 +1,24 @@
 #pragma once
 // =============================================================================
-//  LibraryView: zona de biblioteca (sección 6, punto 4).
+//  LibraryView (Fase 6): panel inferior de la biblioteca.
 //
-//    [CARPETAS Y PLAYLISTS  (+)]  |  # | Título | Artista | BPM | Duración | Formato
+//    [BIBLIOTECA        +]   [ Buscar...                                   ]
+//      Todas las pistas      #  [tapa]  Título  Artista  BPM  Key  Duración  Género  Rating  Formato
+//      Preparación
+//      Historial
+//    [PLAYLISTS         +]
+//      Fiesta sábado
+//    [BORRAR LISTA]
 //
-//  * "+" agrega canciones o una carpeta entera a la lista.
-//  * Arrastrar una fila sobre un deck, doble click (al deck libre) o click
-//    derecho (Deck 1 / Deck 2 / Quitar) para cargar.
-//  * Columnas ordenables con click en el encabezado. Supr quita de la lista.
-//  El BPM se calcula en segundo plano ("..." mientras tanto).
+//  Arrastrar filas: a un deck (carga) o a una playlist de la izquierda (agrega).
+//  Columnas: ordenar (click), redimensionar, mostrar/ocultar (click derecho en
+//  el encabezado). La configuración de columnas se guarda.
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "app/I18n.h"
 #include "app/TrackLibrary.h"
+#include "library/ArtworkCache.h"
 #include "ui/Controls.h"
 
 #include <functional>
@@ -28,11 +33,22 @@ namespace kb::app
     public:
         static constexpr const char* kDragPrefix = "kbtrack:";
 
+        /** Ruta del primer archivo de una descripción de arrastre. */
+        static juce::File fileFromDrag (const juce::String& description);
+        /** IDs de pistas de una descripción de arrastre. */
+        static std::vector<juce::int64> idsFromDrag (const juce::String& description);
+
         explicit LibraryView (TrackLibrary& library);
         ~LibraryView() override;
 
         /** Pedido de cargar un archivo en un deck (0/1) o en el deck libre (-1). */
         std::function<void (int deck, const juce::File& file)> onLoadRequest;
+        /** Se movieron/ocultaron columnas: estado para guardar. */
+        std::function<void (const juce::String& state)> onColumnsChanged;
+
+        void setArtworkCache (library::ArtworkCache* cache);
+        void restoreColumns (const juce::String& state);
+        juce::String getColumnsState() const { return table.getHeader().toString(); }
 
         /** Tonalidades que están sonando: las compatibles se marcan en verde en la columna Key. */
         void setReferenceKeys (const std::vector<int>& keys);
@@ -45,7 +61,21 @@ namespace kb::app
         void resized() override;
 
     private:
-        enum Column { colNumber = 1, colTitle, colArtist, colBpm, colDuration, colFormat, colKey };
+        enum Column { colNumber = 1, colTitle, colArtist, colBpm, colDuration, colFormat, colKey, colArt, colGenre, colRating };
+
+        class Sidebar;
+
+        /** Avisa cuando se mueven, ocultan o redimensionan columnas (para guardarlas). */
+        struct HeaderWatcher final : juce::TableHeaderComponent::Listener
+        {
+            explicit HeaderWatcher (LibraryView& o) : owner (o) {}
+            void tableColumnsChanged (juce::TableHeaderComponent*) override { notify(); }
+            void tableColumnsResized (juce::TableHeaderComponent*) override { notify(); }
+            void tableSortOrderChanged (juce::TableHeaderComponent*) override {}
+            void notify() { if (owner.onColumnsChanged) owner.onColumnsChanged (owner.getColumnsState()); }
+            LibraryView& owner;
+        };
+        std::unique_ptr<HeaderWatcher> headerWatcher;
 
         // juce::TableListBoxModel
         int  getNumRows() override;
@@ -63,17 +93,22 @@ namespace kb::app
         void updateHeaderTexts();
         int  itemForRow (int row) const;
         juce::String cellText (int item, int column) const;
+        std::vector<juce::int64> selectedIds() const;
+        void showTrackMenu (int row);
+        void confirmClear();
+        void askPlaylistName (const juce::String& title, const juce::String& initial, std::function<void (juce::String)> done);
 
         TrackLibrary& library;
+        library::ArtworkCache* artwork = nullptr;
         juce::TableListBox table { "tracks", this };
-        ui::GlowButton addButton { "library.add", juce::Colour (0xff19E3F5), true };
+        juce::TextEditor searchBox;
+        std::unique_ptr<Sidebar> sidebar;
         ui::GlowButton clearButton { "library.clear", juce::Colour (0xffFF4A3D), false };
-        void confirmClear();
-        std::vector<int> order;   // fila visible -> índice en la biblioteca
+        std::vector<int> order;   // fila visible -> índice en la vista de la biblioteca
         std::vector<int> referenceKeys;
         int sortColumn = 0;
         bool sortForwards = true;
-        juce::Rectangle<int> sidebar;
+        juce::Rectangle<int> sidebarArea;
         std::unique_ptr<juce::FileChooser> chooser;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LibraryView)

@@ -19,7 +19,7 @@ namespace
 
     juce::MemoryBlock makePng (juce::Colour c, int w, int h)
     {
-        juce::Image img (juce::Image::RGB, w, h, true);
+        juce::Image img (juce::Image::RGB, w, h, true, juce::SoftwareImageType());
         juce::Graphics g (img);
         g.fillAll (c);
         juce::MemoryOutputStream out;
@@ -149,4 +149,86 @@ TEST_CASE ("Caratulas: el cache las guarda en disco y avisa en el hilo de mensaj
         { queue.drain(); juce::Thread::sleep (10); }
         CHECK (got.isValid());
     }
+}
+
+#include "library/LibraryDatabase.h"
+
+TEST_CASE ("Base de datos: pistas, analisis, rating, hot cues y persistencia", "[library][db]")
+{
+    TempDir tmp;
+    const auto dbFile = tmp.dir.getChildFile ("library.db");
+    const juce::File song ("/musica/Castro Labs - Tema.mp3");
+    juce::int64 id = 0;
+    {
+        LibraryDatabase db (dbFile);
+        REQUIRE (db.isOpen());
+        id = db.ensureTrack (song, true);
+        CHECK (id > 0);
+        CHECK (db.ensureTrack (song, true) == id);   // no se duplica
+        db.setTags (id, "Tema", "Castro Labs", "Album", "Cumbia", 2024, 96.0, 180.0);
+        db.setAnalysis (id, 95.5, 0.12, 7, 181.0, "MP3", 1234, 5678);
+        db.setRating (id, 4);
+        HotCues cues;
+        cues.fill (-1.0);
+        cues[0] = 10.0; cues[5] = 42.5;
+        db.setHotCues (id, cues);
+        CHECK (db.collectionSize() == 1);
+    }
+    {
+        LibraryDatabase db (dbFile);   // reabrir: todo quedó guardado
+        const auto t = db.findByPath (song);
+        REQUIRE (t.has_value());
+        CHECK (t->title == "Tema");
+        CHECK (t->genre == "Cumbia");
+        CHECK (t->bpm == Approx (95.5));       // el análisis manda sobre el BPM del tag
+        CHECK (t->key == 7);
+        CHECK (t->rating == 4);
+        CHECK (t->analysed);
+        const auto cues = db.hotCues (id);
+        CHECK (cues[0] == Approx (10.0));
+        CHECK (cues[5] == Approx (42.5));
+        CHECK (cues[1] < 0.0);
+        // El BPM del tag no pisa al analizado.
+        db.setTags (id, "Tema", "Castro Labs", "Album", "Cumbia", 2024, 120.0, 180.0);
+        CHECK (db.findById (id)->bpm == Approx (95.5));
+    }
+}
+
+TEST_CASE ("Base de datos: playlists, preparacion e historial", "[library][db]")
+{
+    TempDir tmp;
+    LibraryDatabase db (tmp.dir.getChildFile ("library.db"));
+    std::vector<juce::int64> ids;
+    for (int i = 0; i < 5; ++i)
+        ids.push_back (db.ensureTrack (juce::File ("/m/" + juce::String (i) + ".mp3"), true));
+
+    const auto p = db.createPlaylist ("Fiesta");
+    db.addToPlaylist (p, { ids[3], ids[1], ids[4] });
+    CHECK (db.playlistTracks (p) == std::vector<juce::int64> { ids[3], ids[1], ids[4] });
+    db.removeFromPlaylist (p, { 1 });
+    CHECK (db.playlistTracks (p) == std::vector<juce::int64> { ids[3], ids[4] });
+    db.renamePlaylist (p, "Fiesta 2");
+
+    const auto prep = db.preparationPlaylist ("Preparación");
+    CHECK (db.preparationPlaylist ("x") == prep);   // una sola
+    const auto lists = db.playlists();
+    REQUIRE (lists.size() == 2);
+    CHECK (lists[0].kind == Playlist::preparation);   // primero la de preparación
+    CHECK (lists[1].name == "Fiesta 2");
+    CHECK (lists[1].count == 2);
+
+    const auto s1 = db.newSession();
+    db.markPlayed (ids[2], s1);
+    db.markPlayed (ids[0], s1);
+    CHECK (db.historyTracks (s1) == std::vector<juce::int64> { ids[2], ids[0] });
+    CHECK (db.findById (ids[2])->playCount == 1);
+    CHECK (db.newSession() > s1);
+
+    db.setInCollection ({ ids[0] }, false);
+    CHECK (db.collectionSize() == 4);
+    db.deletePlaylist (p);
+    CHECK (db.playlists().size() == 1);
+    db.clearCollection();
+    CHECK (db.collectionSize() == 0);
+    CHECK (db.findById (ids[0]).has_value());   // la pista sigue (análisis, cues, historial)
 }

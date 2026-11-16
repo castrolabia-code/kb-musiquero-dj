@@ -86,6 +86,7 @@ namespace kb::app
         std::array<juce::Image, 2> deckArtwork;
         std::array<library::TrackTags, 2> deckTags;
         std::array<juce::String, 2> deckFile;
+        std::array<bool, 2> playedMarked { false, false };
         void loadDeckMetadata (int deck);
         AppSettings& settings;
         double autoMixSeconds = 10.0;

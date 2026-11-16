@@ -4,7 +4,8 @@
 # =============================================================================
 add_library(kb_library STATIC
     TagReader.h        TagReader.cpp
-    ArtworkCache.h     ArtworkCache.cpp)
+    ArtworkCache.h     ArtworkCache.cpp
+    LibraryDatabase.h  LibraryDatabase.cpp)
 add_library(kb::library ALIAS kb_library)
 
 target_include_directories(kb_library PUBLIC "${PROJECT_SOURCE_DIR}/src")

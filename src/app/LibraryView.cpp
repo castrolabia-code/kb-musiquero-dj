@@ -12,36 +12,311 @@
 namespace kb::app
 {
     using namespace ui::palette;
+    using Source = TrackLibrary::Source;
+    using SourceKind = TrackLibrary::SourceKind;
 
+    // =========================================================================
+    //  Columna izquierda: biblioteca y playlists (también recibe filas arrastradas)
+    // =========================================================================
+    class LibraryView::Sidebar final : public juce::Component,
+                                       public juce::DragAndDropTarget
+    {
+    public:
+        explicit Sidebar (LibraryView& o) : owner (o)
+        {
+            addButton.setTextScale (0.7f);
+            addButton.setTooltipKey ("tip.libraryAdd");
+            addButton.onPress = [this] { owner.showAddMenu(); };
+            addAndMakeVisible (addButton);
+
+            newPlaylistButton.setTextScale (0.7f);
+            newPlaylistButton.setTooltipKey ("tip.newPlaylist");
+            newPlaylistButton.onPress = [this] { newPlaylist(); };
+            addAndMakeVisible (newPlaylistButton);
+        }
+
+        struct Entry
+        {
+            enum Type { section, item } type = item;
+            Source source;
+            juce::String name;
+            int count = -1;
+            juce::Rectangle<float> area;
+        };
+
+        void rebuild()
+        {
+            auto& lib = owner.library;
+            entries.clear();
+            entries.push_back ({ Entry::section, {}, tr ("library.sectionLibrary"), -1, {} });
+            entries.push_back ({ Entry::item, { SourceKind::collection, 0 }, tr ("library.allTracks"), lib.collectionSize(), {} });
+            const auto prepId = lib.preparationId();
+            int prepCount = 0;
+            std::vector<library::Playlist> user;
+            for (const auto& p : lib.playlists())
+            {
+                if (p.kind == library::Playlist::preparation) prepCount = p.count;
+                else user.push_back (p);
+            }
+            juce::ignoreUnused (prepId);
+            entries.push_back ({ Entry::item, { SourceKind::preparation, 0 }, tr ("library.preparation"), prepCount, {} });
+            entries.push_back ({ Entry::item, { SourceKind::history, 0 }, tr ("library.history"), lib.historySize(), {} });
+            entries.push_back ({ Entry::section, {}, tr ("library.sectionPlaylists"), -1, {} });
+            for (const auto& p : user)
+                entries.push_back ({ Entry::item, { SourceKind::playlist, p.id }, p.name, p.count, {} });
+            layoutEntries();
+            repaint();
+        }
+
+        void resized() override { layoutEntries(); }
+
+        void paint (juce::Graphics& g) override
+        {
+            g.setColour (panel);
+            g.fillRoundedRectangle (getLocalBounds().toFloat(), 4.0f);
+            const auto current = owner.library.getSource();
+            for (const auto& e : entries)
+            {
+                if (e.area.getBottom() < 0.0f || e.area.getY() > (float) getHeight())
+                    continue;
+                const auto textH = rowH * 0.55f;
+                if (e.type == Entry::section)
+                {
+                    ui::draw::text (g, e.name, e.area.withTrimmedRight (rowH + 6.0f), textH * 0.82f, textSecondary,
+                                    juce::Justification::centredLeft);
+                    continue;
+                }
+                const bool selected = e.source == current;
+                const bool target = dropRow >= 0 && &entries[(size_t) dropRow] == &e;
+                if (selected || target)
+                {
+                    g.setColour ((target ? play : cyan).withAlpha (target ? 0.3f : 0.15f));
+                    g.fillRoundedRectangle (e.area, 3.0f);
+                }
+                auto row = e.area;
+                auto icon = row.removeFromLeft (rowH).reduced (rowH * 0.32f);
+                const auto c = e.source.kind == SourceKind::preparation ? orange
+                             : e.source.kind == SourceKind::history     ? textSecondary
+                             : e.source.kind == SourceKind::playlist    ? play : cyan;
+                g.setColour (selected ? c : c.withAlpha (0.6f));
+                g.fillRoundedRectangle (icon, 2.0f);
+                auto label = e.name;
+                if (e.count >= 0)
+                    label << "  (" << e.count << ")";
+                ui::draw::text (g, label, row, textH, selected ? textPrimary : textSecondary, juce::Justification::centredLeft, false);
+            }
+        }
+
+        void mouseDown (const juce::MouseEvent& e) override
+        {
+            const auto i = entryAt (e.position);
+            if (i < 0 || entries[(size_t) i].type != Entry::item)
+                return;
+            const auto entry = entries[(size_t) i];
+            if (e.mods.isPopupMenu())
+            {
+                if (entry.source.kind == SourceKind::playlist)
+                    playlistMenu (entry);
+                return;
+            }
+            owner.library.setSource (entry.source);
+        }
+
+        void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& w) override
+        {
+            scrollY -= w.deltaY * rowH * 4.0f;
+            layoutEntries();
+            repaint();
+        }
+
+        void mouseDoubleClick (const juce::MouseEvent& e) override
+        {
+            const auto i = entryAt (e.position);
+            if (i >= 0 && entries[(size_t) i].source.kind == SourceKind::playlist && entries[(size_t) i].type == Entry::item)
+                rename (entries[(size_t) i]);
+        }
+
+        // --- Arrastrar filas a una playlist -------------------------------------------------
+        bool isInterestedInDragSource (const SourceDetails& d) override
+        {
+            return d.description.toString().startsWith (kDragPrefix);
+        }
+        void itemDragMove (const SourceDetails& d) override
+        {
+            auto i = entryAt (d.localPosition.toFloat());
+            if (i >= 0 && ! canDropOn (entries[(size_t) i]))
+                i = -1;
+            if (i != dropRow) { dropRow = i; repaint(); }
+        }
+        void itemDragExit (const SourceDetails&) override { dropRow = -1; repaint(); }
+        void itemDropped (const SourceDetails& d) override
+        {
+            const auto i = entryAt (d.localPosition.toFloat());
+            dropRow = -1;
+            repaint();
+            if (i < 0 || ! canDropOn (entries[(size_t) i]))
+                return;
+            const auto ids = idsFromDrag (d.description.toString());
+            const auto& e = entries[(size_t) i];
+            owner.library.addToPlaylist (e.source.kind == SourceKind::preparation ? owner.library.preparationId() : e.source.playlistId, ids);
+        }
+
+        float rowH = 26.0f, footerH = 40.0f;
+        ui::GlowButton addButton { "library.add", cyan, true };
+        ui::GlowButton newPlaylistButton { "library.add", play, true };
+
+    private:
+        static bool canDropOn (const Entry& e)
+        {
+            return e.type == Entry::item && (e.source.kind == SourceKind::playlist || e.source.kind == SourceKind::preparation);
+        }
+
+        void layoutEntries()
+        {
+            rowH = (float) juce::jlimit (20, 32, getHeight() / 7);
+            footerH = 0.0f;
+            // Con muchas playlists la columna se desplaza con la rueda del mouse.
+            const auto contentH = rowH * (float) entries.size() + rowH * 0.6f;
+            scrollY = juce::jlimit (0.0f, juce::jmax (0.0f, contentH - (float) getHeight()), scrollY);
+            auto y = rowH * 0.1f - scrollY;
+            const auto x = rowH * 0.3f;
+            const auto w = (float) getWidth() - 2.0f * x;
+            for (auto& e : entries)
+            {
+                e.area = { x, y, w, rowH };
+                y += rowH;
+                if (e.type == Entry::section && e.source.kind == SourceKind::collection && e.name == tr ("library.sectionLibrary"))
+                    addButton.setBounds (juce::Rectangle<int> ((int) rowH, (int) rowH).withCentre ({ (int) (x + w - rowH * 0.5f), (int) e.area.getCentreY() }));
+                if (e.type == Entry::section && e.name == tr ("library.sectionPlaylists"))
+                    newPlaylistButton.setBounds (juce::Rectangle<int> ((int) rowH, (int) rowH).withCentre ({ (int) (x + w - rowH * 0.5f), (int) e.area.getCentreY() }));
+            }
+        }
+
+        int entryAt (juce::Point<float> p) const
+        {
+            for (int i = 0; i < (int) entries.size(); ++i)
+                if (entries[(size_t) i].area.contains (p))
+                    return i;
+            return -1;
+        }
+
+        void newPlaylist()
+        {
+            const auto n = (int) owner.library.playlists().size();
+            juce::Component::SafePointer<Sidebar> safe (this);
+            owner.askPlaylistName (tr ("library.newPlaylist"), tr ("library.defaultPlaylist", { { "n", juce::String (n) } }),
+                                   [safe] (juce::String name)
+                                   {
+                                       if (safe == nullptr) return;
+                                       const auto id = safe->owner.library.createPlaylist (name);
+                                       safe->owner.library.setSource ({ SourceKind::playlist, id });
+                                   });
+        }
+
+        void rename (const Entry& e)
+        {
+            juce::Component::SafePointer<Sidebar> safe (this);
+            const auto id = e.source.playlistId;
+            owner.askPlaylistName (tr ("library.renamePlaylist"), e.name, [safe, id] (juce::String name)
+            {
+                if (safe != nullptr) safe->owner.library.renamePlaylist (id, name);
+            });
+        }
+
+        void playlistMenu (const Entry& e)
+        {
+            juce::PopupMenu m;
+            juce::Component::SafePointer<Sidebar> safe (this);
+            const auto entry = e;
+            m.addItem (tr ("library.renamePlaylist"), [safe, entry] { if (safe != nullptr) safe->rename (entry); });
+            m.addItem (tr ("library.deletePlaylist"), [safe, entry]
+            {
+                if (safe == nullptr) return;
+                juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+                                                  .withIconType (juce::MessageBoxIconType::QuestionIcon)
+                                                  .withTitle (tr ("library.deletePlaylist"))
+                                                  .withMessage (tr ("library.deletePlaylistConfirm", { { "name", entry.name } }))
+                                                  .withButton (tr ("library.deletePlaylist"))
+                                                  .withButton (tr ("common.cancel"))
+                                                  .withAssociatedComponent (safe.getComponent()),
+                                              [safe, entry] (int r)
+                                              {
+                                                  if (safe != nullptr && r == 1)
+                                                      safe->owner.library.deletePlaylist (entry.source.playlistId);
+                                              });
+            });
+            m.showMenuAsync (juce::PopupMenu::Options());
+        }
+
+        LibraryView& owner;
+        std::vector<Entry> entries;
+        int dropRow = -1;
+        float scrollY = 0.0f;
+    };
+
+    // =========================================================================
+    //  Descripción de arrastre: "kbtrack:<ruta>\n<id>,<id>,..."
+    // =========================================================================
+    juce::File LibraryView::fileFromDrag (const juce::String& d)
+    {
+        return juce::File (d.fromFirstOccurrenceOf (kDragPrefix, false, false).upToFirstOccurrenceOf ("\n", false, false));
+    }
+
+    std::vector<juce::int64> LibraryView::idsFromDrag (const juce::String& d)
+    {
+        std::vector<juce::int64> ids;
+        for (const auto& t : juce::StringArray::fromTokens (d.fromFirstOccurrenceOf ("\n", false, false), ",", ""))
+            if (t.getLargeIntValue() > 0)
+                ids.push_back (t.getLargeIntValue());
+        return ids;
+    }
+
+    // =========================================================================
+    //  Construcción
+    // =========================================================================
     LibraryView::LibraryView (TrackLibrary& lib) : library (lib)
     {
         setOpaque (true);
 
         table.setColour (juce::ListBox::backgroundColourId, panel);
         table.setColour (juce::ListBox::outlineColourId, panelEdge);
-        table.setRowHeight (24);
+        table.setRowHeight (26);
         table.setMultipleSelectionEnabled (true);
         auto& header = table.getHeader();
         header.setColour (juce::TableHeaderComponent::backgroundColourId, panelLight);
         header.setColour (juce::TableHeaderComponent::textColourId, textSecondary);
         header.setColour (juce::TableHeaderComponent::outlineColourId, panelEdge);
         header.setColour (juce::TableHeaderComponent::highlightColourId, cyan.withAlpha (0.2f));
+        header.setPopupMenuActive (true);   // click derecho: mostrar / ocultar columnas
 
         const auto colFlags = juce::TableHeaderComponent::defaultFlags;
         header.addColumn ("#",  colNumber,   44,  30, 80, colFlags);
-        header.addColumn ("t",  colTitle,    320, 80, 1200, colFlags);
-        header.addColumn ("a",  colArtist,   220, 60, 800, colFlags);
-        header.addColumn ("b",  colBpm,      80,  50, 140, colFlags);
-        header.addColumn ("k",  colKey,      90,  50, 160, colFlags);
-        header.addColumn ("d",  colDuration, 90,  60, 140, colFlags);
-        header.addColumn ("f",  colFormat,   110, 60, 200, colFlags);
+        header.addColumn ("[]", colArt,      34,  26, 60, colFlags & ~juce::TableHeaderComponent::sortable);
+        header.addColumn ("t",  colTitle,    300, 80, 1200, colFlags);
+        header.addColumn ("a",  colArtist,   200, 60, 800, colFlags);
+        header.addColumn ("b",  colBpm,      76,  50, 140, colFlags);
+        header.addColumn ("k",  colKey,      86,  50, 160, colFlags);
+        header.addColumn ("d",  colDuration, 80,  60, 140, colFlags);
+        header.addColumn ("g",  colGenre,    130, 60, 400, colFlags);
+        header.addColumn ("r",  colRating,   96,  70, 160, colFlags);
+        header.addColumn ("f",  colFormat,   70,  50, 200, colFlags);
+        headerWatcher = std::make_unique<HeaderWatcher> (*this);
+        header.addListener (headerWatcher.get());
         updateHeaderTexts();
         addAndMakeVisible (table);
 
-        addButton.setTextScale (0.7f);
-        addButton.setTooltipKey ("tip.libraryAdd");
-        addButton.onPress = [this] { showAddMenu(); };
-        addAndMakeVisible (addButton);
+        searchBox.setTextToShowWhenEmpty (tr ("library.search"), textSecondary);
+        searchBox.setTooltip (tr ("tip.search"));
+        searchBox.setColour (juce::TextEditor::backgroundColourId, panelDark);
+        searchBox.setColour (juce::TextEditor::outlineColourId, panelEdge);
+        searchBox.setColour (juce::TextEditor::focusedOutlineColourId, cyan);
+        searchBox.setColour (juce::TextEditor::textColourId, textPrimary);
+        searchBox.onTextChange = [this] { library.setSearch (searchBox.getText()); };
+        searchBox.onEscapeKey  = [this] { searchBox.clear(); library.setSearch ({}); };
+        addAndMakeVisible (searchBox);
+
+        sidebar = std::make_unique<Sidebar> (*this);
+        addAndMakeVisible (*sidebar);
 
         clearButton.setTooltipKey ("tip.libraryClear");
         clearButton.setTextScale (0.5f);
@@ -51,28 +326,53 @@ namespace kb::app
         library.onChanged = [this] { refresh(); };
         I18n::getInstance().addListener (this);
         rebuildOrder();
+        sidebar->rebuild();
     }
 
     LibraryView::~LibraryView()
     {
+        table.getHeader().removeListener (headerWatcher.get());
         library.onChanged = nullptr;
+        if (artwork != nullptr)
+            artwork->onArtworkArrived = nullptr;
         I18n::getInstance().removeListener (this);
+    }
+
+    void LibraryView::setArtworkCache (library::ArtworkCache* cache)
+    {
+        artwork = cache;
+        if (artwork != nullptr)
+        {
+            juce::Component::SafePointer<LibraryView> safe (this);
+            artwork->onArtworkArrived = [safe] { if (safe != nullptr) safe->table.repaint(); };
+        }
+    }
+
+    void LibraryView::restoreColumns (const juce::String& state)
+    {
+        if (state.isNotEmpty())
+            table.getHeader().restoreFromString (state);
     }
 
     void LibraryView::updateHeaderTexts()
     {
         auto& h = table.getHeader();
+        h.setColumnName (colArt,      tr ("library.col.art"));
         h.setColumnName (colTitle,    tr ("library.col.title"));
         h.setColumnName (colArtist,   tr ("library.col.artist"));
         h.setColumnName (colBpm,      tr ("library.col.bpm"));
         h.setColumnName (colKey,      tr ("library.col.key"));
         h.setColumnName (colDuration, tr ("library.col.duration"));
+        h.setColumnName (colGenre,    tr ("library.col.genre"));
+        h.setColumnName (colRating,   tr ("library.col.rating"));
         h.setColumnName (colFormat,   tr ("library.col.format"));
     }
 
     void LibraryView::languageChanged()
     {
         updateHeaderTexts();
+        searchBox.setTextToShowWhenEmpty (tr ("library.search"), textSecondary);
+        sidebar->rebuild();
         repaint();
     }
 
@@ -86,7 +386,7 @@ namespace kb::app
         menu.addItem (2, tr ("library.addFolder"));
 
         juce::Component::SafePointer<LibraryView> safe (this);
-        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&addButton), [safe] (int choice)
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&sidebar->addButton), [safe] (int choice)
         {
             if (safe == nullptr || choice == 0)
                 return;
@@ -111,6 +411,20 @@ namespace kb::app
         });
     }
 
+    void LibraryView::askPlaylistName (const juce::String& title, const juce::String& initial, std::function<void (juce::String)> done)
+    {
+        auto* w = new juce::AlertWindow (title, tr ("library.playlistName"), juce::MessageBoxIconType::NoIcon, this);
+        w->addTextEditor ("name", initial);
+        w->addButton (tr ("common.ok"), 1, juce::KeyPress (juce::KeyPress::returnKey));
+        w->addButton (tr ("common.cancel"), 0, juce::KeyPress (juce::KeyPress::escapeKey));
+        w->enterModalState (true, juce::ModalCallbackFunction::create ([w, done] (int result)
+        {
+            const auto name = w->getTextEditorContents ("name").trim();
+            if (result == 1 && name.isNotEmpty() && done)
+                done (name);
+        }), true);
+    }
+
     // =========================================================================
     //  Orden y datos
     // =========================================================================
@@ -127,29 +441,30 @@ namespace kb::app
     {
         rebuildOrder();
         table.updateContent();
+        sidebar->rebuild();
         repaint();
     }
 
     juce::String LibraryView::cellText (int item, int column) const
     {
-        const auto& it = library[item];
-        const auto a = library.analysisFor (item);
+        const auto& t = library[item];
         switch (column)
         {
-            case colNumber:   return juce::String (item + 1);
-            case colTitle:    return it.title;
-            case colArtist:   return it.artist;
+            case colNumber:   return juce::String (library.sourceIndex (item) + 1);
+            case colTitle:    return t.title.isNotEmpty() ? t.title : t.file.getFileNameWithoutExtension();
+            case colArtist:   return t.artist;
+            case colGenre:    return t.genre;
             case colBpm:
-                if (a.has_value() && a->bpm > 0.0) return ui::DeckDisplay::formatBpm (a->bpm);
+                if (t.bpm > 0.0) return ui::DeckDisplay::formatBpm (t.bpm);
                 return library.isAnalysing (item) ? "..." : "--";
             case colDuration:
-                if (a.has_value() && a->durationSeconds > 0.0)
-                    return ui::DeckDisplay::formatTime (a->durationSeconds).upToLastOccurrenceOf (".", false, false);
+                if (t.duration > 0.0)
+                    return ui::DeckDisplay::formatTime (t.duration).upToLastOccurrenceOf (".", false, false);
                 return library.isAnalysing (item) ? "..." : "--";
-            case colFormat:   return it.file.getFileExtension().trimCharactersAtStart (".").toUpperCase();
+            case colFormat:   return t.file.getFileExtension().trimCharactersAtStart (".").toUpperCase();
             case colKey:
-                if (a.has_value() && a->key >= 0)
-                    return juce::String (analysis::MusicalKey::camelot (a->key)) + "  " + juce::String (analysis::MusicalKey::name (a->key));
+                if (t.key >= 0)
+                    return juce::String (analysis::MusicalKey::camelot (t.key)) + "  " + juce::String (analysis::MusicalKey::name (t.key));
                 return library.isAnalysing (item) ? "..." : "--";
             default:          break;
         }
@@ -162,7 +477,7 @@ namespace kb::app
         for (int i = 0; i < library.size(); ++i)
             order[(size_t) i] = i;
 
-        if (sortColumn <= 0 || sortColumn == colNumber)
+        if (sortColumn <= 0 || sortColumn == colNumber || sortColumn == colArt)
         {
             if (! sortForwards)
                 std::reverse (order.begin(), order.end());
@@ -171,24 +486,17 @@ namespace kb::app
 
         auto key = [this] (int i) -> std::pair<double, juce::String>
         {
-            if (sortColumn == colBpm)
+            const auto& t = library[i];
+            switch (sortColumn)
             {
-                const auto a = library.analysisFor (i);
-                return { a.has_value() ? a->bpm : 0.0, {} };
+                case colBpm:      return { t.bpm, {} };
+                case colDuration: return { t.duration, {} };
+                case colRating:   return { (double) t.rating, {} };
+                case colKey:
+                    // Orden de la rueda de Camelot: 1A, 1B, 2A, 2B...
+                    return { t.key < 0 ? 99.0 : analysis::MusicalKey::camelotNumber (t.key) * 2.0 + (analysis::MusicalKey::isMinor (t.key) ? 0.0 : 1.0), {} };
+                default:          return { 0.0, cellText (i, sortColumn).toLowerCase() };
             }
-            if (sortColumn == colKey)
-            {
-                // Orden de la rueda de Camelot: 1A, 1B, 2A, 2B...
-                const auto a = library.analysisFor (i);
-                const auto k = a.has_value() ? a->key : -1;
-                return { k < 0 ? 99.0 : analysis::MusicalKey::camelotNumber (k) * 2.0 + (analysis::MusicalKey::isMinor (k) ? 0.0 : 1.0), {} };
-            }
-            if (sortColumn == colDuration)
-            {
-                const auto a = library.analysisFor (i);
-                return { a.has_value() ? a->durationSeconds : 0.0, {} };
-            }
-            return { 0.0, cellText (i, sortColumn).toLowerCase() };
         };
 
         std::stable_sort (order.begin(), order.end(), [&] (int a, int b)
@@ -209,7 +517,19 @@ namespace kb::app
     {
         sortColumn = column;
         sortForwards = forwards;
-        refresh();
+        rebuildOrder();
+        table.updateContent();
+        table.repaint();
+    }
+
+    std::vector<juce::int64> LibraryView::selectedIds() const
+    {
+        std::vector<juce::int64> ids;
+        const auto rows = table.getSelectedRows();
+        for (int i = 0; i < rows.size(); ++i)
+            if (const auto item = itemForRow (rows[i]); item >= 0)
+                ids.push_back (library[item].id);
+        return ids;
     }
 
     // =========================================================================
@@ -228,14 +548,49 @@ namespace kb::app
         const auto item = itemForRow (row);
         if (item < 0)
             return;
+        const auto& t = library[item];
+
+        if (column == colArt)
+        {
+            const auto size = juce::jmin (w, h) - 4;
+            const auto box = juce::Rectangle<int> (size, size).withCentre ({ w / 2, h / 2 });
+            juce::Image thumb;
+            if (artwork != nullptr && size > 4)
+                thumb = artwork->getThumbnail (t.file, size * 2);
+            if (thumb.isValid())
+            {
+                g.setOpacity (1.0f);
+                g.drawImage (thumb, box.toFloat());
+            }
+            else
+            {
+                g.setColour (panelEdge);
+                g.fillRoundedRectangle (box.toFloat(), 2.0f);
+            }
+            return;
+        }
+
+        if (column == colRating)
+        {
+            // 5 estrellas: click para calificar.
+            const auto starW = juce::jmin ((float) (w - 8) / 5.0f, (float) h * 0.8f);
+            for (int s = 0; s < 5; ++s)
+            {
+                juce::Path star;
+                const auto c = juce::Point<float> (4.0f + starW * ((float) s + 0.5f), (float) h * 0.5f);
+                star.addStar (c, 5, starW * 0.2f, starW * 0.45f, 0.0f);
+                g.setColour (s < t.rating ? orange : textSecondary.withAlpha (0.25f));
+                g.fillPath (star);
+            }
+            return;
+        }
 
         auto colour = column == colTitle ? textPrimary : textSecondary;
         if (column == colBpm)
             colour = cyan;
         if (column == colKey)
         {
-            const auto a = library.analysisFor (item);
-            const auto k = a.has_value() ? a->key : -1;
+            const auto k = t.key;
             const auto compatible = std::any_of (referenceKeys.begin(), referenceKeys.end(),
                                                  [k] (int ref) { return analysis::MusicalKey::compatible (k, ref); });
             colour = compatible ? play : orange.withAlpha (0.9f);
@@ -265,39 +620,86 @@ namespace kb::app
             onLoadRequest (-1, library[item].file);
     }
 
-    void LibraryView::cellClicked (int row, int, const juce::MouseEvent& e)
+    void LibraryView::cellClicked (int row, int column, const juce::MouseEvent& e)
     {
-        if (! e.mods.isPopupMenu())
+        if (e.mods.isPopupMenu())
+        {
+            if (! table.isRowSelected (row))
+                table.selectRow (row);
+            showTrackMenu (row);
             return;
+        }
+        if (column == colRating)
+        {
+            const auto item = itemForRow (row);
+            const auto w = table.getHeader().getColumnWidth (colRating);
+            const auto starW = juce::jmin ((float) (w - 8) / 5.0f, (float) table.getRowHeight() * 0.8f);
+            // Posición dentro de la celda (el evento viene relativo a la fila).
+            const auto cellX = (float) e.x - (float) table.getHeader().getColumnPosition (table.getHeader().getIndexOfColumnId (colRating, true)).getX();
+            const auto stars = juce::jlimit (0, 5, (int) std::ceil ((cellX - 4.0f) / starW));
+            if (item >= 0)
+                library.setRating (item, library[item].rating == stars ? 0 : stars);   // mismo valor: borra
+            table.repaintRow (row);
+        }
+    }
 
-        if (! table.isRowSelected (row))
-            table.selectRow (row);
-
+    void LibraryView::showTrackMenu (int row)
+    {
         const auto item = itemForRow (row);
         if (item < 0)
             return;
+        const auto file = library[item].file;
+        const auto ids = selectedIds();
 
         juce::PopupMenu menu;
-        menu.addItem (1, tr ("menu.file.loadDeck", { { "n", "1" } }).trimCharactersAtEnd ("."));
-        menu.addItem (2, tr ("menu.file.loadDeck", { { "n", "2" } }).trimCharactersAtEnd ("."));
-        menu.addSeparator();
-        menu.addItem (3, tr ("library.remove"));
-
-        const auto file = library[item].file;
         juce::Component::SafePointer<LibraryView> safe (this);
-        menu.showMenuAsync (juce::PopupMenu::Options(), [safe, file] (int choice)
+        menu.addItem (tr ("menu.file.loadDeck", { { "n", "1" } }).trimCharactersAtEnd ("."),
+                      [safe, file] { if (safe != nullptr && safe->onLoadRequest) safe->onLoadRequest (0, file); });
+        menu.addItem (tr ("menu.file.loadDeck", { { "n", "2" } }).trimCharactersAtEnd ("."),
+                      [safe, file] { if (safe != nullptr && safe->onLoadRequest) safe->onLoadRequest (1, file); });
+        menu.addSeparator();
+        menu.addItem (tr ("library.addToPrep"), [safe, ids]
         {
-            if (safe == nullptr)
-                return;
-            if ((choice == 1 || choice == 2) && safe->onLoadRequest)
-                safe->onLoadRequest (choice - 1, file);
-            else if (choice == 3)
-                safe->deleteKeyPressed (0);
+            if (safe != nullptr) safe->library.addToPlaylist (safe->library.preparationId(), ids);
         });
+        juce::PopupMenu lists;
+        for (const auto& p : library.playlists())
+        {
+            if (p.kind != library::Playlist::normal)
+                continue;
+            const auto pid = p.id;
+            lists.addItem (p.name, [safe, pid, ids] { if (safe != nullptr) safe->library.addToPlaylist (pid, ids); });
+        }
+        lists.addSeparator();
+        lists.addItem (tr ("library.newPlaylist"), [safe, ids]
+        {
+            if (safe == nullptr) return;
+            const auto n = (int) safe->library.playlists().size();
+            safe->askPlaylistName (tr ("library.newPlaylist"), tr ("library.defaultPlaylist", { { "n", juce::String (n) } }),
+                                   [safe, ids] (juce::String name)
+                                   {
+                                       if (safe == nullptr) return;
+                                       safe->library.addToPlaylist (safe->library.createPlaylist (name), ids);
+                                   });
+        });
+        menu.addSubMenu (tr ("library.addToPlaylist"), lists);
+
+        juce::PopupMenu rating;
+        for (int s = 0; s <= 5; ++s)
+            rating.addItem (s == 0 ? juce::String ("-") : juce::String::repeatedString (juce::String::fromUTF8 ("\xe2\x98\x85"), s),
+                            [safe, item, s] { if (safe != nullptr) safe->library.setRating (item, s); });
+        menu.addSubMenu (tr ("library.col.rating"), rating);
+        menu.addSeparator();
+        menu.addItem (tr (library.getSource().kind == SourceKind::collection ? "library.remove" : "library.removeFromList"),
+                      library.getSource().kind != SourceKind::history,
+                      false, [safe] { if (safe != nullptr) safe->deleteKeyPressed (0); });
+        menu.showMenuAsync (juce::PopupMenu::Options());
     }
 
     void LibraryView::deleteKeyPressed (int)
     {
+        if (library.getSource().kind == SourceKind::history)
+            return;
         std::vector<int> items;
         const auto rows = table.getSelectedRows();
         for (int i = 0; i < rows.size(); ++i)
@@ -311,20 +713,28 @@ namespace kb::app
     {
         if (rows.isEmpty())
             return {};
-        const auto item = itemForRow (rows[0]);
-        return item >= 0 ? juce::var (juce::String (kDragPrefix) + library[item].file.getFullPathName()) : juce::var();
+        const auto first = itemForRow (rows[0]);
+        if (first < 0)
+            return {};
+        juce::StringArray ids;
+        for (int i = 0; i < rows.size(); ++i)
+            if (const auto item = itemForRow (rows[i]); item >= 0)
+                ids.add (juce::String (library[item].id));
+        return juce::var (juce::String (kDragPrefix) + library[first].file.getFullPathName() + "\n" + ids.joinIntoString (","));
     }
 
     void LibraryView::confirmClear()
     {
-        if (library.size() == 0)
+        if (library.size() == 0 || library.getSource().kind == SourceKind::history)
             return;
 
+        const bool isList = library.getSource().kind != SourceKind::collection;
         juce::Component::SafePointer<LibraryView> safe (this);
         juce::AlertWindow::showAsync (juce::MessageBoxOptions()
                                           .withIconType (juce::MessageBoxIconType::QuestionIcon)
                                           .withTitle (tr ("library.clearConfirmTitle"))
-                                          .withMessage (tr ("library.clearConfirmBody", { { "n", juce::String (library.size()) } }))
+                                          .withMessage (tr (isList ? "library.clearPlaylistConfirmBody" : "library.clearConfirmBody",
+                                                            { { "n", juce::String (library.size()) } }))
                                           .withButton (tr ("library.clear"))
                                           .withButton (tr ("common.cancel"))
                                           .withAssociatedComponent (this),
@@ -344,66 +754,35 @@ namespace kb::app
     void LibraryView::resized()
     {
         auto b = getLocalBounds().reduced (2);
-        sidebar = b.removeFromLeft (juce::jmax (200, b.getWidth() / 5));
+        sidebarArea = b.removeFromLeft (juce::jmax (200, b.getWidth() / 5));
         b.removeFromLeft (4);
+        auto searchRow = b.removeFromTop (juce::jlimit (24, 34, getHeight() / 8));
+        searchBox.setBounds (searchRow.reduced (0, 2));
+        searchBox.setFont (ui::KbLookAndFeel::labelFont ((float) searchRow.getHeight() * 0.62f, false));
+        searchBox.applyFontToAllText (ui::KbLookAndFeel::labelFont ((float) searchRow.getHeight() * 0.62f, false));
+        b.removeFromTop (3);
         table.setBounds (b);
+        table.setRowHeight (juce::jlimit (24, 34, getHeight() / 9));
 
-        const auto rowH = juce::jlimit (26, 40, getHeight() / 8);
-        addButton.setBounds (juce::Rectangle<int> (rowH + 6, rowH + 6)
-                                 .withCentre ({ sidebar.getRight() - rowH / 2 - 8, sidebar.getY() + rowH / 2 + 6 }));
-
-        // "Borrar lista": abajo de todo en la columna de carpetas.
-        auto bottom = sidebar.reduced (8, 6).removeFromBottom (juce::roundToInt (rowH * 1.25f));
-        clearButton.setBounds (bottom);
+        auto side = sidebarArea;
+        const auto clearH = juce::jlimit (26, 36, getHeight() / 9);
+        clearButton.setBounds (side.removeFromBottom (clearH + 8).reduced (8, 4));
+        sidebar->setBounds (side);
     }
 
     void LibraryView::paint (juce::Graphics& g)
     {
         g.fillAll (panelDark);
-
-        auto side = sidebar.toFloat();
-        g.setColour (panel);
-        g.fillRoundedRectangle (side, 4.0f);
-
-        const auto rowH = (float) juce::jlimit (26, 40, getHeight() / 8);
-        const auto textH = rowH * 0.55f;
-        side = side.reduced (rowH * 0.4f, rowH * 0.2f);
-        auto header = side.removeFromTop (rowH + 4.0f);
-        header.removeFromRight (rowH + 10.0f);   // botón "+"
-        ui::draw::text (g, tr ("library.sidebar"), header, textH * 0.85f, textSecondary, juce::Justification::centredLeft);
-
-        const juce::String items[] = {
-            tr ("library.allTracks") + "  (" + juce::String (library.size()) + ")",
-            tr ("library.playlists"),
-            tr ("library.history") };
-        for (int i = 0; i < 3; ++i)
-        {
-            auto row = side.removeFromTop (rowH);
-            if (i == 0)
-            {
-                g.setColour (cyan.withAlpha (0.15f));
-                g.fillRoundedRectangle (row, 3.0f);
-            }
-            auto icon = row.removeFromLeft (rowH).reduced (rowH * 0.3f);
-            g.setColour (i == 0 ? cyan : textSecondary);
-            g.fillRoundedRectangle (icon, 2.0f);
-            ui::draw::text (g, items[i], row, textH, i == 0 ? textPrimary : textSecondary.withAlpha (0.6f),
-                            juce::Justification::centredLeft, false);
-        }
-
-        side.removeFromBottom (rowH * 1.25f + 6.0f);   // botón "Borrar lista"
-        if (library.getNumPendingAnalyses() > 0)
-            ui::draw::text (g, tr ("library.analysing", { { "n", juce::String (library.getNumPendingAnalyses()) } }),
-                            side.removeFromBottom (rowH), textH * 0.85f, cyan.withAlpha (0.8f),
-                            juce::Justification::centredLeft, false);
     }
 
     void LibraryView::paintOverChildren (juce::Graphics& g)
     {
         if (library.size() > 0)
             return;
+        const auto hint = library.getSearch().isNotEmpty() ? tr ("library.noResults")
+                        : library.getSource().kind == SourceKind::collection ? tr ("library.emptyHint")
+                                                                              : tr ("library.emptyList");
         auto area = table.getBounds().toFloat().withTrimmedTop ((float) table.getHeader().getHeight());
-        ui::draw::text (g, tr ("library.emptyHint"), area.reduced (20.0f), 14.0f, textSecondary.withAlpha (0.85f),
-                        juce::Justification::centred, false);
+        ui::draw::text (g, hint, area.reduced (20.0f), 14.0f, textSecondary.withAlpha (0.85f), juce::Justification::centred, false);
     }
 } // namespace kb::app
