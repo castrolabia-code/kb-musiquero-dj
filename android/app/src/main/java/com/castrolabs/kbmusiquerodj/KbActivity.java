@@ -24,6 +24,7 @@ public class KbActivity extends Activity
     {
         super.onCreate (savedInstanceState);
         getWindow().addFlags (WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().getDecorView();   // crea la ventana ya (sin ella no hay control de las barras)
         enterFullScreen();
     }
 
@@ -35,8 +36,15 @@ public class KbActivity extends Activity
             enterFullScreen();   // al volver de otra app o de un diálogo del sistema
     }
 
-    @SuppressWarnings ("deprecation")
     private void enterFullScreen()
+    {
+        // Pantalla completa es un "extra": si el sistema no lo permite, la app sigue igual.
+        try { applyFullScreen(); }
+        catch (RuntimeException e) { android.util.Log.w ("KBMusiqueroDJ", "Pantalla completa no disponible", e); }
+    }
+
+    @SuppressWarnings ("deprecation")
+    private void applyFullScreen()
     {
         final Window window = getWindow();
 
