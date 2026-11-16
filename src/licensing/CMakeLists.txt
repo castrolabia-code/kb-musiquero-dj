@@ -30,4 +30,6 @@ target_compile_definitions(KBLicenseGenerator PRIVATE
     KB_VERSION_STRING="${PROJECT_VERSION}")
 target_link_libraries(KBLicenseGenerator PRIVATE kb::licensing kb_assets kb::juce)
 set_target_properties(KBLicenseGenerator PROPERTIES FOLDER "Herramientas")
-install(TARGETS KBLicenseGenerator RUNTIME DESTINATION . BUNDLE DESTINATION . COMPONENT tools)
+install(TARGETS KBLicenseGenerator
+    RUNTIME DESTINATION . COMPONENT tools
+    BUNDLE  DESTINATION . COMPONENT tools)

@@ -46,6 +46,7 @@ jobs:
       - name: Empaquetar generador de licencias (uso interno de Castro Labs)
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force -Path "dist/KB Generador de Licencias" | Out-Null
           cmake --install build/windows-x64-release --config Release --component tools --prefix "dist/KB Generador de Licencias"
           Get-ChildItem "dist/KB Musiquero DJ" -Filter "*.dll" | Where-Object { $_.Name -match '^(vcruntime|msvcp|concrt)' } | Copy-Item -Destination "dist/KB Generador de Licencias"
           Copy-Item tools/license_generator/LEEME.txt "dist/KB Generador de Licencias/LEEME.txt"
