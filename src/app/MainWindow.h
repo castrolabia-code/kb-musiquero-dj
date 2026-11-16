@@ -33,6 +33,9 @@ namespace kb::app
         static constexpr int kMinHeight = 720;
 
     private:
+        /** Android (Fase 10): ocupa la pantalla sin quedar debajo de las barras del sistema. */
+        void fitToSafeArea();
+        juce::TimedCallback safeAreaWatcher { [this] { fitToSafeArea(); } };
         // juce::MenuBarModel
         juce::StringArray getMenuBarNames() override;
         juce::PopupMenu   getMenuForIndex (int topLevelMenuIndex, const juce::String& menuName) override;

@@ -121,7 +121,7 @@ namespace kb::app
 
     bool AppSettings::getLargeLibrary() const   { return file().getBoolValue (keys::largeLibrary, false); }
     void AppSettings::setLargeLibrary (bool on) { file().setValue (keys::largeLibrary, on); }
-   #if JUCE_WINDOWS || JUCE_ANDROID
+   #if JUCE_WINDOWS
     bool AppSettings::getUseOpenGL() const      { return file().getBoolValue (keys::useOpenGL, true); }
    #else
     bool AppSettings::getUseOpenGL() const      { return file().getBoolValue (keys::useOpenGL, false); }

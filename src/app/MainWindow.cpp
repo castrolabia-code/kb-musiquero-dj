@@ -49,7 +49,9 @@ namespace kb::app
         setUsingNativeTitleBar (false);
         setTitleBarHeight (0);
         setResizable (false, false);
-        setFullScreen (true);
+        fitToSafeArea();
+        // Las barras del sistema y la muesca cambian al rotar o al mostrar/ocultar barras.
+        safeAreaWatcher.startTimer (500);
        #else
         setUsingNativeTitleBar (true);
         setResizable (true, false);
@@ -102,6 +104,17 @@ namespace kb::app
         const auto w = juce::jmax (kMinWidth,  juce::roundToInt (area.getWidth()  * 0.85));
         const auto h = juce::jmax (kMinHeight, juce::roundToInt (area.getHeight() * 0.85));
         centreWithSize (w, h);
+    }
+
+    void MainWindow::fitToSafeArea()
+    {
+        // Toda la pantalla menos lo que tapan la barra de estado, la de navegación y la muesca.
+        if (const auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
+        {
+            const auto area = display->safeAreaInsets.subtractedFrom (display->totalArea);
+            if (! area.isEmpty() && area != getBounds())
+                setBounds (area);
+        }
     }
 
     void MainWindow::closeButtonPressed()
