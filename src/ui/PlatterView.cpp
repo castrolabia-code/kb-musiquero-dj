@@ -70,6 +70,14 @@ namespace kb::ui
         if (onWheel) onWheel (w.deltaY);
     }
 
+    void PlatterView::setArtwork (const juce::Image& image)
+    {
+        if (image.isValid() == artwork.isValid() && (! image.isValid() || image == artwork))
+            return;
+        artwork = image;
+        repaint();
+    }
+
     void PlatterView::setState (double positionSeconds, bool isPlaying, bool isLoaded)
     {
         const auto a = angleForPosition (positionSeconds);
@@ -121,9 +129,10 @@ namespace kb::ui
         g.setColour (juce::Colours::white.withAlpha (loaded ? 0.75f : 0.35f));
         g.fillPath (marker, rot);
 
-        // Etiqueta: anillos naranjas iluminados (más brillo reproduciendo).
+        // Etiqueta: la CARÁTULA de la canción (gira con el disco) con un aro naranja
+        // iluminado; sin carátula, anillos naranjas iluminados.
         const auto glow = playing ? 1.0f : (loaded ? 0.55f : 0.3f);
-        const auto lr = vr * 0.36f;
+        const auto lr = artwork.isValid() ? vr * 0.6f : vr * 0.36f;
         const auto ring = [&] (float radius, float width, float alpha)
         {
             g.setColour (orange.withAlpha (alpha));
@@ -131,9 +140,32 @@ namespace kb::ui
         };
         juce::Path labelPath;
         labelPath.addEllipse (juce::Rectangle<float> (lr * 2.0f, lr * 2.0f).withCentre (c));
-        juce::DropShadow (orange.withAlpha (0.75f * glow), juce::roundToInt (lr * 0.55f), {}).drawForPath (g, labelPath);
+        juce::DropShadow (orange.withAlpha (0.75f * glow), juce::roundToInt (lr * (artwork.isValid() ? 0.3f : 0.55f)), {}).drawForPath (g, labelPath);
         g.setColour (juce::Colour (0xff0b0b0c));
         g.fillPath (labelPath);
+
+        if (artwork.isValid())
+        {
+            {
+                juce::Graphics::ScopedSaveState save (g);
+                g.reduceClipRegion (labelPath);
+                const auto sc = (lr * 2.0f) / (float) juce::jmin (artwork.getWidth(), artwork.getHeight());
+                const auto t = juce::AffineTransform::translation (-artwork.getWidth() * 0.5f, -artwork.getHeight() * 0.5f)
+                                   .scaled (sc)
+                                   .rotated ((float) angle)
+                                   .translated (c);
+                g.setOpacity (loaded ? 1.0f : 0.6f);
+                g.drawImageTransformed (artwork, t);
+            }
+            ring (lr, juce::jmax (2.0f, lr * 0.05f), glow);
+            // Agujero central (como un disco de verdad).
+            g.setColour (juce::Colour (0xff0b0b0c));
+            g.fillEllipse (juce::Rectangle<float> (lr * 0.16f, lr * 0.16f).withCentre (c));
+            g.setColour (juce::Colours::white.withAlpha (0.35f));
+            g.drawEllipse (juce::Rectangle<float> (lr * 0.16f, lr * 0.16f).withCentre (c), 1.0f);
+            return;
+        }
+
         ring (lr * 0.92f, lr * 0.16f, glow);
         ring (lr * 0.92f, lr * 0.32f, 0.25f * glow);
         ring (lr * 0.58f, lr * 0.2f, glow);

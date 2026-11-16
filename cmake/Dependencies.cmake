@@ -75,6 +75,54 @@ if(MSVC)
     target_compile_options(kb_stretch INTERFACE /bigobj)
 endif()
 
+# --- TagLib 2.0.2 (tags y carátulas) -------------------------------------------
+# Licencia: LGPL-2.1 o MPL-1.1. Se compila como biblioteca DINÁMICA (tag.dll /
+# libtag.so) que se distribuye al lado del ejecutable: el usuario la puede
+# reemplazar, como pide la LGPL. Necesita utfcpp (Boost Software License 1.0,
+# submódulo de TagLib).
+set(KB_SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)   # que option(BUILD_SHARED_LIBS) de TagLib respete este valor
+set(BUILD_SHARED_LIBS ON)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_BINDINGS OFF CACHE BOOL "" FORCE)
+set(WITH_ZLIB OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(taglib
+    GIT_REPOSITORY https://github.com/taglib/taglib.git
+    GIT_TAG        v2.0.2
+    GIT_SHALLOW    TRUE
+    GIT_SUBMODULES "3rdparty/utfcpp")
+FetchContent_MakeAvailable(taglib)
+set(BUILD_SHARED_LIBS ${KB_SAVED_BUILD_SHARED_LIBS})
+set_target_properties(tag PROPERTIES FOLDER "Dependencias")
+# Encabezados de TagLib como "de sistema" (sin sus advertencias) y los generados en el build.
+add_library(kb_taglib INTERFACE)
+add_library(kb::taglib ALIAS kb_taglib)
+target_link_libraries(kb_taglib INTERFACE tag)
+set(KB_TAGLIB_DIRS "")
+foreach(dir toolkit mpeg mpeg/id3v1 mpeg/id3v2 mpeg/id3v2/frames flac ogg ogg/vorbis ogg/flac ogg/opus mp4 riff riff/wav riff/aiff ape asf)
+    list(APPEND KB_TAGLIB_DIRS "${taglib_SOURCE_DIR}/taglib/${dir}")
+endforeach()
+target_include_directories(kb_taglib SYSTEM INTERFACE
+    "${taglib_SOURCE_DIR}/taglib" ${KB_TAGLIB_DIRS} "${taglib_BINARY_DIR}" "${taglib_BINARY_DIR}/taglib")
+
+# --- SQLite 3.49.2 (base de datos de la biblioteca) ------------------------------
+# Licencia: dominio público. Amalgamación incluida en el repositorio
+# (third_party/sqlite): la compilación no depende de internet.
+add_library(kb_sqlite STATIC "${PROJECT_SOURCE_DIR}/third_party/sqlite/sqlite3.c")
+add_library(kb::sqlite ALIAS kb_sqlite)
+target_include_directories(kb_sqlite SYSTEM PUBLIC "${PROJECT_SOURCE_DIR}/third_party/sqlite")
+target_compile_definitions(kb_sqlite PRIVATE SQLITE_DQS=0 SQLITE_THREADSAFE=1 SQLITE_DEFAULT_FOREIGN_KEYS=1
+                                             SQLITE_OMIT_LOAD_EXTENSION SQLITE_DEFAULT_WAL_SYNCHRONOUS=1)
+if(MSVC)
+    target_compile_options(kb_sqlite PRIVATE /W0)
+else()
+    target_compile_options(kb_sqlite PRIVATE -w)
+    find_package(Threads REQUIRED)
+    target_link_libraries(kb_sqlite PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
+endif()
+set_target_properties(kb_sqlite PROPERTIES FOLDER "Dependencias" POSITION_INDEPENDENT_CODE ON)
+
 # --- Catch2 v3 (solo pruebas, no se distribuye) --------------------------------
 # Licencia: BSL-1.0
 if(KB_BUILD_TESTS)

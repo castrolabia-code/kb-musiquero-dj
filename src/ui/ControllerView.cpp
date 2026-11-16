@@ -300,6 +300,12 @@ namespace kb::ui
             platters[(size_t) d]->setState (positionSeconds, playing, loaded);
     }
 
+    void ControllerView::setPlatterArtwork (int d, const juce::Image& image)
+    {
+        if (juce::isPositiveAndBelow (d, 2))
+            platters[(size_t) d]->setArtwork (image);
+    }
+
     juce::String ControllerView::getTooltip()
     {
         const auto p = getMouseXYRelative().toFloat();

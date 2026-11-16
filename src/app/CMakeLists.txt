@@ -57,6 +57,7 @@ target_compile_definitions(KBMusiqueroDJ PRIVATE
 
 target_link_libraries(KBMusiqueroDJ PRIVATE
     kb::app_core
+    kb::library
     kb::analysis
     kb::engine
     kb::juce)
@@ -80,6 +81,14 @@ if(WIN32)
     set(CMAKE_INSTALL_SYSTEM_RUNTIME_COMPONENT app)
     include(InstallRequiredSystemLibraries)
 endif()
+
+# TagLib (LGPL) es una DLL al lado del ejecutable: copiarla al compilar y al instalar.
+if(WIN32)
+    add_custom_command(TARGET KBMusiqueroDJ POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:tag>" "$<TARGET_FILE_DIR:KBMusiqueroDJ>")
+    install(FILES "$<TARGET_FILE:tag>" DESTINATION . COMPONENT app)
+endif()
+install(FILES "${PROJECT_SOURCE_DIR}/third_party/licenses/TagLib-LGPL-2.1.txt" DESTINATION licenses COMPONENT app OPTIONAL)
 
 # Componente "app": deja afuera los archivos que instalan JUCE y Catch2.
 install(TARGETS KBMusiqueroDJ

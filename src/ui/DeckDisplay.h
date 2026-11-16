@@ -38,6 +38,8 @@ namespace kb::ui
             bool  keyLock   = false;
             float tempo     = 0.0f;   // %
             int   keyShift  = 0;      // semitonos
+            juce::Image artwork;          // carátula (inválida = sin carátula)
+            juce::String title, artist;   // de los tags (si están vacíos, los del archivo)
         };
 
         /** El usuario hizo click en la vista general: posición pedida, en segundos. */

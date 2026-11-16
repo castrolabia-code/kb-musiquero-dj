@@ -10,6 +10,8 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "app/AppSettings.h"
+#include "library/ArtworkCache.h"
+#include "library/TagReader.h"
 #include "app/I18n.h"
 #include "app/LibraryView.h"
 #include "app/PerformanceController.h"
@@ -79,6 +81,12 @@ namespace kb::app
         static juce::String describeError (engine::LoadError error);
 
         AudioDeviceService& audio;
+        // Carátulas y tags de lo que está en cada deck (Fase 6).
+        library::ArtworkCache artwork { AppSettings::getAppDataDirectory().getChildFile ("artwork") };
+        std::array<juce::Image, 2> deckArtwork;
+        std::array<library::TrackTags, 2> deckTags;
+        std::array<juce::String, 2> deckFile;
+        void loadDeckMetadata (int deck);
         AppSettings& settings;
         double autoMixSeconds = 10.0;
         void toggleAutoMix();

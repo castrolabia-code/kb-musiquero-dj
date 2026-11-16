@@ -216,7 +216,45 @@ namespace kb::app
 
     void MainComponent::trackLoaded (int deck)
     {
+        loadDeckMetadata (deck);
         deckDisplays[deck].update (makeDeckView (deck));
+    }
+
+    void MainComponent::loadDeckMetadata (int deck)
+    {
+        const auto track = player.getTrack (deck);
+        const auto file = track != nullptr ? track->getInfo().file : juce::File();
+        deckFile[(size_t) deck] = file.getFullPathName();
+        deckArtwork[(size_t) deck] = {};
+        deckTags[(size_t) deck] = {};
+        controller.setPlatterArtwork (deck, {});
+        if (file == juce::File())
+            return;
+
+        // Carátula (en segundo plano): en el plato, girando, y en el display del deck.
+        juce::Component::SafePointer<MainComponent> safe (this);
+        const auto path = file.getFullPathName();
+        artwork.request (file, [safe, deck, path] (const juce::Image& img)
+        {
+            if (safe == nullptr || safe->deckFile[(size_t) deck] != path)
+                return;   // ya se cargó otra canción en ese deck
+            safe->deckArtwork[(size_t) deck] = img;
+            safe->controller.setPlatterArtwork (deck, img);
+            safe->deckDisplays[deck].update (safe->makeDeckView (deck));
+        });
+
+        // Título y artista de los tags (en segundo plano: el archivo puede estar en red).
+        juce::Thread::launch ([safe, deck, file, path]
+        {
+            auto tags = library::TagReader::read (file);
+            juce::MessageManager::callAsync ([safe, deck, path, tags]
+            {
+                if (safe == nullptr || safe->deckFile[(size_t) deck] != path)
+                    return;
+                safe->deckTags[(size_t) deck] = tags;
+                safe->deckDisplays[deck].update (safe->makeDeckView (deck));
+            });
+        });
     }
 
     void MainComponent::trackLoadFailed (int, const juce::File& file, engine::LoadError error)
@@ -524,6 +562,12 @@ namespace kb::app
         v.tempo     = engine.getTempo (d);
         v.keyLock   = engine.getKeyLock (d);
         v.keyShift  = engine.getKeyShift (d);
+        v.artwork   = deckArtwork[(size_t) d];
+        if (deckTags[(size_t) d].valid)
+        {
+            v.title  = deckTags[(size_t) d].title;
+            v.artist = deckTags[(size_t) d].artist;
+        }
         return v;
     }
 

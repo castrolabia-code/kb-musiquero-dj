@@ -99,7 +99,7 @@ namespace kb::ui
             << "|" << (int) (v.status.positionSeconds * 10.0) << "|" << juce::String (v.status.cueSeconds, 3)
             << "|" << (t != nullptr ? juce::String (t->getBpm(), 3) + juce::String (t->getKey())
                                       + juce::String (t->getDetailBinsReady()) : juce::String())
-            << "|" << (int) zoomSeconds << "|" << (int) v.status.loopActive << juce::String (v.status.loopInSeconds, 3)
+            << "|" << (int) zoomSeconds << "|" << (int) v.artwork.isValid() << (juce::pointer_sized_int) v.artwork.getPixelData().get() << v.title << "|" << (int) v.status.loopActive << juce::String (v.status.loopInSeconds, 3)
             << juce::String (v.status.loopOutSeconds, 3) << (int) v.status.slipping << (int) (v.status.slipSeconds * 20.0);
         for (auto c : v.status.hotCues)
             sig << "," << juce::String (c, 2);
@@ -163,7 +163,19 @@ namespace kb::ui
         g.setGradientFill (juce::ColourGradient (colour.withAlpha (0.55f), art.getX(), art.getY(),
                                                  panelEdge, art.getRight(), art.getBottom(), false));
         g.fillRoundedRectangle (art, 3.0f);
-        draw::text (g, juce::String (deck + 1), art, art.getHeight() * 0.42f, textPrimary);   // carátula: Fase 6
+        if (view.artwork.isValid())
+        {
+            juce::Graphics::ScopedSaveState save (g);
+            juce::Path clip;
+            clip.addRoundedRectangle (art, 3.0f);
+            g.reduceClipRegion (clip);
+            g.setOpacity (1.0f);
+            g.drawImage (view.artwork, art, juce::RectanglePlacement::centred | juce::RectanglePlacement::fillDestination);
+        }
+        else
+        {
+            draw::text (g, juce::String (deck + 1), art, art.getHeight() * 0.42f, textPrimary);
+        }
         info.removeFromLeft (h * 0.15f);
 
         const auto H = info.getHeight();
@@ -214,8 +226,8 @@ namespace kb::ui
         auto titleRow = info.removeFromTop (H * 0.58f);
         if (t != nullptr)
         {
-            draw::text (g, t->getInfo().title, titleRow, H * 0.36f, textPrimary, Justification::centredLeft, true);
-            draw::text (g, t->getInfo().artist, info, H * 0.27f, textSecondary, Justification::centredLeft, false);
+            draw::text (g, view.title.isNotEmpty() ? view.title : t->getInfo().title, titleRow, H * 0.36f, textPrimary, Justification::centredLeft, true);
+            draw::text (g, view.title.isNotEmpty() ? view.artist : t->getInfo().artist, info, H * 0.27f, textSecondary, Justification::centredLeft, false);
         }
         else
         {

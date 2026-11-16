@@ -27,6 +27,8 @@ namespace kb::ui
 
         /** Llamar a cada cuadro. Repinta solo si algo cambió visiblemente. */
         void setState (double positionSeconds, bool playing, bool loaded);
+        /** Carátula de la canción: se dibuja en el centro del disco y gira con él. */
+        void setArtwork (const juce::Image& image);
 
         void paint (juce::Graphics& g) override;
 
@@ -45,6 +47,7 @@ namespace kb::ui
         double angleAt (juce::Point<float> p) const;
         double lastAngle = 0.0;
         bool grabbed = false;
+        juce::Image artwork;
         int deck;
         double angle = 0.0;
         bool playing = false, loaded = false;
