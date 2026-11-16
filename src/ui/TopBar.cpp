@@ -18,6 +18,9 @@ namespace kb::ui
         meterR.setTooltipKey ("tip.masterMeter");
         addAndMakeVisible (meterL);
         addAndMakeVisible (meterR);
+        libraryButton.setTooltipKey ("tip.largeLibrary");
+        libraryButton.onPress = [this] { if (onLibraryView) onLibraryView(); };
+        addAndMakeVisible (libraryButton);
     }
 
     // =========================================================================
@@ -104,6 +107,10 @@ namespace kb::ui
         auto area = b.reduced (h * 0.3f, h * 0.04f);
         logoArea  = area.removeFromLeft (area.getWidth() * 0.32f);
         brandArea = area.removeFromRight (area.getWidth() * 0.42f);
+        // Botón "BIBLIOTECA" entre el vúmetro y la marca.
+        libraryButton.setBounds (brandArea.removeFromLeft (h * 2.6f).withSizeKeepingCentre (h * 2.3f, h * 0.48f).toNearestInt());
+        libraryButton.setTextScale (0.5f);
+        brandArea.removeFromLeft (h * 0.3f);
         logo = {};
 
         // Caja oscura del vúmetro (centro), con el LED LIMIT adentro a la derecha.

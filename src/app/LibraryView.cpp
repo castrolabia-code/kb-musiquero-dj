@@ -173,7 +173,8 @@ namespace kb::app
 
         void layoutEntries()
         {
-            rowH = (float) juce::jlimit (20, 32, getHeight() / 7);
+            const auto sc = ui::KbLookAndFeel::uiScale();
+            rowH = juce::jlimit (20.0f * sc, 32.0f * sc, (float) getHeight() / 7.0f);
             footerH = 0.0f;
             // Con muchas playlists la columna se desplaza con la rueda del mouse.
             const auto contentH = rowH * (float) entries.size() + rowH * 0.6f;
@@ -351,7 +352,21 @@ namespace kb::app
     void LibraryView::restoreColumns (const juce::String& state)
     {
         if (state.isNotEmpty())
+        {
             table.getHeader().restoreFromString (state);
+            columnScale = 1.0f;   // lo guardado está a escala 1
+            resized();
+        }
+    }
+
+    juce::String LibraryView::getColumnsState() const
+    {
+        // Guardar los anchos divididos por la escala actual.
+        auto xml = juce::parseXML (table.getHeader().toString());
+        if (xml != nullptr && columnScale > 0.0f)
+            for (auto* col : xml->getChildIterator())
+                col->setAttribute ("width", juce::roundToInt (col->getDoubleAttribute ("width") / columnScale));
+        return xml != nullptr ? xml->toString (juce::XmlElement::TextFormat().singleLine().withoutHeader()) : table.getHeader().toString();
     }
 
     void LibraryView::updateHeaderTexts()
@@ -753,19 +768,33 @@ namespace kb::app
     // =========================================================================
     void LibraryView::resized()
     {
+        const auto sc = ui::KbLookAndFeel::uiScale();
         auto b = getLocalBounds().reduced (2);
-        sidebarArea = b.removeFromLeft (juce::jmax (200, b.getWidth() / 5));
+        sidebarArea = b.removeFromLeft (juce::jmax (juce::roundToInt (200 * sc), b.getWidth() / 5));
         b.removeFromLeft (4);
-        auto searchRow = b.removeFromTop (juce::jlimit (24, 34, getHeight() / 8));
+        auto searchRow = b.removeFromTop (juce::roundToInt (juce::jlimit (24.0f * sc, 34.0f * sc, (float) getHeight() / 8.0f)));
         searchBox.setBounds (searchRow.reduced (0, 2));
         searchBox.setFont (ui::KbLookAndFeel::labelFont ((float) searchRow.getHeight() * 0.62f, false));
         searchBox.applyFontToAllText (ui::KbLookAndFeel::labelFont ((float) searchRow.getHeight() * 0.62f, false));
         b.removeFromTop (3);
         table.setBounds (b);
-        table.setRowHeight (juce::jlimit (24, 34, getHeight() / 9));
+        table.setRowHeight (juce::roundToInt (juce::jlimit (24.0f * sc, 34.0f * sc, (float) getHeight() / 9.0f)));
+        table.setHeaderHeight (juce::roundToInt (26.0f * sc));
+
+        // Los anchos de columna se guardan "a escala 1": al cambiar la escala se ajustan.
+        if (std::abs (sc - columnScale) > 0.01f)
+        {
+            auto& header = table.getHeader();
+            for (int i = 0; i < header.getNumColumns (false); ++i)
+            {
+                const auto id = header.getColumnIdOfIndex (i, false);
+                header.setColumnWidth (id, juce::roundToInt ((float) header.getColumnWidth (id) * sc / columnScale));
+            }
+            columnScale = sc;
+        }
 
         auto side = sidebarArea;
-        const auto clearH = juce::jlimit (26, 36, getHeight() / 9);
+        const auto clearH = juce::roundToInt (juce::jlimit (26.0f * sc, 36.0f * sc, (float) getHeight() / 9.0f));
         clearButton.setBounds (side.removeFromBottom (clearH + 8).reduced (8, 4));
         sidebar->setBounds (side);
     }
@@ -783,6 +812,6 @@ namespace kb::app
                         : library.getSource().kind == SourceKind::collection ? tr ("library.emptyHint")
                                                                               : tr ("library.emptyList");
         auto area = table.getBounds().toFloat().withTrimmedTop ((float) table.getHeader().getHeight());
-        ui::draw::text (g, hint, area.reduced (20.0f), 14.0f, textSecondary.withAlpha (0.85f), juce::Justification::centred, false);
+        ui::draw::text (g, hint, area.reduced (20.0f), 15.0f * ui::KbLookAndFeel::uiScale(), textSecondary.withAlpha (0.85f), juce::Justification::centred, false);
     }
 } // namespace kb::app

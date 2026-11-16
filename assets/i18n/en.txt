@@ -24,6 +24,9 @@ countries: en gb us au ca nz ie za
 "menu.options.general" = "Preferences..."
 "menu.options.language" = "Language"
 "menu.help" = "Help"
+"menu.view" = "View"
+"view.largeLibraryMenu" = "Large library"
+"view.largeLibrary" = "LIBRARY"
 "menu.help.about" = "About KB - MUSIQUERO DJ..."
 
 // --- Options window ---------------------------------------------------------------
@@ -45,6 +48,8 @@ countries: en gb us au ca nz ie za
 "options.mixer.twoOutputs" = "Your audio device has only 2 outputs: to hear CUE on headphones enable SPLIT mode (or pick a 4-output interface in the Audio tab)."
 "options.language" = "Interface language:"
 "options.language.note" = "Changes apply immediately."
+"options.gpu" = "Draw the interface with the GPU (OpenGL)"
+"options.gpu.note" = "Smoother on large screens (4K). If you notice any display issue, turn it off: audio is not affected."
 "options.audio.hint" = "For the lowest latency use \"Windows Audio (Exclusive Mode)\" or ASIO, with a 128 to 256 sample buffer."
 "options.audio.latency" = "Estimated output latency: {latency} ms"
 "options.audio.noDevice" = "No audio device is open."
@@ -248,6 +253,7 @@ countries: en gb us au ca nz ie za
 "tip.waveform" = "Whole-song view: click or drag to jump there. The orange line is the cue point."
 "tip.deckInfo" = "Loaded song: title, artist, BPM (with tempo applied), tempo %, elapsed and remaining time."
 "tip.libraryAdd" = "Add songs or a whole folder to the list."
+"tip.largeLibrary" = "\"Large library\" view: shrinks the controller and enlarges the song list (Ctrl+B)."
 "tip.newPlaylist" = "Create a new playlist. To add songs, drag them from the list onto the playlist."
 "tip.search" = "Instant search in the selected list: type parts of the title, artist, genre, BPM or key. Esc: clear."
 "tip.libraryClear" = "Clear list: removes every song from the list (the files stay on your PC)."

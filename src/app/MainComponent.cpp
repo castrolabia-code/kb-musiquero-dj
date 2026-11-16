@@ -3,7 +3,9 @@
 #include "app/AudioDeviceService.h"
 #include "engine/AudioFileFormats.h"
 #include "analysis/KeyDetector.h"
+#include "ui/KbLookAndFeel.h"
 #include "ui/Palette.h"
+#include "ui/SkinAssets.h"
 
 namespace kb::app
 {
@@ -63,6 +65,16 @@ namespace kb::app
         controller.onJogTurn  = [perf] (int d, double turns) { perf->jogMove (d, turns); };
         controller.onJogWheel = [perf] (int d, float w) { perf->jogWheel (d, w); };
 
+        // --- GPU (OpenGL), según Preferencias ---------------------------------------------
+        updateRenderer();
+
+        // --- Vista "Biblioteca grande" (Fase 7) --------------------------------------------
+        largeLibrary = settings.getLargeLibrary();
+        libraryMix = largeLibrary ? 1.0f : 0.0f;
+        topBar.setLibraryViewLit (largeLibrary);
+        topBar.onLibraryView = [this] { setLargeLibrary (! largeLibrary); };
+        setWantsKeyboardFocus (true);
+
         // --- Efectos (Fase 5) ----------------------------------------------------------------
         restoreFx();
         fxPanel.onType   = [this] (int u, int t)    { player.getEngine().getFxUnit (u).setType ((engine::fx::Type) t); saveFx(); updateFxPanel(); };
@@ -110,6 +122,8 @@ namespace kb::app
 
     MainComponent::~MainComponent()
     {
+        if (openGLAttached)
+            openGL.detach();
         player.removeListener (this);
         I18n::getInstance().removeListener (this);
     }
@@ -147,11 +161,22 @@ namespace kb::app
 
         juce::Path body;
         body.addRoundedRectangle (b.reduced (1.0f), r);
-        juce::ColourGradient grad (chassisLight, 0.0f, 0.0f, chassisShadow, 0.0f, b.getBottom(), false);
-        grad.addColour (0.18, chassis);
-        grad.addColour (0.8, chassis.darker (0.08f));
-        g.setGradientFill (grad);
-        g.fillPath (body);
+        // Render del chasis (skin/chassis.png) si existe; si no, por código.
+        if (const auto skin = ui::SkinAssets::get().find ("chassis", b.getWidth() * scale); skin.isValid())
+        {
+            juce::Graphics::ScopedSaveState save (g);
+            g.reduceClipRegion (body);
+            g.setOpacity (1.0f);
+            g.drawImage (skin, b, juce::RectanglePlacement::fillDestination);
+        }
+        else
+        {
+            juce::ColourGradient grad (chassisLight, 0.0f, 0.0f, chassisShadow, 0.0f, b.getBottom(), false);
+            grad.addColour (0.18, chassis);
+            grad.addColour (0.8, chassis.darker (0.08f));
+            g.setGradientFill (grad);
+            g.fillPath (body);
+        }
         // Brillo de borde (plástico) y contorno.
         g.setColour (juce::Colours::white.withAlpha (0.5f));
         g.drawRoundedRectangle (b.reduced (2.5f), r - 1.5f, 1.6f);
@@ -177,25 +202,30 @@ namespace kb::app
         // Layout de la imagen de referencia: barra superior amarilla, controlador,
         // pantalla oscura con las dos waveforms lado a lado y la biblioteca, y pie.
         frameImage = {};
+        repaint();   // el chasis y la pantalla negra cambian de forma (p. ej. al animar la vista)
         const auto H = getHeight();
+        // Escala de la interfaz para pantallas grandes (4K al 100 %): base 1040 px de alto.
+        ui::KbLookAndFeel::setUiScale ((float) H / 1040.0f);
         const auto m = frameThickness();
         auto b = getLocalBounds().reduced (m + m / 2, m / 2);
 
-        statusBar.setBounds (b.removeFromBottom (juce::jlimit (20, 40, juce::roundToInt (H * 0.034))));
+        statusBar.setBounds (b.removeFromBottom (juce::jmax (20, juce::roundToInt (H * 0.034))));
+        // Biblioteca grande: el controlador pasa de 46,5 % a 26 % del alto (animado).
+        const auto mix = (double) libraryMix;
         topBar.setBounds     (b.removeFromTop (juce::roundToInt (H * 0.075)));
-        controller.setBounds (b.removeFromTop (juce::roundToInt (H * 0.465)));
+        controller.setBounds (b.removeFromTop (juce::roundToInt (H * (0.465 - 0.205 * mix))));
         b.removeFromTop (m / 2);
         b.removeFromBottom (m / 3);
         screenArea = b;
 
         auto inner = b.reduced (m / 2 + 2);
-        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * 0.42));
+        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * (0.42 - 0.2 * mix)));
         const auto gap = m / 2;
         deckDisplays[0].setBounds (waves.removeFromLeft ((waves.getWidth() - gap) / 2));
         waves.removeFromLeft (gap);
         deckDisplays[1].setBounds (waves);
         inner.removeFromTop (m / 3);
-        fxPanel.setBounds (inner.removeFromTop (juce::jlimit (34, 60, juce::roundToInt (H * 0.045))));
+        fxPanel.setBounds (inner.removeFromTop (juce::jmax (34, juce::roundToInt (H * 0.045))));
         inner.removeFromTop (m / 3);
         libraryView.setBounds (inner);
     }
@@ -272,6 +302,44 @@ namespace kb::app
                                           .withButton (tr ("common.ok"))
                                           .withAssociatedComponent (this),
                                       nullptr);
+    }
+
+    void MainComponent::updateRenderer()
+    {
+        const auto want = settings.getUseOpenGL();
+        if (want == openGLAttached)
+            return;
+        if (want)
+        {
+            // La interfaz entera se pinta en la GPU; si el driver no da OpenGL, JUCE
+            // sigue con el dibujo por software (no se cae).
+            openGL.setComponentPaintingEnabled (true);
+            openGL.setContinuousRepainting (false);
+            openGL.attachTo (*this);
+        }
+        else
+        {
+            openGL.detach();
+        }
+        openGLAttached = want;
+        juce::Logger::writeToLog (juce::String ("Dibujo: ") + (want ? "GPU (OpenGL)" : "software"));
+    }
+
+    void MainComponent::setLargeLibrary (bool on)
+    {
+        largeLibrary = on;
+        settings.setLargeLibrary (on);
+        topBar.setLibraryViewLit (on);
+    }
+
+    bool MainComponent::keyPressed (const juce::KeyPress& key)
+    {
+        if (key == juce::KeyPress ('b', juce::ModifierKeys::commandModifier, 0))
+        {
+            setLargeLibrary (! largeLibrary);
+            return true;
+        }
+        return false;
     }
 
     void MainComponent::updateFxPanel()
@@ -513,6 +581,15 @@ namespace kb::app
     void MainComponent::timerCallback()
     {
         ++tick;
+
+        // Transición animada de la vista "Biblioteca grande" (~200 ms, con suavizado).
+        const auto target = largeLibrary ? 1.0f : 0.0f;
+        if (! juce::exactlyEqual (libraryMix, target))
+        {
+            const auto step = 1.0f / 6.0f;
+            libraryMix = libraryMix < target ? juce::jmin (target, libraryMix + step) : juce::jmax (target, libraryMix - step);
+            resized();
+        }
         const bool blink = (tick / (kUiRefreshHz / 4)) % 2 == 0;   // ~2 Hz
 
         for (int d = 0; d < 2; ++d)
@@ -561,6 +638,8 @@ namespace kb::app
 
         if (tick % (kUiRefreshHz / 4) == 0)
             updateStatusBar();
+        if (tick % kUiRefreshHz == 0)
+            updateRenderer();   // la opción de GPU se cambia desde Preferencias
     }
 
     ui::DeckDisplay::View MainComponent::makeDeckView (int d) const
@@ -593,6 +672,8 @@ namespace kb::app
         for (int d = 0; d < 2; ++d)
         {
             const auto st = engine.getDeckStatus (d);
+            if (const auto t = player.getTrack (d))
+                controller.setPlatterBeatGrid (d, t->getBpm(), t->getFirstBeatSeconds());   // en tiempo de la pista
             controller.setPlatter (d, st.positionSeconds, st.playing, st.trackId != 0);
             deckDisplays[d].update (makeDeckView (d));   // waveform ampliada a 60 fps
         }

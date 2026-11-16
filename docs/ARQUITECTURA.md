@@ -269,3 +269,7 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D42 | Carátulas achicadas a 512 px y guardadas en `artwork/` (JPEG) | Se extraen una sola vez; las imágenes siempre "software" (en Windows las nativas son Direct2D y no se deben crear en hilos de fondo). |
 | D43 | Migración automática de analysis.json / library.json | El usuario no pierde la lista, los análisis ni los hot cues de versiones anteriores; los JSON quedan como *.migrado. |
 | D44 | Carátula en el centro del plato, rotando con la posición de la pista | Pedido del usuario; se dibuja recortada en círculo dentro del PlatterView (sin costo extra: el plato ya se repinta al girar). |
+| D45 | Escala global de interfaz = alto de la ventana / 1040 (mín. 1) | Los controles ya eran proporcionales; menús, listas, tooltips y textos fijos ahora crecen igual en 4K al 100 %. Los anchos de columna se guardan "a escala 1". |
+| D46 | OpenGL (juce::OpenGLContext) para toda la interfaz, opcional | Sección 6 pide GPU a 60 fps. Activado por defecto en Windows; se cambia en Preferencias al instante. Si el driver falla, JUCE sigue por software y el audio no se ve afectado (hilo aparte). |
+| D47 | Vista "Biblioteca grande" = interpolación del layout (200 ms) | Sin segundo layout que mantener: el controlador es proporcional y solo cambia su alto. |
+| D48 | Renders opcionales en `skin/` (chassis, platter, mixer @1x/@2x/@4x) | Enfoque híbrido de la sección 6: los renders finales se suman sin recompilar; sin ellos, todo se dibuja por código. |

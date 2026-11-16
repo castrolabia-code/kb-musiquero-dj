@@ -1,5 +1,7 @@
 #include "ui/KbLookAndFeel.h"
 
+#include <atomic>
+
 #include "ui/Palette.h"
 
 #include <KbBinaryData.h>
@@ -99,20 +101,26 @@ namespace kb::ui
         return LookAndFeel_V4::getTypefaceForFont (font);
     }
 
+    static std::atomic<float> gUiScale { 1.0f };
+    void  KbLookAndFeel::setUiScale (float s) noexcept { gUiScale.store (juce::jlimit (1.0f, 4.0f, s)); }
+    float KbLookAndFeel::uiScale() noexcept            { return gUiScale.load(); }
+
     static juce::Font uiFont (float h, bool bold = false)
     {
         return juce::Font (juce::FontOptions (h, bold ? juce::Font::bold : juce::Font::plain));
     }
+    static float S (float v) { return v * KbLookAndFeel::uiScale(); }
 
-    juce::Font KbLookAndFeel::getPopupMenuFont()                                         { return uiFont (21.0f); }
-    juce::Font KbLookAndFeel::getMenuBarFont (juce::MenuBarComponent&, int, const juce::String&) { return uiFont (21.0f); }
-    juce::Font KbLookAndFeel::getComboBoxFont (juce::ComboBox& b)                         { return uiFont (juce::jmin (21.0f, (float) b.getHeight() * 0.8f)); }
-    juce::Font KbLookAndFeel::getLabelFont (juce::Label& l)                               { return uiFont (juce::jmax (19.0f, l.getFont().getHeight()), l.getFont().isBold()); }
-    juce::Font KbLookAndFeel::getTextButtonFont (juce::TextButton&, int h)                { return uiFont (juce::jmin (21.0f, (float) h * 0.7f), true); }
-    juce::Font KbLookAndFeel::getAlertWindowTitleFont()                                   { return uiFont (24.0f, true); }
-    juce::Font KbLookAndFeel::getAlertWindowMessageFont()                                 { return uiFont (20.0f); }
-    juce::Font KbLookAndFeel::getAlertWindowFont()                                        { return uiFont (19.0f); }
-    juce::Font KbLookAndFeel::getTabButtonFont (juce::TabBarButton&, float h)             { return uiFont (juce::jmin (21.0f, h * 0.7f), true); }
+    juce::Font KbLookAndFeel::getPopupMenuFont()                                         { return uiFont (S (21.0f)); }
+    juce::Font KbLookAndFeel::getMenuBarFont (juce::MenuBarComponent&, int, const juce::String&) { return uiFont (S (21.0f)); }
+    int        KbLookAndFeel::getDefaultMenuBarHeight()                                  { return juce::roundToInt (S (26.0f)); }
+    juce::Font KbLookAndFeel::getComboBoxFont (juce::ComboBox& b)                         { return uiFont (juce::jmin (S (21.0f), (float) b.getHeight() * 0.8f)); }
+    juce::Font KbLookAndFeel::getLabelFont (juce::Label& l)                               { return uiFont (juce::jmax (S (19.0f), l.getFont().getHeight()), l.getFont().isBold()); }
+    juce::Font KbLookAndFeel::getTextButtonFont (juce::TextButton&, int h)                { return uiFont (juce::jmin (S (21.0f), (float) h * 0.7f), true); }
+    juce::Font KbLookAndFeel::getAlertWindowTitleFont()                                   { return uiFont (S (24.0f), true); }
+    juce::Font KbLookAndFeel::getAlertWindowMessageFont()                                 { return uiFont (S (20.0f)); }
+    juce::Font KbLookAndFeel::getAlertWindowFont()                                        { return uiFont (S (19.0f)); }
+    juce::Font KbLookAndFeel::getTabButtonFont (juce::TabBarButton&, float h)             { return uiFont (juce::jmin (S (21.0f), h * 0.7f), true); }
 
     void KbLookAndFeel::drawTableHeaderColumn (juce::Graphics& g, juce::TableHeaderComponent& header, const juce::String& name,
                                                int columnId, int width, int height, bool over, bool down, int flags)
@@ -138,7 +146,7 @@ namespace kb::ui
 
     void KbLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& button, bool highlighted, bool down)
     {
-        const auto fontSize = juce::jmin (20.0f, (float) button.getHeight() * 0.8f);
+        const auto fontSize = juce::jmin (S (20.0f), (float) button.getHeight() * 0.8f);
         const auto tickWidth = fontSize * 1.1f;
         drawTickBox (g, button, 4.0f, ((float) button.getHeight() - tickWidth) * 0.5f, tickWidth, tickWidth,
                      button.getToggleState(), button.isEnabled(), highlighted, down);
@@ -154,8 +162,8 @@ namespace kb::ui
         juce::TextLayout tl;
         juce::AttributedString s;
         s.setJustification (juce::Justification::centredLeft);
-        s.append (text, uiFont (19.0f), palette::textPrimary);
-        tl.createLayoutWithBalancedLineLengths (s, 460.0f);
+        s.append (text, uiFont (S (19.0f)), palette::textPrimary);
+        tl.createLayoutWithBalancedLineLengths (s, S (460.0f));
         const auto w = (int) (tl.getWidth() + 24.0f);
         const auto h = (int) (tl.getHeight() + 16.0f);
         return juce::Rectangle<int> (pos.x > parent.getCentreX() ? pos.x - (w + 12) : pos.x + 24,
@@ -173,7 +181,7 @@ namespace kb::ui
 
         juce::AttributedString s;
         s.setJustification (juce::Justification::centredLeft);
-        s.append (text, uiFont (19.0f), findColour (juce::TooltipWindow::textColourId));
+        s.append (text, uiFont (S (19.0f)), findColour (juce::TooltipWindow::textColourId));
         juce::TextLayout tl;
         tl.createLayoutWithBalancedLineLengths (s, (float) width - 24.0f);
         tl.draw (g, b.reduced (12.0f, 8.0f));

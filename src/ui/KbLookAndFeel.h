@@ -23,6 +23,11 @@ namespace kb::ui
         static juce::Font labelFont (float height, bool bold = true);
         /** Fuente de títulos y logo (Orbitron). */
         static juce::Font displayFont (float height, bool black = true);
+        /** Escala de la interfaz (alto de la ventana / 1040, mínimo 1): agranda menús,
+            listas y textos fijos en pantallas grandes (4K al 100 %). La fija la ventana. */
+        static void  setUiScale (float s) noexcept;
+        static float uiScale() noexcept;
+
         /** Libera las tipografías (llamar al cerrar la app). */
         static void releaseFonts();
 
@@ -37,6 +42,7 @@ namespace kb::ui
         juce::Font getAlertWindowMessageFont() override;
         juce::Font getAlertWindowFont() override;
         juce::Font getTabButtonFont (juce::TabBarButton&, float height) override;
+        int getDefaultMenuBarHeight() override;
         void drawTableHeaderColumn (juce::Graphics&, juce::TableHeaderComponent&, const juce::String& columnName,
                                     int columnId, int width, int height, bool isMouseOver, bool isMouseDown,
                                     int columnFlags) override;

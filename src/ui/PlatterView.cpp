@@ -80,6 +80,7 @@ namespace kb::ui
 
     void PlatterView::setState (double positionSeconds, bool isPlaying, bool isLoaded)
     {
+        position = positionSeconds;
         const auto a = angleForPosition (positionSeconds);
         // Medio grado de giro ya se nota; por debajo no vale la pena repintar.
         const auto moved = std::abs (std::remainder (a - angle, juce::MathConstants<double>::twoPi)) > 0.008;
@@ -131,7 +132,15 @@ namespace kb::ui
 
         // Etiqueta: la CARÁTULA de la canción (gira con el disco) con un aro naranja
         // iluminado; sin carátula, anillos naranjas iluminados.
-        const auto glow = playing ? 1.0f : (loaded ? 0.55f : 0.3f);
+        // Latido: en cada beat el aro brilla más y se apaga en ~1/4 de beat.
+        float pulse = 0.0f;
+        if (playing && beatBpm > 0.0)
+        {
+            auto phase = std::fmod ((position - beatFirst) * beatBpm / 60.0, 1.0);
+            if (phase < 0.0) phase += 1.0;
+            pulse = (float) std::exp (-phase * 7.0);
+        }
+        const auto glow = playing ? 0.75f + 0.25f * pulse : (loaded ? 0.55f : 0.3f);
         const auto lr = artwork.isValid() ? vr * 0.6f : vr * 0.36f;
         const auto ring = [&] (float radius, float width, float alpha)
         {
@@ -140,7 +149,8 @@ namespace kb::ui
         };
         juce::Path labelPath;
         labelPath.addEllipse (juce::Rectangle<float> (lr * 2.0f, lr * 2.0f).withCentre (c));
-        juce::DropShadow (orange.withAlpha (0.75f * glow), juce::roundToInt (lr * (artwork.isValid() ? 0.3f : 0.55f)), {}).drawForPath (g, labelPath);
+        juce::DropShadow (orange.withAlpha (juce::jmin (1.0f, 0.75f * glow + 0.25f * pulse)),
+                          juce::roundToInt (lr * ((artwork.isValid() ? 0.3f : 0.55f) + 0.25f * pulse)), {}).drawForPath (g, labelPath);
         g.setColour (juce::Colour (0xff0b0b0c));
         g.fillPath (labelPath);
 
@@ -157,7 +167,7 @@ namespace kb::ui
                 g.setOpacity (loaded ? 1.0f : 0.6f);
                 g.drawImageTransformed (artwork, t);
             }
-            ring (lr, juce::jmax (2.0f, lr * 0.05f), glow);
+            ring (lr, juce::jmax (2.0f, lr * (0.05f + 0.04f * pulse)), glow);
             // Agujero central (como un disco de verdad).
             g.setColour (juce::Colour (0xff0b0b0c));
             g.fillEllipse (juce::Rectangle<float> (lr * 0.16f, lr * 0.16f).withCentre (c));

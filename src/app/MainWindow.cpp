@@ -1,5 +1,7 @@
 #include "app/MainWindow.h"
 
+#include "ui/KbLookAndFeel.h"
+
 #include "app/AppSettings.h"
 #include "app/AudioDeviceService.h"
 #include "app/MainComponent.h"
@@ -21,7 +23,8 @@ namespace kb::app
             idOptionsMixer,
             idOptionsGeneral,
             idLanguageBase = 100,   // + índice del idioma
-            idAbout = 200
+            idAbout = 200,
+            idViewLargeLibrary = 300
         };
     }
 
@@ -82,10 +85,23 @@ namespace kb::app
         juce::JUCEApplication::getInstance()->systemRequestedQuit();
     }
 
+    void MainWindow::resized()
+    {
+        // Pantallas grandes: la barra de menú crece con la escala de la interfaz.
+        const auto scale = juce::jlimit (1.0f, 4.0f, (float) getHeight() / 1080.0f);
+        ui::KbLookAndFeel::setUiScale (scale);
+        if (std::abs (scale - menuScale) > 0.05f)
+        {
+            menuScale = scale;
+            setMenuBar (this, getLookAndFeel().getDefaultMenuBarHeight());
+        }
+        juce::DocumentWindow::resized();
+    }
+
     // --- Menú ---------------------------------------------------------------------
     juce::StringArray MainWindow::getMenuBarNames()
     {
-        return { tr ("menu.file"), tr ("menu.options"), tr ("menu.help") };
+        return { tr ("menu.file"), tr ("menu.view"), tr ("menu.options"), tr ("menu.help") };
     }
 
     juce::PopupMenu MainWindow::getMenuForIndex (int topLevelMenuIndex, const juce::String&)
@@ -102,6 +118,16 @@ namespace kb::app
                 break;
 
             case 1:
+            {
+                juce::PopupMenu::Item item (tr ("view.largeLibraryMenu"));
+                item.itemID = idViewLargeLibrary;
+                item.isTicked = mainComponent != nullptr && mainComponent->isLargeLibrary();
+                item.shortcutKeyDescription = "Ctrl+B";
+                menu.addItem (item);
+                break;
+            }
+
+            case 2:
             {
                 menu.addItem (idOptionsAudio, tr ("menu.options.audio"));
                 menu.addItem (idOptionsMixer, tr ("menu.options.mixer"));
@@ -120,7 +146,7 @@ namespace kb::app
                 break;
             }
 
-            case 2:
+            case 3:
                 menu.addItem (idAbout, tr ("menu.help.about"));
                 break;
 
@@ -145,6 +171,11 @@ namespace kb::app
         {
             if (mainComponent != nullptr)
                 mainComponent->showAddToLibraryMenu();
+        }
+        else if (menuItemID == idViewLargeLibrary)
+        {
+            if (mainComponent != nullptr)
+                mainComponent->setLargeLibrary (! mainComponent->isLargeLibrary());
         }
         else if (menuItemID == idOptionsAudio)
         {

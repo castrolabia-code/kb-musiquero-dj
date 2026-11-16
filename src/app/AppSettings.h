@@ -58,6 +58,13 @@ namespace kb::app
         juce::String getLibraryColumns() const;
         void setLibraryColumns (const juce::String& state);
 
+        /** Vista "Biblioteca grande" (controlador achicado). */
+        bool getLargeLibrary() const;
+        void setLargeLibrary (bool on);
+        /** Dibujo con la GPU (OpenGL). */
+        bool getUseOpenGL() const;
+        void setUseOpenGL (bool on);
+
         /** Escribe a disco inmediatamente (por defecto se guarda con demora). */
         bool flush();
 

@@ -8,6 +8,7 @@
 //  arrastrar y soltar archivos desde el Explorador sobre cada deck).
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_opengl/juce_opengl.h>
 
 #include "app/AppSettings.h"
 #include "library/ArtworkCache.h"
@@ -40,6 +41,11 @@ namespace kb::app
     public:
         MainComponent (AudioDeviceService& audio, PlayerController& player, TrackLibrary& library, AppSettings& settings);
         ~MainComponent() override;
+
+        /** Vista "Biblioteca grande": achica el controlador (con transición animada). */
+        void setLargeLibrary (bool on);
+        bool isLargeLibrary() const noexcept { return largeLibrary; }
+        bool keyPressed (const juce::KeyPress& key) override;
 
         /** Abre el diálogo para elegir un archivo y cargarlo en un deck. */
         void openLoadDialog (int deck);
@@ -87,6 +93,12 @@ namespace kb::app
         std::array<library::TrackTags, 2> deckTags;
         std::array<juce::String, 2> deckFile;
         std::array<bool, 2> playedMarked { false, false };
+        bool  largeLibrary = false;
+        // Dibujo con la GPU (Fase 7): toda la interfaz se compone con OpenGL.
+        juce::OpenGLContext openGL;
+        bool openGLAttached = false;
+        void updateRenderer();
+        float libraryMix = 0.0f;   // 0 = vista normal, 1 = biblioteca grande (animado)
         void loadDeckMetadata (int deck);
         AppSettings& settings;
         double autoMixSeconds = 10.0;

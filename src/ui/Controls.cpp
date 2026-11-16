@@ -25,8 +25,22 @@ namespace kb::ui
         }
     }
 
+    void GlowButton::timerCallback()
+    {
+        const auto target = isOver() ? 1.0f : 0.0f;
+        hover += (target - hover) * 0.35f;
+        if (std::abs (target - hover) < 0.02f)
+        {
+            hover = target;
+            stopTimer();
+        }
+        repaint();
+    }
+
     void GlowButton::buttonStateChanged()
     {
+        if (! juce::exactlyEqual (isOver() ? 1.0f : 0.0f, hover) && ! isTimerRunning())
+            startTimerHz (60);
         const auto down = isDown();
         if (down && ! wasDown && onPress)
             onPress();
@@ -46,7 +60,8 @@ namespace kb::ui
         if (down)
             r = r.reduced (r.getHeight() * 0.03f);
 
-        const auto c = highlighted && ! lit ? colour.brighter (0.25f) : colour;
+        juce::ignoreUnused (highlighted);
+        const auto c = lit ? colour : colour.brighter (0.3f * hover);
         const auto scale = textScale > 0.0f ? textScale : (round ? 0.25f : 0.46f);
 
         if (padStyle)

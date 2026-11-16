@@ -24,6 +24,7 @@ namespace kb::app
         ~MainWindow() override;
 
         void closeButtonPressed() override;
+        void resized() override;
 
         void showOptions (int tab);
         void showAbout();
@@ -46,6 +47,7 @@ namespace kb::app
         AudioDeviceService& audio;
         PlayerController&   player;
         MainComponent*      mainComponent = nullptr;   // propiedad de la ventana
+        float               menuScale = 1.0f;
         juce::Component::SafePointer<juce::DialogWindow> optionsWindow;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)

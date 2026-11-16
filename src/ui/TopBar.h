@@ -5,7 +5,10 @@
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include "ui/Controls.h"
 #include "ui/LevelMeter.h"
+
+#include <functional>
 
 namespace kb::ui
 {
@@ -21,11 +24,16 @@ namespace kb::ui
 
         void paint (juce::Graphics& g) override;
         juce::String getTooltip() override;
+
+        /** Botón de la vista "Biblioteca grande". */
+        std::function<void()> onLibraryView;
+        void setLibraryViewLit (bool on) { libraryButton.setLit (on); }
         void resized() override;
 
     private:
         juce::Rectangle<float> meterArea, scaleArea, limitArea, boxArea;
         LevelMeter meterL { false, 40 }, meterR { false, 40 };
+        GlowButton libraryButton { "view.largeLibrary", juce::Colour (0xff19E3F5), false };
         bool limiting = false;
         float limitHold = 0.0f;
 

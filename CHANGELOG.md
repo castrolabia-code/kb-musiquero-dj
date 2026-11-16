@@ -3,6 +3,16 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.10.0] — Fase 7: diseño final (4K, GPU, Biblioteca grande, animaciones)
+
+### Agregado
+- **Vista "Biblioteca grande"**: botón **BIBLIOTECA** arriba, menú **Ver** o **Ctrl+B**. Achica el controlador y agranda la lista de canciones, con una transición animada. Se recuerda entre sesiones.
+- **Escalado para pantallas grandes** (1440p, 4K al 100 %): menús, listas, buscador, barra de FX, pie, ayudas y anchos de columna crecen con la ventana.
+- **Dibujo con la GPU (OpenGL)**: Opciones > Preferencias > "Dibujar la interfaz con la GPU". Activado por defecto en Windows; se aplica al instante.
+- **Renders del skin opcionales**: `chassis.png`, `platter.png` y `mixer.png` (con @2x / @4x) en la carpeta `skin` reemplazan el dibujo por código. Ver `docs/SKIN.md`.
+- **Microanimaciones**: el aro del plato **late con cada beat** de la canción; los botones se iluminan suavemente al pasar el mouse.
+- **Ícono de la aplicación** (KB sobre amarillo con el plato).
+
 ## [0.9.0] — Fase 6: biblioteca (SQLite, tags, carátulas, playlists, búsqueda)
 
 ### Agregado

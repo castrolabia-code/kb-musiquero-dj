@@ -16,6 +16,8 @@ namespace kb::app
         static constexpr const char* sampler      = "sampler.slots";
         static constexpr const char* fxState      = "fx.units";
         static constexpr const char* libColumns   = "library.columns";
+        static constexpr const char* largeLibrary = "ui.largeLibrary";
+        static constexpr const char* useOpenGL    = "ui.openGL";
     }
 
     // Subir este número si cambia el formato de los ajustes (para migraciones).
@@ -113,6 +115,15 @@ namespace kb::app
 
     juce::String AppSettings::getLibraryColumns() const       { return file().getValue (keys::libColumns, {}); }
     void AppSettings::setLibraryColumns (const juce::String& s) { file().setValue (keys::libColumns, s); }
+
+    bool AppSettings::getLargeLibrary() const   { return file().getBoolValue (keys::largeLibrary, false); }
+    void AppSettings::setLargeLibrary (bool on) { file().setValue (keys::largeLibrary, on); }
+   #if JUCE_WINDOWS
+    bool AppSettings::getUseOpenGL() const      { return file().getBoolValue (keys::useOpenGL, true); }
+   #else
+    bool AppSettings::getUseOpenGL() const      { return file().getBoolValue (keys::useOpenGL, false); }
+   #endif
+    void AppSettings::setUseOpenGL (bool on)    { file().setValue (keys::useOpenGL, on); }
 
     bool AppSettings::flush()
     {

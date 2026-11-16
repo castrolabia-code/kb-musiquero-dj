@@ -48,7 +48,8 @@ namespace kb::app
 
         void setArtworkCache (library::ArtworkCache* cache);
         void restoreColumns (const juce::String& state);
-        juce::String getColumnsState() const { return table.getHeader().toString(); }
+        /** Estado de columnas a escala 1 (independiente del tamaño de la pantalla). */
+        juce::String getColumnsState() const;
 
         /** Tonalidades que están sonando: las compatibles se marcan en verde en la columna Key. */
         void setReferenceKeys (const std::vector<int>& keys);
@@ -109,6 +110,7 @@ namespace kb::app
         int sortColumn = 0;
         bool sortForwards = true;
         juce::Rectangle<int> sidebarArea;
+        float columnScale = 1.0f;
         std::unique_ptr<juce::FileChooser> chooser;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LibraryView)

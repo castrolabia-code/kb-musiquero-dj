@@ -3,6 +3,7 @@
 #include "analysis/KeyDetector.h"
 #include "app/I18n.h"
 #include "ui/DrawPrimitives.h"
+#include "ui/KbLookAndFeel.h"
 #include "ui/Palette.h"
 
 #include <cmath>
@@ -148,7 +149,7 @@ namespace kb::ui
             g.setColour (cyan);
             g.drawRoundedRectangle (getLocalBounds().toFloat().reduced (1.0f), 4.0f, 2.0f);
             draw::text (g, tr ("wave.dropHere", { { "n", juce::String (deck + 1) } }), detailArea(),
-                        juce::jmin (18.0f, detailArea().getHeight() * 0.35f), cyan);
+                        juce::jmin (18.0f * KbLookAndFeel::uiScale(), detailArea().getHeight() * 0.35f), cyan);
         }
     }
 
@@ -297,7 +298,7 @@ namespace kb::ui
         if (t == nullptr)
         {
             draw::text (g, tr (view.loading ? "wave.loadingShort" : "wave.emptyHint"), area,
-                        juce::jmin (15.0f, area.getHeight() * 0.3f), textSecondary.withAlpha (0.8f), Justification::centred, false);
+                        juce::jmin (16.0f * KbLookAndFeel::uiScale(), area.getHeight() * 0.3f), textSecondary.withAlpha (0.8f), Justification::centred, false);
             return;
         }
 
@@ -431,7 +432,7 @@ namespace kb::ui
 
         if (! t->isComplete())
             draw::text (g, tr ("wave.loading", { { "percent", juce::String ((int) (t->getLoadProgress() * 100.0f)) } }),
-                        area.reduced (8.0f, 4.0f), juce::jmin (13.0f, area.getHeight() * 0.25f), textSecondary,
+                        area.reduced (8.0f, 4.0f), juce::jmin (14.0f * KbLookAndFeel::uiScale(), area.getHeight() * 0.25f), textSecondary,
                         Justification::topRight, false);
     }
 

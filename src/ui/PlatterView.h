@@ -29,6 +29,8 @@ namespace kb::ui
         void setState (double positionSeconds, bool playing, bool loaded);
         /** Carátula de la canción: se dibuja en el centro del disco y gira con él. */
         void setArtwork (const juce::Image& image);
+        /** Grilla de la pista: el aro late con cada beat mientras suena. */
+        void setBeatGrid (double bpm, double firstBeatSeconds) { beatBpm = bpm; beatFirst = firstBeatSeconds; }
 
         void paint (juce::Graphics& g) override;
 
@@ -48,6 +50,7 @@ namespace kb::ui
         double lastAngle = 0.0;
         bool grabbed = false;
         juce::Image artwork;
+        double beatBpm = 0.0, beatFirst = 0.0, position = 0.0;
         int deck;
         double angle = 0.0;
         bool playing = false, loaded = false;

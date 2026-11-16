@@ -1,5 +1,6 @@
 #include "ui/ControllerView.h"
 #include "ui/KbLookAndFeel.h"
+#include "ui/SkinAssets.h"
 
 #include <cmath>
 
@@ -304,6 +305,12 @@ namespace kb::ui
     {
         if (juce::isPositiveAndBelow (d, 2))
             platters[(size_t) d]->setArtwork (image);
+    }
+
+    void ControllerView::setPlatterBeatGrid (int d, double bpm, double first)
+    {
+        if (juce::isPositiveAndBelow (d, 2))
+            platters[(size_t) d]->setBeatGrid (bpm, first);
     }
 
     juce::String ControllerView::getTooltip()
@@ -751,6 +758,13 @@ namespace kb::ui
             const auto& p = L.platter;
             juce::Path disc;
             disc.addEllipse (p);
+            if (const auto skin = SkinAssets::get().find ("platter", p.getWidth() * backgroundScale); skin.isValid())
+            {
+                g.setOpacity (1.0f);
+                g.drawImage (skin, p.expanded (p.getWidth() * 0.04f), juce::RectanglePlacement::centred);
+            }
+            else
+            {
             juce::DropShadow (juce::Colours::black.withAlpha (0.6f), juce::roundToInt (unit * 3.5f), { juce::roundToInt (unit * 0.6f), juce::roundToInt (unit * 1.4f) })
                 .drawForPath (g, disc);
             g.setGradientFill (juce::ColourGradient (juce::Colour (0xff4b4f57), p.getX(), p.getY(),
@@ -758,6 +772,7 @@ namespace kb::ui
             g.fillPath (disc);
             g.setColour (juce::Colours::white.withAlpha (0.18f));
             g.drawEllipse (p.reduced (1.0f), juce::jmax (1.0f, unit * 0.3f));
+            }
 
             // "PWD +" y "REV -" sobre arcos, abajo a cada lado del plato.
             const auto c = p.getCentre();
@@ -811,8 +826,18 @@ namespace kb::ui
         juce::Path panelPath;
         panelPath.addRoundedRectangle (M.panel, unit * 2.0f);
         juce::DropShadow (juce::Colours::black.withAlpha (0.5f), juce::roundToInt (unit * 1.5f), {}).drawForPath (g, panelPath);
-        g.setGradientFill (juce::ColourGradient (panelLight, 0.0f, M.panel.getY(), panelDark, 0.0f, M.panel.getBottom(), false));
-        g.fillPath (panelPath);
+        if (const auto skin = SkinAssets::get().find ("mixer", M.panel.getWidth() * backgroundScale); skin.isValid())
+        {
+            juce::Graphics::ScopedSaveState save (g);
+            g.reduceClipRegion (panelPath);
+            g.setOpacity (1.0f);
+            g.drawImage (skin, M.panel, juce::RectanglePlacement::fillDestination);
+        }
+        else
+        {
+            g.setGradientFill (juce::ColourGradient (panelLight, 0.0f, M.panel.getY(), panelDark, 0.0f, M.panel.getBottom(), false));
+            g.fillPath (panelPath);
+        }
         g.setColour (panelEdge);
         g.strokePath (panelPath, juce::PathStrokeType (juce::jmax (1.0f, unit * 0.25f)));
 

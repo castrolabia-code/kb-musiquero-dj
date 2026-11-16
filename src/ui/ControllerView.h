@@ -117,6 +117,7 @@ namespace kb::ui
         /** Plato: llamar a cada cuadro (60 fps). */
         void setPlatter (int deck, double positionSeconds, bool playing, bool loaded);
         void setPlatterArtwork (int deck, const juce::Image& artwork);
+        void setPlatterBeatGrid (int deck, double bpm, double firstBeatSeconds);
         /** Fuerza regenerar el fondo cacheado (p. ej. al cambiar el idioma). */
         void invalidateBackground();
 

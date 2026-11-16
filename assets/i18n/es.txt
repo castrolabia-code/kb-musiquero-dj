@@ -24,6 +24,9 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "menu.options.general" = "Preferencias..."
 "menu.options.language" = "Idioma"
 "menu.help" = "Ayuda"
+"menu.view" = "Ver"
+"view.largeLibraryMenu" = "Biblioteca grande"
+"view.largeLibrary" = "BIBLIOTECA"
 "menu.help.about" = "Acerca de KB - MUSIQUERO DJ..."
 
 // --- Ventana de opciones --------------------------------------------------------
@@ -45,6 +48,8 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "options.mixer.twoOutputs" = "Tu dispositivo de audio tiene solo 2 salidas: para escuchar el CUE en auriculares activá el modo SPLIT (o elegí una placa de 4 salidas en la pestaña Audio)."
 "options.language" = "Idioma de la interfaz:"
 "options.language.note" = "El cambio se aplica al instante."
+"options.gpu" = "Dibujar la interfaz con la GPU (OpenGL)"
+"options.gpu.note" = "Más fluido en pantallas grandes (4K). Si notás algún problema de imagen, desactivalo: el audio no se ve afectado."
 "options.audio.hint" = "Para la menor latencia usá \"Windows Audio (Exclusive Mode)\" o ASIO, con un buffer de 128 a 256 muestras."
 "options.audio.latency" = "Latencia de salida estimada: {latency} ms"
 "options.audio.noDevice" = "No hay ningún dispositivo de audio abierto."
@@ -248,6 +253,7 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "tip.waveform" = "Vista de la canción completa: hacé click o arrastrá para saltar a esa parte. La línea naranja es el punto de cue."
 "tip.deckInfo" = "Canción cargada: título, artista, BPM (con el tempo aplicado), tempo en %, tiempo transcurrido y restante."
 "tip.libraryAdd" = "Agregar canciones o una carpeta entera a la lista."
+"tip.largeLibrary" = "Vista \"Biblioteca grande\": achica el controlador y agranda la lista de canciones (Ctrl+B)."
 "tip.newPlaylist" = "Crear una playlist nueva. Para agregarle canciones, arrastralas desde la lista hasta la playlist."
 "tip.search" = "Búsqueda instantánea en la lista elegida: escribí partes del título, artista, género, BPM o tonalidad. Esc: borrar."
 "tip.libraryClear" = "Borrar lista: quita todas las canciones de la lista (los archivos quedan en la PC)."

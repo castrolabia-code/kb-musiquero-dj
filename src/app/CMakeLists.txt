@@ -24,7 +24,7 @@ juce_add_gui_app(KBMusiqueroDJ
     BUNDLE_ID         "${KB_BUNDLE_ID}"
     VERSION           "${PROJECT_VERSION}"
     COMPANY_COPYRIGHT "Copyright (c) Castro Labs. Todos los derechos reservados."
-    # ICON_BIG / ICON_SMALL: se agregan en la Fase 7 con el ícono final.
+    ICON_BIG          "${PROJECT_SOURCE_DIR}/assets/icon/icon_1024.png"   # ícono de la app (Fase 7)
     NEEDS_CURL        FALSE
     NEEDS_WEB_BROWSER FALSE)
 
@@ -46,6 +46,7 @@ target_sources(KBMusiqueroDJ PRIVATE
     ../ui/LevelMeter.h      ../ui/LevelMeter.cpp
     ../ui/TopBar.h          ../ui/TopBar.cpp
     ../ui/FxPanel.h         ../ui/FxPanel.cpp
+    ../ui/SkinAssets.h      ../ui/SkinAssets.cpp
     ../ui/PlatterView.h     ../ui/PlatterView.cpp
     ../ui/TribalArt.h       ../ui/TribalArt.cpp
     ../ui/KbLookAndFeel.h   ../ui/KbLookAndFeel.cpp

@@ -210,6 +210,13 @@ namespace kb::app
             note.setColour (juce::Label::textColourId, ui::palette::textSecondary);
             addAndMakeVisible (languageBox);
             addAndMakeVisible (note);
+
+            // Dibujo con la GPU (OpenGL): se aplica al instante.
+            gpuToggle.setToggleState (settings.getUseOpenGL(), juce::dontSendNotification);
+            gpuToggle.onClick = [this] { settings.setUseOpenGL (gpuToggle.getToggleState()); };
+            gpuNote.setColour (juce::Label::textColourId, ui::palette::textSecondary);
+            addAndMakeVisible (gpuToggle);
+            addAndMakeVisible (gpuNote);
             refreshTexts();
         }
 
@@ -217,6 +224,8 @@ namespace kb::app
         {
             languageLabel.setText (tr ("options.language"), juce::dontSendNotification);
             note.setText (tr ("options.language.note"), juce::dontSendNotification);
+            gpuToggle.setButtonText (tr ("options.gpu"));
+            gpuNote.setText (tr ("options.gpu.note"), juce::dontSendNotification);
         }
 
         void resized() override
@@ -226,6 +235,9 @@ namespace kb::app
             languageBox.setBounds (b.removeFromTop (28).withWidth (240));
             b.removeFromTop (8);
             note.setBounds (b.removeFromTop (24));
+            b.removeFromTop (24);
+            gpuToggle.setBounds (b.removeFromTop (30).withWidth (560));
+            gpuNote.setBounds (b.removeFromTop (44));
         }
 
     private:
@@ -242,7 +254,8 @@ namespace kb::app
 
         AppSettings& settings;
         juce::ComboBox languageBox;
-        juce::Label languageLabel, note;
+        juce::Label languageLabel, note, gpuNote;
+        juce::ToggleButton gpuToggle;
     };
 
     // =========================================================================

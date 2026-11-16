@@ -21,7 +21,8 @@ namespace kb::ui
     /** Símbolos que pueden llevar los botones (además del texto). */
     enum class ButtonIcon { none, play, pause, cue, sync, headphones };
 
-    class GlowButton final : public juce::Button
+    class GlowButton final : public juce::Button,
+                             private juce::Timer
     {
     public:
         GlowButton (juce::String labelKey, juce::Colour colour, bool round, ButtonIcon icon = ButtonIcon::none);
@@ -60,6 +61,8 @@ namespace kb::ui
         juce::String labelKey, labelText, tooltipKey;
         float progress = -1.0f;
         bool padStyle = false;
+        float hover = 0.0f;   // 0..1, animado (el brillo entra y sale suave)
+        void timerCallback() override;
         juce::Colour colour;
         bool round;
         ButtonIcon icon;
