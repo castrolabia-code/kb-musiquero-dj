@@ -42,6 +42,19 @@ namespace kb::app
             lookAndFeel = std::make_unique<ui::KbLookAndFeel>();
             juce::LookAndFeel::setDefaultLookAndFeel (lookAndFeel.get());
 
+           #if JUCE_ANDROID
+            // Fase 10: la versión de Android se distribuye sin clave de producto.
+            {
+                licensing::Result free;
+                free.status = licensing::Status::valid;
+                free.info.name = "Android";
+                free.info.edition = "Android";
+                setLicense (free);
+                startApplication();
+                return;
+            }
+           #endif
+
             // Licencia (Fase 9): sin clave válida el programa no arranca.
             const auto key = settings->getLicenseKey();
             const auto result = licensing::verifyLicense (key, licensing::productPublicKey(), licensing::machineId());

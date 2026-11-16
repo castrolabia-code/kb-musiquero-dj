@@ -22,15 +22,27 @@ set_target_properties(kb_app_core PROPERTIES FOLDER "KB")
 # =============================================================================
 #  Aplicación de escritorio
 # =============================================================================
-juce_add_gui_app(KBMusiqueroDJ
-    PRODUCT_NAME      "${KB_PRODUCT_NAME}"
-    COMPANY_NAME      "${KB_COMPANY_NAME}"
-    BUNDLE_ID         "${KB_BUNDLE_ID}"
-    VERSION           "${PROJECT_VERSION}"
-    COMPANY_COPYRIGHT "Copyright (c) Castro Labs. Todos los derechos reservados."
-    ICON_BIG          "${PROJECT_SOURCE_DIR}/assets/icon/icon_1024.png"   # ícono de la app (Fase 7)
-    NEEDS_CURL        FALSE
-    NEEDS_WEB_BROWSER FALSE)
+if(ANDROID)
+    # Fase 10: en Android la app es una librería nativa (libjuce_jni.so) que carga
+    # la parte Java de JUCE (proyecto Gradle en android/). JUCE no genera apps de
+    # Android con CMake, así que se arma acá a mano con las mismas fuentes.
+    add_library(KBMusiqueroDJ SHARED)
+    set_target_properties(KBMusiqueroDJ PROPERTIES OUTPUT_NAME juce_jni)
+    target_compile_definitions(KBMusiqueroDJ PRIVATE
+        JUCE_STANDALONE_APPLICATION=1
+        JUCE_APPLICATION_NAME_STRING="${KB_PRODUCT_NAME}"
+        JUCE_APPLICATION_VERSION_STRING="${PROJECT_VERSION}")
+else()
+    juce_add_gui_app(KBMusiqueroDJ
+        PRODUCT_NAME      "${KB_PRODUCT_NAME}"
+        COMPANY_NAME      "${KB_COMPANY_NAME}"
+        BUNDLE_ID         "${KB_BUNDLE_ID}"
+        VERSION           "${PROJECT_VERSION}"
+        COMPANY_COPYRIGHT "Copyright (c) Castro Labs. Todos los derechos reservados."
+        ICON_BIG          "${PROJECT_SOURCE_DIR}/assets/icon/icon_1024.png"   # ícono de la app (Fase 7)
+        NEEDS_CURL        FALSE
+        NEEDS_WEB_BROWSER FALSE)
+endif()
 
 target_sources(KBMusiqueroDJ PRIVATE
     Main.cpp

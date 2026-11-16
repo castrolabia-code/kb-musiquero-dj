@@ -1,0 +1,89 @@
+// =============================================================================
+//  App de Android: la parte Java mínima de JUCE + el programa completo en C++
+//  (libjuce_jni.so), compilado con el MISMO CMakeLists.txt del proyecto.
+// =============================================================================
+plugins { id 'com.android.application' }
+
+// Versión: la misma del CMakeLists.txt raíz (una sola fuente de verdad).
+def cmakeText = file('../../CMakeLists.txt').text
+def kbVersion = (cmakeText =~ /VERSION\s+(\d+)\.(\d+)\.(\d+)/)[0]
+def kbVersionName = "${kbVersion[1]}.${kbVersion[2]}.${kbVersion[3]}"
+def kbVersionCode = kbVersion[1].toInteger() * 10000 + kbVersion[2].toInteger() * 100 + kbVersion[3].toInteger()
+
+android {
+    namespace 'com.castrolabs.kbmusiquerodj'
+    compileSdk 35
+    ndkVersion '27.2.12479018'
+
+    defaultConfig {
+        applicationId 'com.castrolabs.kbmusiquerodj'
+        minSdk 26          // Android 8.0: AAudio (baja latencia vía Oboe)
+        targetSdk 35
+        versionCode kbVersionCode
+        versionName kbVersionName
+
+        ndk {
+            // Tablets y teléfonos actuales (arm64), viejos de 32 bits (armv7) y emulador (x86_64).
+            abiFilters = (project.findProperty('kbAbis') ?: 'arm64-v8a,armeabi-v7a,x86_64').split(',')
+        }
+        externalNativeBuild {
+            cmake {
+                targets 'KBMusiqueroDJ'
+                arguments '-DANDROID_STL=c++_shared',
+                          '-DANDROID_CPP_FEATURES=exceptions rtti',
+                          '-DANDROID_WEAK_API_DEFS=ON',
+                          '-DANDROID_ARM_NEON=TRUE',
+                          '-DKB_BUILD_TESTS=OFF'
+                cppFlags '-fsigned-char'
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file('../../CMakeLists.txt')
+            version '3.31.6'
+        }
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs = ['../juce-java']
+        }
+    }
+
+    signingConfigs {
+        // Firma de publicación: se toma de variables de entorno (nunca en el repositorio).
+        release {
+            if (System.getenv('KB_KEYSTORE')) {
+                storeFile file(System.getenv('KB_KEYSTORE'))
+                storePassword System.getenv('KB_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KB_KEY_ALIAS')
+                keyPassword System.getenv('KB_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Sin keystore propio se firma con la clave de depuración (APK instalable igual).
+            signingConfig System.getenv('KB_KEYSTORE') ? signingConfigs.release : signingConfigs.debug
+            externalNativeBuild { cmake { arguments '-DCMAKE_BUILD_TYPE=Release' } }
+        }
+        debug {
+            externalNativeBuild { cmake { arguments '-DCMAKE_BUILD_TYPE=Release' } }   // el audio necesita optimización
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging { jniLibs { useLegacyPackaging true } }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { outputFileName = "KB-Musiquero-DJ-${kbVersionName}-${variant.buildType.name}.apk" }
+    }
+}

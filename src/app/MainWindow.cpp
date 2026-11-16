@@ -40,14 +40,22 @@ namespace kb::app
           audio (a),
           player (p)
     {
-        setUsingNativeTitleBar (true);
         mainComponent = new MainComponent (audio, player, library, settings);
         setContentOwned (mainComponent, false);
         setMenuBar (this);
 
+       #if JUCE_ANDROID
+        // Android (Fase 10): ocupa toda la pantalla, sin barra de título ni bordes.
+        setUsingNativeTitleBar (false);
+        setTitleBarHeight (0);
+        setResizable (false, false);
+        setFullScreen (true);
+       #else
+        setUsingNativeTitleBar (true);
         setResizable (true, false);
         setResizeLimits (kMinWidth, kMinHeight, 16384, 16384);
         setInitialBounds();
+       #endif
 
         I18n::getInstance().addListener (this);
         setVisible (true);
@@ -56,7 +64,9 @@ namespace kb::app
     MainWindow::~MainWindow()
     {
         I18n::getInstance().removeListener (this);
+       #if ! JUCE_ANDROID
         settings.setMainWindowState (getWindowStateAsString());
+       #endif
 
         if (optionsWindow != nullptr)
             delete optionsWindow.getComponent();

@@ -8,6 +8,7 @@ target_include_directories(kb_licensing PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(kb_licensing PUBLIC kb::juce)
 set_target_properties(kb_licensing PROPERTIES FOLDER "KB")
 
+if(NOT ANDROID)   # herramientas de escritorio, no van en Android
 # Herramienta de Castro Labs (no se distribuye a los clientes).
 add_executable(kb_license_tool "${PROJECT_SOURCE_DIR}/tools/license_tool/main.cpp")
 target_link_libraries(kb_license_tool PRIVATE kb::licensing)
@@ -33,3 +34,4 @@ set_target_properties(KBLicenseGenerator PROPERTIES FOLDER "Herramientas")
 install(TARGETS KBLicenseGenerator
     RUNTIME DESTINATION . COMPONENT tools
     BUNDLE  DESTINATION . COMPONENT tools)
+endif()
