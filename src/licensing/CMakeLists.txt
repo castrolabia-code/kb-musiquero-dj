@@ -12,3 +12,22 @@ set_target_properties(kb_licensing PROPERTIES FOLDER "KB")
 add_executable(kb_license_tool "${PROJECT_SOURCE_DIR}/tools/license_tool/main.cpp")
 target_link_libraries(kb_license_tool PRIVATE kb::licensing)
 set_target_properties(kb_license_tool PROPERTIES FOLDER "Herramientas")
+
+# Generador de licencias CON VENTANA (Castro Labs, uso interno; no va en el instalador).
+juce_add_gui_app(KBLicenseGenerator
+    PRODUCT_NAME      "KB Generador de Licencias"
+    COMPANY_NAME      "Castro Labs"
+    BUNDLE_ID         "com.castrolabs.kbmusiquerodj.licensegenerator"
+    VERSION           "${PROJECT_VERSION}"
+    COMPANY_COPYRIGHT "Copyright (c) Castro Labs. Uso interno."
+    ICON_BIG          "${PROJECT_SOURCE_DIR}/assets/icon/icon_1024.png"
+    NEEDS_CURL        FALSE
+    NEEDS_WEB_BROWSER FALSE)
+target_sources(KBLicenseGenerator PRIVATE "${PROJECT_SOURCE_DIR}/tools/license_generator/Main.cpp")
+target_compile_definitions(KBLicenseGenerator PRIVATE
+    JUCE_APPLICATION_NAME_STRING="KB Generador de Licencias"
+    JUCE_APPLICATION_VERSION_STRING="${PROJECT_VERSION}"
+    KB_VERSION_STRING="${PROJECT_VERSION}")
+target_link_libraries(KBLicenseGenerator PRIVATE kb::licensing kb_assets kb::juce)
+set_target_properties(KBLicenseGenerator PROPERTIES FOLDER "Herramientas")
+install(TARGETS KBLicenseGenerator RUNTIME DESTINATION . BUNDLE DESTINATION . COMPONENT tools)

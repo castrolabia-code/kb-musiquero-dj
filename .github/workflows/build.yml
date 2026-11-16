@@ -43,6 +43,16 @@ jobs:
           Compress-Archive -Path "dist/KB Musiquero DJ" -DestinationPath "KB-Musiquero-DJ-$name-Windows-x64.zip"
           "ZIP_NAME=KB-Musiquero-DJ-$name-Windows-x64.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+      - name: Empaquetar generador de licencias (uso interno de Castro Labs)
+        shell: pwsh
+        run: |
+          cmake --install build/windows-x64-release --config Release --component tools --prefix "dist/KB Generador de Licencias"
+          Get-ChildItem "dist/KB Musiquero DJ" -Filter "*.dll" | Where-Object { $_.Name -match '^(vcruntime|msvcp|concrt)' } | Copy-Item -Destination "dist/KB Generador de Licencias"
+          Copy-Item tools/license_generator/LEEME.txt "dist/KB Generador de Licencias/LEEME.txt"
+          Get-ChildItem "dist/KB Generador de Licencias" | Format-Table Name, Length
+          if (-not (Test-Path "dist/KB Generador de Licencias/KB Generador de Licencias.exe")) { throw "Falta el generador" }
+          Compress-Archive -Path "dist/KB Generador de Licencias" -DestinationPath "KB-Generador-de-Licencias-Windows-x64.zip"
+
       - name: Instalador (Inno Setup)
         shell: pwsh
         run: |
@@ -59,6 +69,14 @@ jobs:
         with:
           name: KB-Musiquero-DJ-Setup-${{ github.sha }}
           path: ${{ env.SETUP_NAME }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publicar generador de licencias (artefacto de CI, privado)
+        uses: actions/upload-artifact@v4
+        with:
+          name: KB-Generador-de-Licencias-${{ github.sha }}
+          path: KB-Generador-de-Licencias-Windows-x64.zip
           if-no-files-found: error
           retention-days: 30
 

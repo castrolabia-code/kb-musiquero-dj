@@ -1,0 +1,36 @@
+KB GENERADOR DE LICENCIAS - uso exclusivo de Castro Labs
+=========================================================
+
+NO lo entregues a los clientes. Sirve para fabricar las claves de producto
+de KB - MUSIQUERO DJ.
+
+PRIMERA VEZ
+1. Abri "KB Generador de Licencias.exe".
+2. Toca "Elegir private.key..." y elegi tu archivo
+   CLAVE-PRIVADA-licencias-NO-COMPARTIR.key
+   Si aparece "Lista" en verde, la clave corresponde al programa.
+   (El generador recuerda donde esta: la proxima vez ya arranca listo.)
+
+VENDER UNA LICENCIA
+1. Escribi el nombre y el email del cliente.
+2. Elegi la duracion: perpetua, 1/3/6 meses, 1 ano o hasta una fecha.
+3. (Opcional) ID de la PC: el cliente lo ve en la ventana de activacion
+   con el boton "Copiar ID". Si lo pones, la clave sirve solo en esa PC.
+4. Toca GENERAR LICENCIA. La clave se verifica sola antes de mostrarse.
+5. Toca "Copiar mensaje para el cliente" y pegalo en el mail o WhatsApp,
+   o "Guardar .txt" para mandarle un archivo.
+
+HISTORIAL
+Cada licencia queda anotada en Documentos\KB Licencias\licencias_emitidas.csv
+(se abre con Excel). Boton "Abrir carpeta".
+
+VERIFICAR
+Pega una clave en "Verificar una clave" para ver de quien es, si vencio
+o si es falsa (para responder consultas de soporte).
+
+SEGURIDAD
+- La clave privada (.key) es lo unico que permite fabricar licencias.
+  Guardala en un pendrive y en un lugar seguro. Nunca la subas a GitHub
+  ni la mandes por mail. Si la perdes, no se pueden hacer mas licencias
+  para las versiones ya vendidas.
+- Este programa sin la clave privada no sirve para nada.

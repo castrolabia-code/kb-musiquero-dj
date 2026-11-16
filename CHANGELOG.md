@@ -3,6 +3,17 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.12.2] — Generador de licencias con ventana
+
+### Agregado
+- **KB Generador de Licencias** (`tools/license_generator`, uso interno): programa con
+  ventana para emitir claves sin consola. Carga la clave privada y comprueba que
+  corresponde al programa; datos del cliente, duración (perpetua / meses / fecha),
+  atadura opcional a una PC; verifica cada clave antes de mostrarla; copia la clave
+  o un mensaje listo para el cliente, o lo guarda en .txt; historial CSV en
+  Documentos\KB Licencias; verificación de claves existentes.
+- CI: artefacto aparte `KB-Generador-de-Licencias` (no va en el instalador).
+
 ## [0.12.1] — Carátulas nítidas
 
 ### Corregido

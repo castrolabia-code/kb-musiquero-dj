@@ -281,3 +281,10 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D54 | Atajos de teclado = mismas funciones que el MIDI | Un solo despacho (handleMidi) para mouse, MIDI y teclado; mantener la tecla = mantener el botón. |
 | D55 | Informe de error con la pila de llamadas al cerrarse de golpe | Se ofrece al volver a abrir; envío automático preparado (supportEmail()). |
 | D56 | Instalador Inno Setup generado en el CI; firma de código preparada | El usuario baja un instalador listo; con un certificado OV/EV se activa SignTool. Desinstalar no borra los datos del usuario. |
+
+## Herramientas internas de licencias (Castro Labs)
+
+- `kb_license_tool` (consola): `genkeys`, `issue`, `verify`.
+- `KB Generador de Licencias` (ventana, `tools/license_generator`): emite y verifica claves con la
+  clave privada, guarda el historial en `Documentos/KB Licencias/licencias_emitidas.csv`.
+  Usa `kb::licensing` (misma firma/verificación que el programa). No se distribuye a clientes.
