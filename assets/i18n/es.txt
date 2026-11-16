@@ -260,6 +260,8 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "library.col.art" = "Tapa"
 "library.addFiles" = "Agregar canciones..."
 "library.addFolder" = "Agregar una carpeta..."
+"library.scanDevice" = "Escanear la música del dispositivo"
+"library.permissionDenied" = "Sin permiso para leer la música no se puede escanear el dispositivo. Podés darlo en Ajustes > Apps > KB Musiquero DJ > Permisos, o agregar canciones de a una."
 "library.remove" = "Quitar de la lista"
 "library.analysing" = "Analizando BPM: {n} pendientes"
 "library.emptyHint" = "Tocá el botón + (arriba a la izquierda) para agregar canciones, o arrastrá archivos o carpetas acá.\nDespués arrastrá una canción a un deck o hacé doble click."

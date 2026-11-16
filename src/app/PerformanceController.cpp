@@ -1,6 +1,7 @@
 #include "app/PerformanceController.h"
 
 #include "app/I18n.h"
+#include "app/PlatformFiles.h"
 #include "engine/AudioFileFormats.h"
 #include "ui/Palette.h"
 #include "ui/PlatterView.h"
@@ -252,9 +253,14 @@ namespace kb::app
         chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                               [weak, slot] (const juce::FileChooser& fc)
                               {
-                                  if (auto* s = weak.get())
-                                      if (fc.getResult() != juce::File())
-                                          s->loadSample (slot, fc.getResult());
+                                  if (weak.get() == nullptr)
+                                      return;
+                                  platform::resolve (fc.getURLResults(), [weak, slot] (juce::Array<juce::File> files)
+                                  {
+                                      if (auto* s = weak.get())
+                                          if (! files.isEmpty())
+                                              s->loadSample (slot, files.getFirst());
+                                  });
                               });
     }
 

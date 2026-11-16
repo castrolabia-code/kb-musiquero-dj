@@ -27,6 +27,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Dependencias del sistema (juceaide se compila para la máquina de CI)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxext-dev libxcomposite-dev libgl1-mesa-dev
+
       - name: SDK de Android (NDK y CMake)
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
@@ -64,6 +70,9 @@ jobs:
         with:
           name: KB-Musiquero-DJ-Android-${{ github.sha }}
           path: apk
+
+      - name: Herramientas para las capturas
+        run: sudo apt-get update && sudo apt-get install -y imagemagick ffmpeg
 
       - name: Habilitar KVM
         run: |

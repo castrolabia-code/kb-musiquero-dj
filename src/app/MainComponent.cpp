@@ -3,6 +3,7 @@
 #include <map>
 
 #include "app/AudioDeviceService.h"
+#include "app/PlatformFiles.h"
 #include "engine/AudioFileFormats.h"
 #include "analysis/KeyDetector.h"
 #include "ui/KbLookAndFeel.h"
@@ -73,6 +74,15 @@ namespace kb::app
 
         // --- GPU (OpenGL), según Preferencias ---------------------------------------------
         updateRenderer();
+
+       #if JUCE_ANDROID
+        // Primera vez en Android: pedir permiso y traer la música del dispositivo.
+        if (library.collectionSize() == 0)
+        {
+            juce::Component::SafePointer<MainComponent> safe (this);
+            juce::MessageManager::callAsync ([safe] { if (safe != nullptr) safe->libraryView.scanDeviceMusic(); });
+        }
+       #endif
 
         // --- MIDI (Fase 8) ---------------------------------------------------------------------
         midiController = std::make_unique<MidiController> (AppSettings::getAppDataDirectory().getChildFile ("midi_mapping.json"));
@@ -266,8 +276,16 @@ namespace kb::app
         chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                               [safe, deck] (const juce::FileChooser& fc)
                               {
-                                  if (safe != nullptr && fc.getResult().existsAsFile())
-                                      safe->player.loadFile (deck, fc.getResult());
+                                  if (safe == nullptr)
+                                      return;
+                                  platform::resolve (fc.getURLResults(), [safe, deck] (juce::Array<juce::File> files)
+                                  {
+                                      if (safe != nullptr && ! files.isEmpty())
+                                      {
+                                          safe->library.addFiles (files);   // también queda en la biblioteca
+                                          safe->player.loadFile (deck, files.getFirst());
+                                      }
+                                  });
                               });
     }
 

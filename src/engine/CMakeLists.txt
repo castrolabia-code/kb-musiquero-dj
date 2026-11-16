@@ -32,6 +32,14 @@ if(WIN32)
     target_compile_definitions(kb_engine PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()
 
+if(ANDROID)
+    # M4A/AAC con los decodificadores del sistema (NDK MediaCodec, Fase 10).
+    target_sources(kb_engine PRIVATE
+        formats/AndroidMediaReader.h
+        formats/AndroidMediaReader.cpp)
+    target_link_libraries(kb_engine PRIVATE mediandk)
+endif()
+
 target_include_directories(kb_engine PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(kb_engine
     PUBLIC  kb::juce

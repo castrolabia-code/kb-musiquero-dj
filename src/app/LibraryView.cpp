@@ -1,6 +1,7 @@
 #include "app/LibraryView.h"
 
 #include "analysis/KeyDetector.h"
+#include "app/PlatformFiles.h"
 #include "engine/AudioFileFormats.h"
 #include "ui/DeckDisplay.h"
 #include "ui/DrawPrimitives.h"
@@ -398,13 +399,23 @@ namespace kb::app
     {
         juce::PopupMenu menu;
         menu.addItem (1, tr ("library.addFiles"));
-        menu.addItem (2, tr ("library.addFolder"));
+        // En Android el selector de carpetas no da rutas: se escanea la música del dispositivo.
+        if (platform::isMobile())
+            menu.addItem (3, tr ("library.scanDevice"));
+        else
+            menu.addItem (2, tr ("library.addFolder"));
 
         juce::Component::SafePointer<LibraryView> safe (this);
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&sidebar->addButton), [safe] (int choice)
         {
             if (safe == nullptr || choice == 0)
                 return;
+
+            if (choice == 3)
+            {
+                safe->scanDeviceMusic();
+                return;
+            }
 
             const auto files = choice == 1;
             safe->chooser = std::make_unique<juce::FileChooser> (tr (files ? "library.addFiles" : "library.addFolder"),
@@ -419,10 +430,37 @@ namespace kb::app
                 if (safe == nullptr)
                     return;
                 if (files)
-                    safe->library.addFiles (fc.getResults());
+                    platform::resolve (fc.getURLResults(), [safe] (juce::Array<juce::File> chosen)
+                    {
+                        if (safe != nullptr)
+                            safe->library.addFiles (chosen);
+                    });
                 else if (fc.getResult().isDirectory())
                     safe->library.addFolder (fc.getResult());
             });
+        });
+    }
+
+    void LibraryView::scanDeviceMusic()
+    {
+        juce::Component::SafePointer<LibraryView> safe (this);
+        platform::requestMusicAccess ([safe] (bool granted)
+        {
+            if (safe == nullptr)
+                return;
+            if (! granted)
+            {
+                juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+                                                  .withIconType (juce::MessageBoxIconType::WarningIcon)
+                                                  .withTitle (tr ("library.scanDevice"))
+                                                  .withMessage (tr ("library.permissionDenied"))
+                                                  .withButton (tr ("common.ok"))
+                                                  .withAssociatedComponent (safe.getComponent()),
+                                              nullptr);
+                return;
+            }
+            for (const auto& dir : platform::deviceMusicFolders())
+                safe->library.addFolder (dir);
         });
     }
 

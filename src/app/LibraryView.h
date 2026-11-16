@@ -61,6 +61,8 @@ namespace kb::app
 
         /** Abre el selector para agregar canciones o una carpeta. */
         void showAddMenu();
+        /** Android: pide permiso y agrega la música de las carpetas del dispositivo. */
+        void scanDeviceMusic();
 
         void paint (juce::Graphics& g) override;
         void paintOverChildren (juce::Graphics& g) override;

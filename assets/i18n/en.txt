@@ -260,6 +260,8 @@ countries: en gb us au ca nz ie za
 "library.col.art" = "Art"
 "library.addFiles" = "Add songs..."
 "library.addFolder" = "Add a folder..."
+"library.scanDevice" = "Scan the device music"
+"library.permissionDenied" = "Without permission to read music the device cannot be scanned. You can grant it in Settings > Apps > KB Musiquero DJ > Permissions, or add songs one by one."
 "library.remove" = "Remove from list"
 "library.analysing" = "Analysing BPM: {n} pending"
 "library.emptyHint" = "Press the + button (top left) to add songs, or drop files or folders here.\nThen drag a song onto a deck or double-click it."

@@ -12,7 +12,8 @@ add_library(kb_app_core STATIC
     MidiController.h
     MidiController.cpp
     Keymap.h
-    Keymap.cpp)
+    Keymap.cpp
+    PlatformFiles.h  PlatformFiles.cpp)
 add_library(kb::app_core ALIAS kb_app_core)
 
 target_include_directories(kb_app_core PUBLIC "${PROJECT_SOURCE_DIR}/src")

@@ -11,6 +11,9 @@
  #include <windows.h>
  #include <objbase.h>
 #endif
+#if JUCE_ANDROID
+ #include "engine/formats/AndroidMediaReader.h"
+#endif
 
 namespace kb::engine::formats
 {
@@ -25,7 +28,7 @@ namespace kb::engine::formats
     juce::StringArray supportedExtensions()
     {
         juce::StringArray exts { "mp3", "wav", "aif", "aiff", "flac", "ogg" };
-       #if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS
+       #if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS || JUCE_ANDROID
         exts.addArray ({ "m4a", "aac", "mp4" });
        #endif
         return exts;
@@ -54,6 +57,9 @@ namespace kb::engine::formats
        #if JUCE_WINDOWS
         if (isMediaFoundationExtension (ext))
             return MediaFoundationReader::create (file);
+       #elif JUCE_ANDROID
+        if (isMediaFoundationExtension (ext))
+            return AndroidMediaReader::create (file);
        #else
         juce::ignoreUnused (isMediaFoundationExtension (ext));
        #endif
