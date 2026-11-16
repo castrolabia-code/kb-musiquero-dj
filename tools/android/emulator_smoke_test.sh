@@ -19,7 +19,7 @@ if command -v ffmpeg > /dev/null; then
         adb push /tmp/prueba.mp3 /sdcard/Music/prueba.mp3 > /dev/null
 fi
 
-adb shell am start -W -n $PKG/com.rmsl.juce.JuceActivity
+adb shell am start -W -n $PKG/com.castrolabs.kbmusiquerodj.KbActivity
 sleep 25
 
 shot() {
@@ -32,6 +32,13 @@ shot() {
     echo "KBSHOT-END $NAME-$1"
 }
 shot inicio
+
+# Vista de biblioteca (Ctrl+B) y vuelta.
+adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_B || true
+sleep 3
+shot biblioteca
+adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_B || true
+sleep 2
 
 # ¿Sigue vivo?
 if adb shell pidof $PKG > /dev/null; then echo "APP VIVA"; else echo "APP CERRADA"; fi

@@ -22,6 +22,22 @@ namespace kb::app
                                                                  &deckDisplays[1], &libraryView, &statusBar, &fxPanel })
             addAndMakeVisible (c);
 
+        // Visor del controlador para teléfonos (Fase 10): sin barras ni arrastre (los
+        // gestos son de los platos y faders); se cambia de deck con el botón lateral.
+       #if JUCE_ANDROID || JUCE_IOS
+        longPressEnabled = true;
+       #else
+        longPressEnabled = juce::SystemStats::getEnvironmentVariable ("KB_DEV_LONGPRESS", {}).isNotEmpty();
+       #endif
+        controllerHolder.setScrollBarsShown (false, false, false, false);
+        controllerHolder.setScrollOnDragMode (juce::Viewport::ScrollOnDragMode::never);
+        deckSwitch.setComponentID ("deckSwitch");
+        deckSwitch.onClick = [this]
+        {
+            compactPage = 1 - compactPage;
+            resized();
+        };
+
         libraryView.setArtworkCache (&artwork);
         libraryView.restoreColumns (settings.getLibraryColumns());
         libraryView.onColumnsChanged = [this] (const juce::String& st) { settings.setLibraryColumns (st); };
@@ -230,12 +246,47 @@ namespace kb::app
         g.fillRoundedRectangle (screen.withHeight (m), sr);
     }
 
+    juce::Rectangle<int> MainComponent::controllerArea() const
+    {
+        // El controlador puede estar dentro del visor de teléfono (Fase 10).
+        const auto* holder = compact ? static_cast<const juce::Component*> (&controllerHolder) : &controller;
+        return holder->isVisible() ? holder->getBounds() : juce::Rectangle<int>();
+    }
+
     void MainComponent::resized()
     {
-        // Layout de la imagen de referencia: barra superior amarilla, controlador,
-        // pantalla oscura con las dos waveforms lado a lado y la biblioteca, y pie.
         frameImage = {};
         repaint();   // el chasis y la pantalla negra cambian de forma (p. ej. al animar la vista)
+
+        // Teléfono (Fase 10): pantalla baja (menos de 560 puntos de alto) -> vista compacta.
+        const auto wantCompact = getHeight() < kCompactMaxHeight;
+        if (wantCompact != compact)
+        {
+            compact = wantCompact;
+            if (compact)
+            {
+                controllerHolder.setViewedComponent (&controller, false);
+                addAndMakeVisible (controllerHolder);
+                addAndMakeVisible (deckSwitch);
+            }
+            else
+            {
+                controllerHolder.setViewedComponent (nullptr, false);
+                removeChildComponent (&controllerHolder);
+                removeChildComponent (&deckSwitch);
+                addAndMakeVisible (controller);
+            }
+            statusBar.setVisible (! compact);
+        }
+
+        if (compact)
+        {
+            layoutCompact();
+            return;
+        }
+
+        // Layout de la imagen de referencia: barra superior amarilla, controlador,
+        // pantalla oscura con las dos waveforms lado a lado y la biblioteca, y pie.
         const auto H = getHeight();
         // Escala de la interfaz para pantallas grandes (4K al 100 %): base 1040 px de alto.
         ui::KbLookAndFeel::setUiScale ((float) H / 1040.0f);
@@ -261,6 +312,67 @@ namespace kb::app
         fxPanel.setBounds (inner.removeFromTop (juce::jmax (34, juce::roundToInt (H * 0.045))));
         inner.removeFromTop (m / 3);
         libraryView.setBounds (inner);
+    }
+
+    void MainComponent::layoutCompact()
+    {
+        // Teléfono en horizontal: el controlador completo no entra a un tamaño tocable,
+        // así que se muestra a su proporción natural dentro de un visor y se ve
+        // "DECK 1 + MIXER" o "MIXER + DECK 2" (botón lateral para cambiar).
+        // BIBLIOTECA cambia a la vista de biblioteca (waveforms chicas + FX + lista).
+        const auto H = getHeight();
+        const auto W = getWidth();
+        ui::KbLookAndFeel::setUiScale ((float) H / 600.0f);   // textos más grandes que en escritorio
+        const auto m = juce::jmax (6, juce::roundToInt (H * 0.014));
+        auto b = getLocalBounds().reduced (m, m / 2);
+
+        const auto mix = (double) libraryMix;
+        topBar.setBounds (b.removeFromTop (juce::roundToInt (H * 0.12)));
+
+        const auto ctrlH = juce::roundToInt (H * 0.62 * (1.0 - mix));
+        controllerHolder.setVisible (ctrlH > 8);
+        deckSwitch.setVisible (ctrlH > 8);
+        if (ctrlH > 8)
+        {
+            auto row = b.removeFromTop (ctrlH);
+            // Cada página muestra un deck + el mixer (~63 % del controlador) a todo el ancho.
+            const auto naturalW = juce::jmax (juce::roundToInt (ctrlH * kControllerAspect),
+                                              juce::roundToInt ((row.getWidth() - H * 0.085) / 0.635));
+            const auto tabW = juce::roundToInt (H * 0.085);
+            const auto fits = naturalW <= row.getWidth();
+            deckSwitch.setVisible (! fits);
+            if (! fits)
+            {
+                // Botón del lado hacia donde se va: a la derecha "2 ›", a la izquierda "‹ 1".
+                deckSwitch.setBounds (compactPage == 0 ? row.removeFromRight (tabW) : row.removeFromLeft (tabW));
+                deckSwitch.setButtonText (compactPage == 0 ? juce::String::fromUTF8 ("2 \xe2\x96\xb6") : juce::String::fromUTF8 ("\xe2\x97\x80 1"));
+            }
+            controllerHolder.setBounds (row);
+            controller.setSize (fits ? row.getWidth() : naturalW, row.getHeight());
+            const auto maxX = juce::jmax (0, controller.getWidth() - row.getWidth());
+            controllerHolder.setViewPosition (compactPage == 0 ? 0 : maxX, 0);
+        }
+        b.removeFromTop (m / 2);
+        screenArea = b;
+
+        auto inner = b.reduced (m / 2 + 1);
+        const auto gap = m / 2;
+        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * (1.0 - 0.72 * mix)));
+        deckDisplays[0].setBounds (waves.removeFromLeft ((waves.getWidth() - gap) / 2));
+        waves.removeFromLeft (gap);
+        deckDisplays[1].setBounds (waves);
+
+        const auto showLibrary = mix > 0.05;
+        fxPanel.setVisible (showLibrary);
+        libraryView.setVisible (showLibrary);
+        if (showLibrary)
+        {
+            inner.removeFromTop (m / 3);
+            fxPanel.setBounds (inner.removeFromTop (juce::jmax (30, juce::roundToInt (H * 0.08))));
+            inner.removeFromTop (m / 3);
+            libraryView.setBounds (inner);
+        }
+        juce::ignoreUnused (W);
     }
 
     // =========================================================================
@@ -480,6 +592,19 @@ namespace kb::app
 
     void MainComponent::mouseDown (const juce::MouseEvent& e)
     {
+        // Solo botones/pads y la biblioteca: en platos, faders y perillas dejar el dedo
+        // quieto es parte de tocar (frenar el disco), no un pedido de menú.
+        const auto longPressTarget = e.eventComponent != nullptr
+                                  && (dynamic_cast<juce::Button*> (e.eventComponent) != nullptr
+                                      || libraryView.isParentOf (e.eventComponent));
+        if (longPressEnabled && longPressTarget && ! e.mods.isPopupMenu() && e.eventComponent != this)
+        {
+            longPress.target = e.eventComponent;
+            longPress.source = e.source;
+            longPress.position = e.position;
+            longPress.startMs = juce::Time::getMillisecondCounterHiRes();
+            longPress.armed = true;
+        }
         if (! e.mods.isPopupMenu() || e.eventComponent == nullptr)
             return;
         // El control (o un padre) con un id de función MIDI. Los pads tienen su propio menú.
@@ -496,6 +621,42 @@ namespace kb::app
                 return;
             }
         }
+    }
+
+    void MainComponent::mouseDrag (const juce::MouseEvent& e)
+    {
+        // Si el dedo se mueve no es "mantener apretado" (es girar un plato, mover un fader...).
+        if (longPress.armed && e.getDistanceFromDragStart() > 12)
+            longPress.armed = false;
+    }
+
+    void MainComponent::mouseUp (const juce::MouseEvent&)
+    {
+        longPress.armed = false;
+    }
+
+    void MainComponent::checkLongPress()
+    {
+        if (! longPress.armed || juce::Time::getMillisecondCounterHiRes() - longPress.startMs < 550.0)
+            return;
+        longPress.armed = false;
+        auto* target = longPress.target.getComponent();
+        if (target == nullptr || ! target->isShowing())
+            return;
+
+        // Se simula un click derecho sobre el mismo control (y se avisa a la ventana para MIDI Learn).
+        const auto now = juce::Time::getCurrentTime();
+        const juce::MouseEvent right (longPress.source, longPress.position,
+                                      juce::ModifierKeys (juce::ModifierKeys::rightButtonModifier),
+                                      juce::MouseInputSource::defaultPressure, juce::MouseInputSource::defaultOrientation,
+                                      juce::MouseInputSource::defaultRotation, juce::MouseInputSource::defaultTiltX,
+                                      juce::MouseInputSource::defaultTiltY, target, target, now,
+                                      longPress.position, now, 1, false);
+        target->mouseDown (right);
+        // Las filas de la tabla abren su menú al soltar (la fila ya estaba elegida).
+        if (libraryView.isParentOf (target))
+            target->mouseUp (right);
+        mouseDown (right);
     }
 
     void MainComponent::handleMidi (const midi::Event& e)
@@ -819,10 +980,10 @@ namespace kb::app
 
     bool MainComponent::dropOnPad (int x, int y, const juce::File& file)
     {
-        if (! controller.getBounds().contains (x, y) || ! engine::formats::isSupportedFile (file))
+        if (! controllerArea().contains (x, y) || ! engine::formats::isSupportedFile (file))
             return false;
         int padIndex = -1;
-        const auto d = controller.padAt (juce::Point<int> (x, y) - controller.getPosition(), padIndex);
+        const auto d = controller.padAt (controller.getLocalPoint (this, juce::Point<int> (x, y)), padIndex);
         return d >= 0 && performance->dropOnPad (d, padIndex, file);
     }
 
@@ -834,9 +995,9 @@ namespace kb::app
             if (deckDisplays[d].getBounds().contains (p))
                 return d;
 
-        if (controller.getBounds().contains (p))
+        if (controllerArea().contains (p))
         {
-            const auto local = p - controller.getPosition();
+            const auto local = controller.getLocalPoint (this, p);
             const auto d = controller.deckAt (local);
             if (d >= 0)
                 return d;
@@ -904,6 +1065,7 @@ namespace kb::app
     void MainComponent::timerCallback()
     {
         ++tick;
+        checkLongPress();
 
         // Transición animada de la vista "Biblioteca grande" (~200 ms, con suavizado).
         const auto target = largeLibrary ? 1.0f : 0.0f;

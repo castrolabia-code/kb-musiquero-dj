@@ -302,7 +302,12 @@ namespace kb::ui
         const auto* t = view.track.get();
         if (t == nullptr)
         {
-            draw::text (g, tr (view.loading ? "wave.loadingShort" : "wave.emptyHint"), area,
+           #if JUCE_ANDROID || JUCE_IOS
+            const char* hint = "wave.emptyHintTouch";   // pantallas táctiles: no hay "arrastrar"
+           #else
+            const char* hint = "wave.emptyHint";
+           #endif
+            draw::text (g, tr (view.loading ? "wave.loadingShort" : hint), area,
                         juce::jmin (16.0f * KbLookAndFeel::uiScale(), area.getHeight() * 0.3f), textSecondary.withAlpha (0.8f), Justification::centred, false);
             return;
         }

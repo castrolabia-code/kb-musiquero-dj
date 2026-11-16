@@ -214,6 +214,7 @@ countries: en gb us au ca nz ie za
 // --- Waveform area -----------------------------------------------------------------
 "wave.empty" = "No track loaded"
 "wave.emptyHint" = "Drop a song here or use File > Load into Deck"
+"wave.emptyHintTouch" = "Tap LIBRARY and pick a song (or File > Load into Deck)"
 "wave.loading" = "Loading {percent} %"
 "wave.loadingShort" = "Loading..."
 "wave.dropHere" = "Drop to load into DECK {n}"

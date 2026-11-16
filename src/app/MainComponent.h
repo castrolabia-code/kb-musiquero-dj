@@ -49,6 +49,8 @@ namespace kb::app
         bool isLargeLibrary() const noexcept { return largeLibrary; }
         bool keyPressed (const juce::KeyPress& key) override;
         void mouseDown (const juce::MouseEvent& e) override;
+        void mouseDrag (const juce::MouseEvent& e) override;
+        void mouseUp (const juce::MouseEvent& e) override;
         bool keyStateChanged (bool isKeyDown) override;
 
         /** Atajos de teclado (Fase 9). */
@@ -138,6 +140,27 @@ namespace kb::app
         void restoreFx();
         void updateFxPanel();
         ui::ControllerView     controller;
+        // Teléfono (Fase 10): el controlador va dentro de un visor y se ve medio por vez.
+        static constexpr int   kCompactMaxHeight = 560;
+        static constexpr float kControllerAspect = 3.95f;   // ancho/alto natural del controlador
+        juce::Viewport         controllerHolder;
+        juce::TextButton       deckSwitch;
+        bool compact = false;
+        int  compactPage = 0;   // 0 = deck 1 + mixer, 1 = mixer + deck 2
+        void layoutCompact();
+        // Pantallas táctiles (Fase 10): mantener apretado ~0,5 s = click derecho
+        // (menú de pads, MIDI Learn, menú de canciones y playlists).
+        struct LongPress
+        {
+            juce::Component::SafePointer<juce::Component> target;
+            juce::MouseInputSource source { juce::Desktop::getInstance().getMainMouseSource() };
+            juce::Point<float> position;   // en coordenadas de 'target'
+            double startMs = 0.0;
+            bool armed = false;
+        } longPress;
+        bool longPressEnabled = false;
+        void checkLongPress();
+        juce::Rectangle<int> controllerArea() const;
         ui::DeckDisplay        deckDisplays[2] { ui::DeckDisplay (0), ui::DeckDisplay (1) };
         TrackLibrary&          library;
         LibraryView            libraryView;

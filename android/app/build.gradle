@@ -48,7 +48,7 @@ android {
 
     sourceSets {
         main {
-            java.srcDirs = ['../juce-java']
+            java.srcDirs = ['src/main/java', '../juce-java']
         }
     }
 

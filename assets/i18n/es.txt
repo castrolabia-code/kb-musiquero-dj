@@ -214,6 +214,7 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 // --- Zona de waveforms -------------------------------------------------------------
 "wave.empty" = "Sin pista cargada"
 "wave.emptyHint" = "Arrastrá una canción acá o usá Archivo > Cargar en Deck"
+"wave.emptyHintTouch" = "Tocá BIBLIOTECA y elegí una canción (o Archivo > Cargar en Deck)"
 "wave.loading" = "Cargando {percent} %"
 "wave.loadingShort" = "Cargando..."
 "wave.dropHere" = "Soltá para cargar en el DECK {n}"

@@ -11,4 +11,7 @@ for d in juce_core/native/javacore/init juce_core/native/javacore/app juce_core/
          juce_audio_devices/native/java/app juce_opengl/native/java/app; do
     cp -r "$MOD/$d/." "$DEST/"
 done
+# JuceActivity solo sirve con notificaciones push (sus funciones nativas no existen sin ellas):
+# la app usa su propia pantalla (android/app/src/main/java/.../KbActivity.java).
+rm -f "$DEST/com/rmsl/juce/JuceActivity.java"
 echo "Listo: $(find "$DEST" -name '*.java' | wc -l) clases Java de JUCE en $DEST"

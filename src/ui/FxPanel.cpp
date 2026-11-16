@@ -150,26 +150,28 @@ namespace kb::ui
             r = r.reduced (h * 0.12f, h * 0.1f);
             const auto rh = r.getHeight();
 
-            U.title = r.removeFromLeft (rh * 1.6f);
-            r.removeFromLeft (rh * 0.15f);
-            U.type.setBounds (r.removeFromLeft (rh * 4.6f).reduced (0.0f, rh * 0.08f).toNearestInt());
-            r.removeFromLeft (rh * 0.3f);
+            // Pantallas angostas (teléfono, Fase 10): todo se angosta en proporción.
+            const auto k = juce::jlimit (0.55f, 1.0f, r.getWidth() / (rh * 21.0f));
+            U.title = r.removeFromLeft (rh * 1.6f * k);
+            r.removeFromLeft (rh * 0.15f * k);
+            U.type.setBounds (r.removeFromLeft (rh * 4.6f * k).reduced (0.0f, rh * 0.08f).toNearestInt());
+            r.removeFromLeft (rh * 0.3f * k);
 
-            auto beats = r.removeFromLeft (rh * 4.0f);
+            auto beats = r.removeFromLeft (rh * 4.0f * k);
             U.beatsDown->setBounds (beats.removeFromLeft (rh * 0.9f).toNearestInt());
             U.beatsUp->setBounds (beats.removeFromRight (rh * 0.9f).toNearestInt());
             U.beatsArea = beats;
-            r.removeFromLeft (rh * 0.3f);
+            r.removeFromLeft (rh * 0.3f * k);
 
             // Destinos y ON a la derecha.
-            auto right = r.removeFromRight (rh * 6.6f);
+            auto right = r.removeFromRight (rh * 6.6f * k);
             for (int t = 2; t >= 0; --t)
             {
-                U.targets[(size_t) t]->setBounds (right.removeFromRight (rh * 1.3f).reduced (rh * 0.06f, rh * 0.06f).toNearestInt());
+                U.targets[(size_t) t]->setBounds (right.removeFromRight (rh * 1.3f * k).reduced (rh * 0.06f, rh * 0.06f).toNearestInt());
                 U.targets[(size_t) t]->setTextScale (0.5f);
             }
-            right.removeFromRight (rh * 0.3f);
-            U.on->setBounds (right.removeFromRight (rh * 1.6f).toNearestInt());
+            right.removeFromRight (rh * 0.3f * k);
+            U.on->setBounds (right.removeFromRight (rh * 1.6f * k).toNearestInt());
             U.on->setTextScale (0.5f);
 
             // Perillas PARAM y WET en el medio.

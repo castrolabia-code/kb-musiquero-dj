@@ -55,6 +55,14 @@ namespace kb::app
         setResizable (true, false);
         setResizeLimits (kMinWidth, kMinHeight, 16384, 16384);
         setInitialBounds();
+        // Desarrollo: KB_DEV_SIZE=914x411 simula la pantalla de un teléfono (vista compacta).
+        const auto devSize = juce::SystemStats::getEnvironmentVariable ("KB_DEV_SIZE", {});
+        if (devSize.containsChar ('x'))
+        {
+            setResizeLimits (320, 240, 16384, 16384);
+            setSize (devSize.upToFirstOccurrenceOf ("x", false, false).getIntValue(),
+                     devSize.fromFirstOccurrenceOf ("x", false, false).getIntValue());
+        }
        #endif
 
         I18n::getInstance().addListener (this);
