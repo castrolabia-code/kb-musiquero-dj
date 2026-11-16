@@ -122,7 +122,7 @@ countries: es ar mx cl co uy pe ve ec bo py cr pa do gt hn sv ni cu pr us
 "crash.body" = "La última vez KB - MUSIQUERO DJ se cerró de golpe. Se guardó un informe ({file}). Si se repite, mandalo a soporte de Castro Labs para que lo podamos corregir."
 "crash.openFolder" = "Abrir carpeta del informe"
 "about.credits" = "Créditos y licencias"
-"about.creditsBody" = "KB - MUSIQUERO DJ usa:\n• JUCE (licencia comercial de JUCE)\n• r8brain-free-src © Aleksey Vaneev (MIT)\n• Signalsmith Stretch y Linear © Geraint Luff / Signalsmith Audio (MIT)\n• TagLib (LGPL 2.1): biblioteca tag.dll, reemplazable. Código fuente: github.com/taglib/taglib (v2.0.2)\n• utfcpp (Boost Software License 1.0)\n• SQLite (dominio público)\n• Fuentes Orbitron y Rajdhani (SIL Open Font License 1.1)\nLos textos de las licencias están en la carpeta \"licenses\" del programa."
+"about.creditsBody" = "KB - MUSIQUERO DJ usa:\n• JUCE (licencia comercial de JUCE)\n• r8brain-free-src © Aleksey Vaneev (MIT)\n• Signalsmith Stretch y Linear © Geraint Luff / Signalsmith Audio (MIT)\n• TagLib (LGPL 2.1): biblioteca tag.dll, reemplazable. Código fuente: github.com/taglib/taglib (v2.0.2)\n• utfcpp (Boost Software License 1.0)\n• Oboe © Google (Apache 2.0, versión Android)\n• SQLite (dominio público)\n• Fuentes Orbitron y Rajdhani (SIL Open Font License 1.1)\nLos textos de las licencias están en la carpeta \"licenses\" del programa."
 "menu.help.manual" = "Manual de usuario"
 "menu.help.credits" = "Créditos y licencias"
 "menu.help.license" = "Licencia..."

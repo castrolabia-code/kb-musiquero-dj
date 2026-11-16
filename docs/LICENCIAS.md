@@ -23,6 +23,10 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 | **SQLite** | 3.49.2 | Base de datos de la biblioteca | Dominio público | ✅ | Sin obligaciones. Amalgamación incluida en `third_party/sqlite` (obtenida del paquete npm `better-sqlite3` 11.10.0, que trae la amalgamación oficial con un cambio cosmético: `30.0*86400.0` → `2592000.0`, el mismo valor). sqlite.org no es accesible desde el entorno de desarrollo. |
 | **Inno Setup** | 6 (en el CI) | Instalador de Windows | Licencia de Inno Setup (permite uso comercial) | ✅ | Solo herramienta de build; no se distribuye código suyo dentro del programa. |
 | **Catch2** | 3.16.1 | Pruebas unitarias | BSL-1.0 | ✅ | Solo se usa en desarrollo; no se distribuye con el producto. |
+| **Oboe** (Google) | la incluida en JUCE 8.0.15 | Audio de baja latencia en Android (AAudio / OpenSL ES) | Apache-2.0 | ✅ | Va dentro de la app de Android. Incluir el aviso de Apache-2.0 en "Créditos" de la versión Android. |
+| **Android NDK MediaCodec** | (sistema operativo) | Decodificar M4A/AAC en Android | Componente de Android | ✅ | No se redistribuye nada: se usan los decodificadores del teléfono/tablet. |
+| Clases Java de JUCE (`android/juce-java`) | 8.0.15 | Arranque de JUCE en Android | Misma licencia que JUCE | ⚠️ | Cubiertas por la licencia de JUCE (ver arriba). Se actualizan con `tools/android/sync_juce_java.sh`. |
+| **Gradle Wrapper** / **Android Gradle Plugin** | 8.10.2 / 8.7.3 | Compilar el APK | Apache-2.0 | ✅ | Solo herramientas de compilación; no van dentro de la app. |
 
 ## Opcionales (desactivadas por defecto)
 

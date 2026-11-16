@@ -2,7 +2,7 @@
 ;  Instalador de KB - MUSIQUERO DJ · by Castro Labs (Inno Setup 6)
 ;
 ;  Lo compila el CI (GitHub Actions) después de "cmake --install ... --component app":
-;    iscc /DAppVersion=0.12.2 /DDistDir="dist\KB Musiquero DJ" installer\KBMusiqueroDJ.iss
+;    iscc /DAppVersion=0.13.0 /DDistDir="dist\KB Musiquero DJ" installer\KBMusiqueroDJ.iss
 ;
 ;  Firma de código (preparada): con un certificado OV/EV, definir en Inno Setup un
 ;  "Sign Tool" llamado "kbsign" (signtool sign /fd sha256 /tr <servidor TSA> /td sha256 /f cert.pfx /p ... $f)

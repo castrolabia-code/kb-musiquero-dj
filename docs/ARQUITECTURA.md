@@ -288,3 +288,30 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 - `KB Generador de Licencias` (ventana, `tools/license_generator`): emite y verifica claves con la
   clave privada, guarda el historial en `Documentos/KB Licencias/licencias_emitidas.csv`.
   Usa `kb::licensing` (misma firma/verificación que el programa). No se distribuye a clientes.
+
+## 10. Android (Fase 10)
+
+- **Compilación:** JUCE 8 no genera apps de Android con CMake, así que hay un proyecto Gradle propio
+  en `android/` que llama al **mismo `CMakeLists.txt`** (`externalNativeBuild`). En Android el target
+  `KBMusiqueroDJ` es una librería compartida `libjuce_jni.so` (mismas fuentes que en escritorio).
+  ABIs: arm64-v8a, armeabi-v7a y x86_64 (emulador). minSdk 26 (AAudio), targetSdk 35.
+- **Java:** las clases de JUCE necesarias están en `android/juce-java` (copiadas de JUCE con
+  `tools/android/sync_juce_java.sh`). La pantalla es propia: `KbActivity` (pantalla completa,
+  la pantalla no se apaga). `com.rmsl.juce.JuceApp` carga `libjuce_jni.so` e inicia JUCE.
+- **Audio:** Oboe (AAudio/OpenSL) vía JUCE. **M4A/AAC:** `engine/formats/AndroidMediaReader`
+  (NDK `AMediaExtractor` + `AMediaCodec`), igual que Media Foundation en Windows.
+- **Archivos:** `app/PlatformFiles`: el selector de Android devuelve `content://`; se copian a
+  `Importadas/` en segundo plano. "Escanear la música del dispositivo" pide `READ_MEDIA_AUDIO`
+  y recorre Music, Download, Documents y tarjetas SD. La primera vez se hace solo.
+- **Licencia:** la versión de Android no pide clave (decisión del dueño del producto).
+- **Interfaz táctil:**
+  - Tablet (alto ≥ 560 pt): mismo layout que en escritorio.
+  - Teléfono (alto < 560 pt): vista compacta. El controlador va en un visor a su proporción
+    natural y muestra "deck 1 + mixer" o "mixer + deck 2" (botón lateral). BIBLIOTECA cambia a
+    waveforms chicas + FX + lista.
+  - Mantener apretado ~0,5 s sobre botones/pads o la biblioteca = click derecho (menús, MIDI
+    Learn). En platos, faders y perillas no (dejar el dedo quieto es parte de tocar).
+- **CI:** `.github/workflows/android.yml` compila el APK (artefacto) y lo prueba en emuladores de
+  teléfono y tablet (`tools/android/emulator_smoke_test.sh`); las capturas salen en el registro.
+- **Desarrollo en PC:** `KB_DEV_SIZE=914x411` simula un teléfono y `KB_DEV_LONGPRESS=1` activa
+  el "mantener apretado" con el mouse.

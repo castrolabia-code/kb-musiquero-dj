@@ -3,6 +3,23 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.13.0] — Fase 10: Android (tablets y teléfonos)
+
+### Agregado
+- **App de Android** (APK): el mismo motor y la misma interfaz, compilados con el mismo CMake
+  desde un proyecto Gradle propio (`android/`). arm64, armv7 y x86_64; Android 8.0 o superior.
+- Audio de baja latencia con Oboe/AAudio. M4A/AAC con los decodificadores del sistema (MediaCodec).
+- Música: escaneo de la música del dispositivo (con permiso) la primera vez y desde "+"; agregar
+  canciones con el selector de Android (se importan a la app).
+- **Teléfonos:** vista compacta (deck + mixer, botón para cambiar de deck; BIBLIOTECA para la lista).
+- **Táctil:** mantener apretado = menú (pads, canciones, playlists, MIDI Learn).
+- Pantalla completa y la pantalla no se apaga mientras la app está abierta.
+- Sin clave de licencia en Android.
+- CI: APK como artefacto y prueba automática en emuladores de teléfono y tablet.
+
+### Cambiado
+- El panel de FX se angosta en pantallas chicas.
+
 ## [0.12.2] — Generador de licencias con ventana
 
 ### Agregado
