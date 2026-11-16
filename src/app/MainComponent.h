@@ -11,6 +11,7 @@
 #include <juce_opengl/juce_opengl.h>
 
 #include "app/AppSettings.h"
+#include "app/Keymap.h"
 #include "app/MidiController.h"
 #include "library/ArtworkCache.h"
 #include "library/TagReader.h"
@@ -48,6 +49,11 @@ namespace kb::app
         bool isLargeLibrary() const noexcept { return largeLibrary; }
         bool keyPressed (const juce::KeyPress& key) override;
         void mouseDown (const juce::MouseEvent& e) override;
+        bool keyStateChanged (bool isKeyDown) override;
+
+        /** Atajos de teclado (Fase 9). */
+        Keymap& getKeymap() noexcept { return keymap; }
+        void keymapChanged() { settings.setKeymap (keymap.toJson()); }
 
         /** Controladores MIDI (Fase 8). */
         MidiController& getMidi() noexcept { return *midiController; }
@@ -103,6 +109,8 @@ namespace kb::app
         bool  largeLibrary = false;
         // MIDI (Fase 8)
         std::unique_ptr<MidiController> midiController;
+        Keymap keymap;
+        std::vector<std::pair<int, juce::String>> heldKeys;   // tecla apretada -> función (para soltar)
         juce::String midiStatus;
         int midiStatusTicks = 0;
         void handleMidi (const midi::Event& e);

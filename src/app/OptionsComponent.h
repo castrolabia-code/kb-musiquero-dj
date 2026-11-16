@@ -16,15 +16,16 @@ namespace kb::app
     class AppSettings;
     class AudioDeviceService;
     class MidiController;
+    class Keymap;
 
     class OptionsComponent final : public juce::Component,
                                    private I18n::Listener
     {
     public:
-        enum Tab { audioTab = 0, mixerTab = 1, generalTab = 2, midiTab = 3 };
+        enum Tab { audioTab = 0, mixerTab = 1, generalTab = 2, midiTab = 3, keyboardTab = 4 };
 
         OptionsComponent (AudioDeviceService& audio, AppSettings& settings, engine::AudioEngine& engine,
-                          MidiController* midi, Tab initialTab);
+                          MidiController* midi, Keymap* keymap, std::function<void()> keymapChanged, Tab initialTab);
         ~OptionsComponent() override;
 
         void showTab (Tab tab);
@@ -38,6 +39,7 @@ namespace kb::app
         class MixerPage;
         class GeneralPage;
         class MidiPage;
+        class KeyboardPage;
 
         void languageChanged() override;
 
@@ -46,6 +48,7 @@ namespace kb::app
         MixerPage*   mixerPage   = nullptr;   // propiedad de 'tabs'
         GeneralPage* generalPage = nullptr;   // propiedad de 'tabs'
         MidiPage*    midiPage    = nullptr;   // propiedad de 'tabs' (si hay MIDI)
+        KeyboardPage* keyboardPage = nullptr; // propiedad de 'tabs'
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OptionsComponent)
     };

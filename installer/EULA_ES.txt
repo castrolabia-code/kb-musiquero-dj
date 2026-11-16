@@ -1,0 +1,28 @@
+CONTRATO DE LICENCIA DE USUARIO FINAL (EULA)
+KB - MUSIQUERO DJ · by Castro Labs
+
+[BORRADOR — debe ser revisado por un abogado antes de la venta]
+
+IMPORTANTE: lea este contrato antes de instalar o usar el software. Al instalarlo o usarlo, usted acepta estos términos. Si no los acepta, no instale ni use el software.
+
+1. LICENCIA. Castro Labs ("el Licenciante") le otorga una licencia personal, no exclusiva e intransferible para instalar y usar KB - MUSIQUERO DJ ("el Software") según la clave de producto adquirida, en las condiciones de este contrato. El Software se licencia, no se vende.
+
+2. CLAVE DE PRODUCTO. El uso requiere una clave de producto válida emitida por el Licenciante. La clave es personal; no puede compartirse, publicarse ni revenderse. Una clave puede estar asociada a un equipo determinado.
+
+3. RESTRICCIONES. No está permitido: (a) copiar el Software salvo para respaldo; (b) descompilar, desensamblar o aplicar ingeniería inversa, salvo lo que la ley aplicable permita expresamente; (c) alquilar, prestar, sublicenciar o distribuir el Software; (d) eludir la verificación de licencia; (e) quitar avisos de propiedad.
+
+4. COMPONENTES DE TERCEROS. El Software incluye componentes de terceros con sus propias licencias (por ejemplo TagLib bajo LGPL 2.1, SQLite de dominio público, y otros listados en "Ayuda > Créditos y licencias" y en la carpeta "licenses"). Esas licencias prevalecen sobre este contrato respecto de dichos componentes; en particular, usted puede reemplazar la biblioteca tag.dll conforme a la LGPL.
+
+5. MÚSICA Y CONTENIDOS. El Software es una herramienta para reproducir y mezclar archivos de audio. Usted es el único responsable de contar con los derechos y licencias necesarios sobre la música que use, incluidas las licencias de comunicación pública para presentaciones en vivo.
+
+6. PROPIEDAD. El Software, su diseño, marcas ("KB - MUSIQUERO DJ", "Castro Labs") y demás derechos de propiedad intelectual pertenecen al Licenciante.
+
+7. GARANTÍA LIMITADA. El Software se entrega "tal cual". En la máxima medida permitida por la ley, el Licenciante no garantiza que funcione sin interrupciones ni errores, ni su adecuación a un fin particular.
+
+8. LIMITACIÓN DE RESPONSABILIDAD. En la máxima medida permitida por la ley, el Licenciante no será responsable por daños indirectos, lucro cesante, pérdida de datos o interrupciones de presentaciones derivados del uso o imposibilidad de uso del Software. La responsabilidad total no excederá el precio pagado por la licencia.
+
+9. TERMINACIÓN. Esta licencia termina automáticamente si usted incumple sus términos. Al terminar, debe dejar de usar el Software y desinstalarlo.
+
+10. LEY APLICABLE. Este contrato se rige por las leyes de [PAÍS / JURISDICCIÓN A COMPLETAR].
+
+Castro Labs

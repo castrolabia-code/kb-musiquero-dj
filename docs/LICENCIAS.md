@@ -21,6 +21,7 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 | **TagLib** | 2.0.2 | Tags (título, artista, género, BPM, key) y carátulas de MP3, FLAC, OGG, M4A, WAV, AIFF | LGPL-2.1 (o MPL-1.1) | ⚠️ | Se compila como **biblioteca dinámica** (`tag.dll` / `libtag.so`) al lado del ejecutable: el usuario puede reemplazarla (requisito LGPL). Se incluye el texto de la licencia (`licenses/TagLib-LGPL-2.1.txt`) y se debe **ofrecer el código fuente de TagLib** (es el de github.com/taglib/taglib, tag v2.0.2, sin modificaciones): mencionarlo en "Créditos" y en el instalador (Fase 9). |
 | **utfcpp** | (submódulo de TagLib) | UTF-8 dentro de TagLib | Boost Software License 1.0 | ✅ | Texto en `licenses/utfcpp-BSL-1.0.txt`. |
 | **SQLite** | 3.49.2 | Base de datos de la biblioteca | Dominio público | ✅ | Sin obligaciones. Amalgamación incluida en `third_party/sqlite` (obtenida del paquete npm `better-sqlite3` 11.10.0, que trae la amalgamación oficial con un cambio cosmético: `30.0*86400.0` → `2592000.0`, el mismo valor). sqlite.org no es accesible desde el entorno de desarrollo. |
+| **Inno Setup** | 6 (en el CI) | Instalador de Windows | Licencia de Inno Setup (permite uso comercial) | ✅ | Solo herramienta de build; no se distribuye código suyo dentro del programa. |
 | **Catch2** | 3.16.1 | Pruebas unitarias | BSL-1.0 | ✅ | Solo se usa en desarrollo; no se distribuye con el producto. |
 
 ## Opcionales (desactivadas por defecto)
@@ -33,7 +34,6 @@ Leyenda: ✅ compatible · ⚠️ compatible con condiciones · ⏳ planificada 
 
 | Dependencia | Fase | Uso | Licencia | Estado | Notas |
 |---|---|---|---|---|---|
-| Inno Setup | 9 | Instalador | Licencia de Inno Setup (permite uso comercial) | ✅ ⏳ | Solo herramienta de build. |
 
 ## Descartadas
 

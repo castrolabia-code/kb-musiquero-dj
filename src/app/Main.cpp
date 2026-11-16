@@ -6,7 +6,10 @@
 
 #include "app/AnalysisCache.h"
 #include "app/AppSettings.h"
+#include "app/ActivationWindow.h"
 #include "app/AudioDeviceService.h"
+#include "app/CrashReporter.h"
+#include "app/LicenseState.h"
 #include "app/I18n.h"
 #include "app/MainWindow.h"
 #include "app/PlayerController.h"
@@ -29,6 +32,7 @@ namespace kb::app
         {
             settings = std::make_unique<AppSettings>();
             initialiseLogger();
+            crash::install (AppSettings::getAppDataDirectory().getChildFile ("logs"));
 
             // Idioma: el guardado, o el del sistema la primera vez.
             const auto language = settings->getLanguage().value_or (I18n::detectSystemLanguage());
@@ -38,6 +42,30 @@ namespace kb::app
             lookAndFeel = std::make_unique<ui::KbLookAndFeel>();
             juce::LookAndFeel::setDefaultLookAndFeel (lookAndFeel.get());
 
+            // Licencia (Fase 9): sin clave válida el programa no arranca.
+            const auto key = settings->getLicenseKey();
+            const auto result = licensing::verifyLicense (key, licensing::productPublicKey(), licensing::machineId());
+            if (result.isValid())
+            {
+                setLicense (result);
+                startApplication();
+                return;
+            }
+            juce::Logger::writeToLog ("Licencia: " + licensing::statusKey (result.status));
+            activation = std::make_unique<ActivationWindow> (key, result.status,
+                [this] (const juce::String& validKey, const licensing::Result& r)
+                {
+                    settings->setLicenseKey (validKey);
+                    settings->flush();
+                    setLicense (r);
+                    juce::Logger::writeToLog ("Licencia activada: " + r.info.id);
+                    juce::MessageManager::callAsync ([this] { activation.reset(); startApplication(); });
+                },
+                [this] { quit(); });
+        }
+
+        void startApplication()
+        {
             engine = std::make_unique<engine::AudioEngine>();
             engine->setCrossfaderCurve ((engine::CrossfaderCurve) settings->getCrossfaderCurve());
             engine->setCrossfaderReverse (settings->getCrossfaderReverse());
@@ -77,10 +105,28 @@ namespace kb::app
                                                       window->showOptions (0);
                                               });
             }
+
+            // ¿Se cerró de golpe la vez anterior? Ofrecer el informe.
+            const auto logs = AppSettings::getAppDataDirectory().getChildFile ("logs");
+            const auto reports = crash::newReports (logs, settings->getLastCrashSeen());
+            if (! reports.isEmpty())
+            {
+                settings->setLastCrashSeen (juce::Time::currentTimeMillis());
+                const auto report = reports.getLast();
+                juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+                                                  .withIconType (juce::MessageBoxIconType::WarningIcon)
+                                                  .withTitle (tr ("crash.title"))
+                                                  .withMessage (tr ("crash.body", { { "file", report.getFileName() } }))
+                                                  .withButton (tr ("crash.openFolder"))
+                                                  .withButton (tr ("common.ok"))
+                                                  .withAssociatedComponent (mainWindow.get()),
+                                              [report] (int r) { if (r == 1) report.revealToUser(); });
+            }
         }
 
         void shutdown() override
         {
+            activation.reset();
             mainWindow.reset();
             player.reset();     // cancela cargas y análisis en curso
             library.reset();    // guarda la lista
@@ -145,6 +191,7 @@ namespace kb::app
         std::unique_ptr<engine::AudioEngine>  engine;
         std::unique_ptr<AudioDeviceService>   audio;
         std::unique_ptr<library::LibraryDatabase> database;
+        std::unique_ptr<ActivationWindow> activation;
         std::unique_ptr<AnalysisCache>        analysisCache;
         std::unique_ptr<TrackLibrary>         library;
         std::unique_ptr<PlayerController>     player;

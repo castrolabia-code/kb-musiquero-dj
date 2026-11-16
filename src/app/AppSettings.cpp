@@ -17,6 +17,9 @@ namespace kb::app
         static constexpr const char* fxState      = "fx.units";
         static constexpr const char* libColumns   = "library.columns";
         static constexpr const char* largeLibrary = "ui.largeLibrary";
+        static constexpr const char* licenseKey   = "license.key";
+        static constexpr const char* lastCrash    = "app.lastCrashSeen";
+        static constexpr const char* keymap       = "ui.keymap";
         static constexpr const char* useOpenGL    = "ui.openGL";
     }
 
@@ -124,6 +127,13 @@ namespace kb::app
     bool AppSettings::getUseOpenGL() const      { return file().getBoolValue (keys::useOpenGL, false); }
    #endif
     void AppSettings::setUseOpenGL (bool on)    { file().setValue (keys::useOpenGL, on); }
+
+    juce::String AppSettings::getLicenseKey() const        { return file().getValue (keys::licenseKey, {}); }
+    void AppSettings::setLicenseKey (const juce::String& k) { file().setValue (keys::licenseKey, k); }
+    juce::int64 AppSettings::getLastCrashSeen() const      { return file().getValue (keys::lastCrash, "0").getLargeIntValue(); }
+    void AppSettings::setLastCrashSeen (juce::int64 ms)    { file().setValue (keys::lastCrash, juce::String (ms)); }
+    juce::String AppSettings::getKeymap() const            { return file().getValue (keys::keymap, {}); }
+    void AppSettings::setKeymap (const juce::String& j)    { file().setValue (keys::keymap, j); }
 
     bool AppSettings::flush()
     {

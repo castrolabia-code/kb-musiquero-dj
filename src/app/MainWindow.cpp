@@ -1,5 +1,7 @@
 #include "app/MainWindow.h"
 
+#include "app/LicenseState.h"
+
 #include "ui/KbLookAndFeel.h"
 
 #include "app/AppSettings.h"
@@ -23,9 +25,12 @@ namespace kb::app
             idOptionsMixer,
             idOptionsGeneral,
             idOptionsMidi,
+            idOptionsKeys,
             idLanguageBase = 100,   // + índice del idioma
             idAbout = 200,
-            idViewLargeLibrary = 300
+            idViewLargeLibrary = 300,
+            idManual = 201,
+            idCredits = 202
         };
     }
 
@@ -134,6 +139,7 @@ namespace kb::app
                 menu.addItem (idOptionsMixer, tr ("menu.options.mixer"));
                 menu.addItem (idOptionsGeneral, tr ("menu.options.general"));
                 menu.addItem (idOptionsMidi, tr ("menu.options.midi"));
+                menu.addItem (idOptionsKeys, tr ("menu.options.keys"));
                 menu.addSeparator();
 
                 juce::PopupMenu languages;
@@ -149,6 +155,9 @@ namespace kb::app
             }
 
             case 3:
+                menu.addItem (idManual, tr ("menu.help.manual"));
+                menu.addItem (idCredits, tr ("menu.help.credits"));
+                menu.addSeparator();
                 menu.addItem (idAbout, tr ("menu.help.about"));
                 break;
 
@@ -174,6 +183,27 @@ namespace kb::app
             if (mainComponent != nullptr)
                 mainComponent->showAddToLibraryMenu();
         }
+        else if (menuItemID == idManual)
+        {
+            // Manual en HTML al lado del programa (instalado), o el de la carpeta docs (desarrollo).
+            const auto lang = I18n::toCode (I18n::getInstance().getLanguage());
+            const auto exeDir = juce::File::getSpecialLocation (juce::File::currentExecutableFile).getParentDirectory();
+            auto manual = exeDir.getChildFile ("manual").getChildFile ("manual_" + lang + ".html");
+            if (! manual.existsAsFile())
+                manual = exeDir.getChildFile ("manual").getChildFile ("manual_es.html");
+            if (manual.existsAsFile())
+                juce::URL (manual).launchInDefaultBrowser();
+        }
+        else if (menuItemID == idCredits)
+        {
+            juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+                                              .withIconType (juce::MessageBoxIconType::InfoIcon)
+                                              .withTitle (tr ("about.credits"))
+                                              .withMessage (tr ("about.creditsBody"))
+                                              .withButton (tr ("common.ok"))
+                                              .withAssociatedComponent (this),
+                                          nullptr);
+        }
         else if (menuItemID == idViewLargeLibrary)
         {
             if (mainComponent != nullptr)
@@ -186,6 +216,10 @@ namespace kb::app
         else if (menuItemID == idOptionsMixer)
         {
             showOptions (OptionsComponent::mixerTab);
+        }
+        else if (menuItemID == idOptionsKeys)
+        {
+            showOptions (OptionsComponent::keyboardTab);
         }
         else if (menuItemID == idOptionsMidi)
         {
@@ -228,6 +262,9 @@ namespace kb::app
         juce::DialogWindow::LaunchOptions o;
         o.content.setOwned (new OptionsComponent (audio, settings, player.getEngine(),
                                                      mainComponent != nullptr ? &mainComponent->getMidi() : nullptr,
+                                                     mainComponent != nullptr ? &mainComponent->getKeymap() : nullptr,
+                                                     [mc = juce::Component::SafePointer<MainComponent> (mainComponent)]
+                                                     { if (mc != nullptr) mc->keymapChanged(); },
                                                      (OptionsComponent::Tab) tab));
         o.dialogTitle                  = OptionsComponent::getWindowTitle();
         o.dialogBackgroundColour       = ui::palette::panelDark;
@@ -243,9 +280,13 @@ namespace kb::app
 
     void MainWindow::showAbout()
     {
-        const auto body = tr ("about.body", {
+        auto body = tr ("about.body", {
             { "version", juce::JUCEApplication::getInstance()->getApplicationVersion() },
             { "year",    juce::String (juce::Time::getCurrentTime().getYear()) } });
+        const auto& lic = currentLicense();
+        if (lic.isValid())
+            body << "\n\n" << tr ("license.licensedTo", { { "name", lic.info.name }, { "email", lic.info.email },
+                                                           { "edition", lic.info.edition }, { "id", lic.info.id } });
 
         juce::AlertWindow::showAsync (juce::MessageBoxOptions()
                                           .withIconType (juce::MessageBoxIconType::InfoIcon)

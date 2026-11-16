@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KB - MUSIQUERO DJ · User manual</title><style>
+:root{--y:#F5D90A;--k:#121417;--p:#1E2126;--c:#19E3F5;--o:#FF8A00;--t:#E8EAED;--s:#9AA0A6}
+body{margin:0;background:var(--k);color:var(--t);font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif}
+header{background:var(--y);color:#111;padding:28px 24px}header h1{margin:0;font-size:32px;letter-spacing:1px}header p{margin:4px 0 0;font-weight:600}
+main{max-width:960px;margin:0 auto;padding:16px 24px 64px}h2{color:var(--y);border-bottom:2px solid var(--p);padding-bottom:6px;margin-top:40px}
+h3{color:var(--c);margin-top:24px}code,kbd{background:var(--p);padding:2px 6px;border-radius:4px;color:var(--o)}
+table{border-collapse:collapse;width:100%;margin:12px 0}td,th{border:1px solid #2b2f36;padding:6px 10px;text-align:left;vertical-align:top}th{background:var(--p);color:var(--c)}
+.note{background:var(--p);border-left:4px solid var(--o);padding:10px 14px;border-radius:4px}nav a{color:var(--c);margin-right:14px}
+</style></head><body><header><h1>KB MUSIQUERO DJ</h1><p>by Castro Labs · User manual</p></header><main><h2>1. Getting started</h2>
+<ol><li><b>Activation:</b> the first time, paste your product key (it starts with <code>KBDJ1-</code>) and click <b>ACTIVATE</b>. If your license is bound to a PC, send Castro Labs the <b>PC ID</b> shown in that window.</li>
+<li><b>Audio:</b> in <b>Options &gt; Audio</b> choose your sound card. For low latency use <b>exclusive WASAPI</b> (or ASIO if available) with a 128-256 sample buffer.</li>
+<li><b>Outputs:</b> in <b>Options &gt; Mixer and outputs</b> choose where the master goes (outputs 1-2 or 3-4) and the headphones. With a 2-output card, use <b>SPLIT</b>: master on the left and headphones on the right (mono).</li>
+<li><b>Music:</b> drag songs or folders from Explorer onto the library (bottom), or click the cyan <b>+</b>. Tags and artwork are read, and BPM and key are analysed in the background.</li></ol>
+<h2>2. Decks</h2>
+<p>Load a song by dragging it onto a deck, double-clicking it in the list (goes to the free deck) or right-click &gt; Load on Deck 1/2.</p>
+<table><tr><th>Control</th><th>What it does</th></tr>
+<tr><td>PLAY / PAUSE</td><td>Play / pause.</td></tr>
+<tr><td>CUE</td><td>CDJ style: while playing returns to the cue point and pauses; paused sets the cue; held on the cue, previews.</td></tr>
+<tr><td>SYNC</td><td>Matches tempo and beats with the other deck and keeps them in phase.</td></tr>
+<tr><td>TEMPO fader</td><td>Changes speed (down = faster). The ±8% button switches to ±16% and ±50%.</td></tr>
+<tr><td>KEY LOCK / KEY - / KEY +</td><td>Keeps the pitch when changing tempo / shifts the key in semitones (double-click: original).</td></tr>
+<tr><td>Platter</td><td>With <b>VINYL</b> on, grab it with the mouse to scratch. Without VINYL, turn it to speed up or slow down briefly (pitch bend). The mouse wheel also bends.</td></tr>
+<tr><td>SLIP</td><td>After a loop, scratch or reverse, the song continues where it would have been.</td></tr></table>
+<p>The artwork spins in the middle of the platter and its orange ring pulses on every beat.</p>
+<h2>3. Pads</h2>
+<table><tr><th>Mode</th><th>Pads</th><th>With SHIFT</th></tr>
+<tr><td>HOT CUE</td><td>Cues 1-4: empty sets, set jumps</td><td>Cues 5-8 · SHIFT + pad deletes</td></tr>
+<tr><td>FX</td><td>BRAKE, SPIN, CENSOR, REVERSE</td><td>ROLL 1/8, 1/4, 1/2, 1 beat</td></tr>
+<tr><td>SAMPLER</td><td>Samples 1-4 (drop a file on a pad to load it)</td><td>Samples 5-8 · SHIFT + pad stops</td></tr>
+<tr><td>LOOP</td><td>Auto loops of 1, 2, 4, 8 beats</td><td>Manual loop: IN, OUT, ½, ×2</td></tr></table>
+<p>Right-click a pad for more options (delete cue, sample volume and mode, MIDI Learn). Hot cues are saved per song.</p>
+<h2>4. Mixer</h2>
+<p><b>GAIN</b>, <b>HIGH / MID / LOW</b> EQ (fully down: kill), <b>FILTER</b> (left low-pass, right high-pass), volume faders and <b>crossfader</b> (curve and reverse in Options). <b>MASTER</b> has a safety limiter (LIMIT light). Channel <b>CUE</b>: listen in headphones; <b>CUE MIX</b>: cue/master blend in the headphones; <b>PHONES</b>: headphone volume.</p>
+<h3>AUTO MIX</h3><p>Hands over smoothly to the other deck (starts it, syncs it, swaps the bass and moves the crossfader). The <b>MIX</b> knob sets the duration (2 to 60 s). Touching the crossfader cancels.</p>
+<h2>5. Effects</h2>
+<p>Two units (FX 1 and FX 2): effect, length in beats (BPM synced), parameter, WET and target <b>1 / 2 / M</b>. Effects: Echo, Delay, Reverb, Flanger, Phaser, Filter, Bitcrusher, Gater, Roll, Brake, Backspin and Noise. Echo, delay and reverb ring out when turned off.</p>
+<h2>6. Library</h2>
+<ul><li><b>All tracks</b>, <b>Preparation</b>, <b>History</b> (what played this session) and your <b>playlists</b> (create with the green +; double-click to rename; right-click to delete).</li>
+<li>Drag songs from the list onto a playlist or Preparation to add them.</li>
+<li><b>Search:</b> type parts of the title, artist, genre, BPM or key (Esc clears).</li>
+<li>Columns: click to sort, drag to resize, right-click the header to show/hide. Rating: click the stars.</li>
+<li>The Key column turns green when it matches what is playing.</li>
+<li><b>Large library</b> (LIBRARY button or <kbd>Ctrl+B</kbd>) shrinks the controller.</li></ul>
+<h2>7. MIDI controllers</h2>
+<p>Plug the controller via USB: it is detected automatically. To map: right-click any control &gt; <b>MIDI Learn</b> and move the physical control. Controller lights are handled automatically. <b>Options &gt; MIDI controllers</b> lets you view, remove, import and export mappings.</p>
+<h2>8. Keyboard shortcuts</h2>
+<table><tr><th>Key</th><th>Function</th></tr>
+<tr><td><kbd>Q</kbd> / <kbd>W</kbd></td><td>PLAY/PAUSE deck 1 / deck 2</td></tr>
+<tr><td><kbd>A</kbd> / <kbd>S</kbd></td><td>CUE deck 1 / deck 2 (hold = preview)</td></tr>
+<tr><td><kbd>Z</kbd> / <kbd>X</kbd></td><td>SYNC deck 1 / deck 2</td></tr>
+<tr><td><kbd>E</kbd> / <kbd>R</kbd></td><td>KEY LOCK deck 1 / deck 2</td></tr>
+<tr><td><kbd>1</kbd>-<kbd>4</kbd> / <kbd>7</kbd>-<kbd>0</kbd></td><td>Pads deck 1 / deck 2</td></tr>
+<tr><td><kbd>Ctrl+B</kbd></td><td>Large library</td></tr></table>
+<p>Change them in <b>Options &gt; Keyboard shortcuts</b>.</p>
+<h2>9. Troubleshooting</h2>
+<ul><li><b>Audio dropouts or clicks:</b> raise the buffer size in Options &gt; Audio, close other audio apps, use exclusive WASAPI.</li>
+<li><b>No headphones:</b> check output routing or enable SPLIT with a 2-output card.</li>
+<li><b>M4A does not load on Windows N:</b> install Microsoft's "Media Feature Pack".</li>
+<li><b>Display glitches:</b> turn off "Draw with the GPU" in Options &gt; Preferences.</li>
+<li><b>The program closed:</b> on the next start it offers the error report; send it to Castro Labs support.</li></ul>
+<p class="note">Your data (library, hot cues, playlists, MIDI mappings, license) lives in <code>%APPDATA%\Castro Labs\KB Musiquero DJ</code>. Uninstalling does not delete it.</p></main></body></html>

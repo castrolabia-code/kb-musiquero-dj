@@ -3,6 +3,19 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.12.0] — Fase 9: comercial (licencias, instalador, soporte)
+
+### Agregado
+- **Activación por clave de producto**: el programa no arranca sin una clave válida (decisión del usuario: sin prueba). Clave firmada (RSA 2048 + SHA-256), verificada sin internet; puede tener vencimiento o estar atada a una PC (la ventana muestra el "ID de esta PC" con botón para copiarlo). Validación online preparada.
+- **Herramienta de licencias** (`kb_license_tool`): genera el par de claves y emite claves para clientes. Ver `docs/LICENCIAS_VENTA.md`.
+- **Instalador de Windows** (Inno Setup) generado por el CI: EULA en español e inglés, ícono, accesos directos en el menú y el escritorio, manual, desinstalador (no borra los datos del usuario). Firma de código preparada.
+- **EULA** (borrador para revisión legal) en `installer/`.
+- **Informe de error**: si el programa se cierra de golpe, guarda un informe con la pila de llamadas; al volver a abrir avisa y ofrece abrir la carpeta para mandarlo a soporte.
+- **Atajos de teclado configurables**: Q/W PLAY-PAUSA, A/S CUE, Z/X SYNC, E/R KEY LOCK, 1-4 y 7-0 pads, Ctrl+B biblioteca grande. Se cambian en **Opciones > Atajos de teclado** (mantener la tecla = mantener el botón).
+- **Acerca de** muestra la licencia activa; **Ayuda > Créditos y licencias** lista los componentes de terceros (incluida la oferta del código de TagLib, LGPL).
+- **Manual de usuario** en español e inglés (Ayuda > Manual de usuario), instalado junto al programa.
+- Pruebas: licencias (válida, alterada, otra clave, basura, vencida, atada a PC, clave pública incluida) y atajos de teclado.
+
 ## [0.11.0] — Fase 8: MIDI
 
 ### Agregado

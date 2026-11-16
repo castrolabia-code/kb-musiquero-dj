@@ -65,6 +65,16 @@ namespace kb::app
         bool getUseOpenGL() const;
         void setUseOpenGL (bool on);
 
+        /** Clave de producto (Fase 9). */
+        juce::String getLicenseKey() const;
+        void setLicenseKey (const juce::String& key);
+        /** Último informe de error ya mostrado (ms). */
+        juce::int64 getLastCrashSeen() const;
+        void setLastCrashSeen (juce::int64 ms);
+        /** Atajos de teclado (JSON). */
+        juce::String getKeymap() const;
+        void setKeymap (const juce::String& json);
+
         /** Escribe a disco inmediatamente (por defecto se guarda con demora). */
         bool flush();
 

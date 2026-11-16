@@ -277,3 +277,7 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D50 | MIDI procesado en el hilo de mensajes (cola + AsyncUpdater) | El motor solo acepta un hilo de control; la latencia extra (~1 ms) no se nota. El hilo de audio nunca toca MIDI. |
 | D51 | Funciones MIDI identificadas por texto ("deck1.play") = componentID de cada control | El click derecho sobre cualquier control sabe qué asignar; el mapeo JSON es legible y estable entre versiones. |
 | D52 | LEDs por el mismo mensaje que el botón y solo cuando cambian | Funciona con la mayoría de los controladores sin perfiles; no satura el puerto MIDI. |
+| D53 | Licencias RSA 2048 + SHA-256 verificadas sin internet; sin modo de prueba | Decisión del usuario: solo con clave. La clave pública va en el programa; la privada la guarda Castro Labs (fuera del repositorio). Validación online preparada. |
+| D54 | Atajos de teclado = mismas funciones que el MIDI | Un solo despacho (handleMidi) para mouse, MIDI y teclado; mantener la tecla = mantener el botón. |
+| D55 | Informe de error con la pila de llamadas al cerrarse de golpe | Se ofrece al volver a abrir; envío automático preparado (supportEmail()). |
+| D56 | Instalador Inno Setup generado en el CI; firma de código preparada | El usuario baja un instalador listo; con un certificado OV/EV se activa SignTool. Desinstalar no borra los datos del usuario. |

@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.25)
 # La versión del producto vive SOLO acá. La app, el título de la ventana y
 # (en la Fase 9) el instalador la leen desde este valor.
 project(KBMusiqueroDJ
-    VERSION 0.11.0
+    VERSION 0.12.0
     DESCRIPTION "KB - MUSIQUERO DJ by Castro Labs"
     LANGUAGES C CXX)
 
@@ -38,6 +38,7 @@ add_subdirectory(src/engine)     # motor de audio: SIN dependencias de UI
 add_subdirectory(src/analysis)   # BPM, grilla (y luego Key, waveform): SIN UI
 add_subdirectory(src/library)    # biblioteca: tags, carátulas, SQLite (Fase 6)
 add_subdirectory(src/midi)       # MIDI: asignaciones, learn, LEDs (Fase 8)
+add_subdirectory(src/licensing)  # licencias (Fase 9)
 add_subdirectory(src/app)        # aplicación de escritorio
 
 # --- Pruebas ------------------------------------------------------------------

@@ -1,0 +1,70 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KB - MUSIQUERO DJ · Manual de usuario</title><style>
+:root{--y:#F5D90A;--k:#121417;--p:#1E2126;--c:#19E3F5;--o:#FF8A00;--t:#E8EAED;--s:#9AA0A6}
+body{margin:0;background:var(--k);color:var(--t);font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif}
+header{background:var(--y);color:#111;padding:28px 24px}header h1{margin:0;font-size:32px;letter-spacing:1px}header p{margin:4px 0 0;font-weight:600}
+main{max-width:960px;margin:0 auto;padding:16px 24px 64px}h2{color:var(--y);border-bottom:2px solid var(--p);padding-bottom:6px;margin-top:40px}
+h3{color:var(--c);margin-top:24px}code,kbd{background:var(--p);padding:2px 6px;border-radius:4px;color:var(--o)}
+table{border-collapse:collapse;width:100%;margin:12px 0}td,th{border:1px solid #2b2f36;padding:6px 10px;text-align:left;vertical-align:top}th{background:var(--p);color:var(--c)}
+.note{background:var(--p);border-left:4px solid var(--o);padding:10px 14px;border-radius:4px}nav a{color:var(--c);margin-right:14px}
+</style></head><body><header><h1>KB MUSIQUERO DJ</h1><p>by Castro Labs · Manual de usuario</p></header><main><h2 id="inicio">1. Primeros pasos</h2>
+<ol><li><b>Activación:</b> la primera vez, pegá tu clave de producto (empieza con <code>KBDJ1-</code>) y tocá <b>ACTIVAR</b>. Si tu licencia está atada a una PC, mandá a Castro Labs el <b>ID de esta PC</b> que aparece en esa ventana.</li>
+<li><b>Audio:</b> en <b>Opciones &gt; Audio</b> elegí la placa de sonido. Para baja latencia usá <b>WASAPI exclusivo</b> (o ASIO si está disponible) con un buffer de 128-256 muestras.</li>
+<li><b>Salidas:</b> en <b>Opciones &gt; Mixer y salidas</b> elegí dónde va el master (salidas 1-2 o 3-4) y los auriculares. Con una placa de 2 salidas, usá <b>SPLIT</b>: master a la izquierda y auriculares a la derecha (en mono).</li>
+<li><b>Música:</b> arrastrá canciones o carpetas desde el Explorador a la biblioteca (abajo), o tocá el <b>+</b> celeste. Se leen los tags y la carátula, y se analizan BPM y tonalidad en segundo plano.</li></ol>
+
+<h2 id="decks">2. Decks</h2>
+<p>Cargá una canción arrastrándola a un deck, con doble click en la lista (va al deck libre) o con click derecho &gt; Cargar en Deck 1/2.</p>
+<table><tr><th>Control</th><th>Qué hace</th></tr>
+<tr><td>PLAY / PAUSA</td><td>Reproduce / pausa.</td></tr>
+<tr><td>CUE</td><td>Como un CDJ: sonando vuelve al punto de cue y pausa; en pausa fija el cue; mantenido sobre el cue, preescucha.</td></tr>
+<tr><td>SYNC</td><td>Iguala tempo y golpes con la otra bandeja y los mantiene en fase.</td></tr>
+<tr><td>Fader TEMPO</td><td>Cambia la velocidad (abajo = más rápido). El botón ±8% cambia el rango a ±16% y ±50%.</td></tr>
+<tr><td>KEY LOCK / KEY - / KEY +</td><td>Mantiene el tono al cambiar el tempo / sube o baja la tonalidad en semitonos (doble click: original).</td></tr>
+<tr><td>Plato</td><td>Con <b>VINYL</b> encendido, agarralo con el mouse para hacer scratch. Sin VINYL, giralo para acelerar o frenar un momento (pitch bend). La rueda del mouse también hace pitch bend.</td></tr>
+<tr><td>SLIP</td><td>Al terminar un loop, scratch o reversa, la canción sigue donde habría estado.</td></tr></table>
+<p>La carátula gira en el centro del plato y su aro naranja late con cada beat.</p>
+
+<h2 id="pads">3. Pads</h2>
+<table><tr><th>Modo</th><th>Pads</th><th>Con SHIFT</th></tr>
+<tr><td>HOT CUE</td><td>Cues 1-4: vacío graba, grabado salta</td><td>Cues 5-8 · SHIFT + pad borra</td></tr>
+<tr><td>FX</td><td>FRENO, SPIN, CENSOR, REVERSA</td><td>ROLL 1/8, 1/4, 1/2, 1 beat</td></tr>
+<tr><td>SAMPLER</td><td>Samples 1-4 (soltá un archivo en el pad para cargarlo)</td><td>Samples 5-8 · SHIFT + pad detiene</td></tr>
+<tr><td>LOOP</td><td>Auto-loops de 1, 2, 4, 8 beats</td><td>Loop manual: IN, OUT, ½, ×2</td></tr></table>
+<p>Click derecho en un pad: más opciones (borrar cue, volumen y modo del sample, MIDI Learn). Los hot cues se guardan por canción.</p>
+
+<h2 id="mixer">4. Mixer</h2>
+<p><b>GAIN</b>, ecualizador <b>HIGH / MID / LOW</b> (al mínimo: corte total), <b>FILTER</b> (izquierda pasa-bajos, derecha pasa-altos), faders de volumen y <b>crossfader</b> (curva e inversión en Opciones). <b>MASTER</b> tiene un limitador de seguridad (luz LIMIT). <b>CUE</b> de cada canal: escuchar en auriculares; <b>CUE MIX</b>: mezcla entre cue y master en los auriculares; <b>PHONES</b>: volumen de auriculares.</p>
+<h3>AUTO MIX</h3><p>Pasa sola y pareja a la otra bandeja (la arranca, la sincroniza, cambia los graves y mueve el crossfader). La perilla <b>MIX</b> elige la duración (2 a 60 s). Tocar el crossfader cancela.</p>
+
+<h2 id="fx">5. Efectos</h2>
+<p>Dos unidades (FX 1 y FX 2): efecto, duración en beats (sincronizada al BPM), parámetro, WET (cuánto efecto) y destino <b>1 / 2 / M</b> (deck 1, deck 2 o master). Efectos: Eco, Delay, Reverb, Flanger, Phaser, Filtro, Bitcrusher, Gater, Roll, Freno, Backspin y Ruido. Eco, delay y reverb dejan sonar la cola al apagarlos.</p>
+
+<h2 id="biblioteca">6. Biblioteca</h2>
+<ul><li><b>Todas las pistas</b>, <b>Preparación</b> (para armar el set), <b>Historial</b> (lo que sonó en la sesión) y tus <b>playlists</b> (crear con el + verde; doble click para renombrar; click derecho para borrar).</li>
+<li>Arrastrá canciones de la lista a una playlist o a Preparación para agregarlas.</li>
+<li><b>Buscar:</b> escribí partes del título, artista, género, BPM o tonalidad (Esc borra).</li>
+<li>Columnas: click para ordenar, arrastrar para redimensionar, click derecho en el encabezado para mostrar u ocultar. Rating: click en las estrellas.</li>
+<li>La columna Key se pinta de verde cuando la tonalidad combina con lo que está sonando.</li>
+<li><b>Biblioteca grande</b> (botón BIBLIOTECA o <kbd>Ctrl+B</kbd>): achica el controlador.</li></ul>
+
+<h2 id="midi">7. Controladores MIDI</h2>
+<p>Conectá el controlador por USB: se detecta solo. Para asignar: click derecho sobre cualquier control &gt; <b>MIDI Learn</b> y mové el control físico. Las luces del controlador se manejan solas. En <b>Opciones &gt; Controladores MIDI</b> podés ver, quitar, importar y exportar las asignaciones.</p>
+
+<h2 id="teclado">8. Atajos de teclado</h2>
+<table><tr><th>Tecla</th><th>Función</th></tr>
+<tr><td><kbd>Q</kbd> / <kbd>W</kbd></td><td>PLAY/PAUSA deck 1 / deck 2</td></tr>
+<tr><td><kbd>A</kbd> / <kbd>S</kbd></td><td>CUE deck 1 / deck 2 (mantener = preescucha)</td></tr>
+<tr><td><kbd>Z</kbd> / <kbd>X</kbd></td><td>SYNC deck 1 / deck 2</td></tr>
+<tr><td><kbd>E</kbd> / <kbd>R</kbd></td><td>KEY LOCK deck 1 / deck 2</td></tr>
+<tr><td><kbd>1</kbd>-<kbd>4</kbd> / <kbd>7</kbd>-<kbd>0</kbd></td><td>Pads deck 1 / deck 2</td></tr>
+<tr><td><kbd>Ctrl+B</kbd></td><td>Biblioteca grande</td></tr></table>
+<p>Se cambian en <b>Opciones &gt; Atajos de teclado</b>.</p>
+
+<h2 id="ayuda">9. Problemas frecuentes</h2>
+<ul><li><b>Cortes o clicks en el audio:</b> subí el tamaño del buffer en Opciones &gt; Audio, cerrá otros programas de audio, usá WASAPI exclusivo.</li>
+<li><b>No se escuchan los auriculares:</b> revisá el ruteo de salidas o activá SPLIT con una placa de 2 salidas.</li>
+<li><b>M4A no carga en Windows N:</b> instalá el "Media Feature Pack" de Microsoft.</li>
+<li><b>Imagen con fallas:</b> desactivá "Dibujar con la GPU" en Opciones &gt; Preferencias.</li>
+<li><b>El programa se cerró:</b> al volver a abrir ofrece el informe de error; mandalo a soporte de Castro Labs.</li></ul>
+<p class="note">Tus datos (biblioteca, hot cues, playlists, mapeos MIDI, licencia) están en <code>%APPDATA%\Castro Labs\KB Musiquero DJ</code>. Desinstalar no los borra.</p></main></body></html>

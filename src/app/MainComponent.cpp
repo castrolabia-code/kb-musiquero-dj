@@ -85,6 +85,9 @@ namespace kb::app
             updateStatusBar();
         };
         midiController->onMappingChanged = [this] { updateStatusBar(); };
+        // Atajos de teclado (Fase 9).
+        if (settings.getKeymap().isNotEmpty())
+            keymap.fromJson (settings.getKeymap());
         // Click derecho sobre cualquier control -> MIDI Learn (ver mouseDown).
         addMouseListener (this, true);
 
@@ -359,12 +362,42 @@ namespace kb::app
             midiController->cancelLearn();
             return true;
         }
-        if (key == juce::KeyPress ('b', juce::ModifierKeys::commandModifier, 0))
+        // Atajos configurables: la tecla aprieta el "botón"; al soltarla, lo suelta.
+        const auto target = keymap.targetFor (key);
+        if (target.isEmpty())
+            return false;
+        const auto code = key.getKeyCode();
+        for (const auto& h : heldKeys)
+            if (h.first == code)
+                return true;   // repetición automática del teclado: ignorar
+        heldKeys.emplace_back (code, target);
+        midi::Event e;
+        e.target = target;
+        e.kind = midi::TargetKind::button;
+        e.pressed = true;
+        handleMidi (e);
+        return true;
+    }
+
+    bool MainComponent::keyStateChanged (bool)
+    {
+        bool handled = false;
+        for (auto it = heldKeys.begin(); it != heldKeys.end();)
         {
-            setLargeLibrary (! largeLibrary);
-            return true;
+            if (juce::KeyPress::isKeyCurrentlyDown (it->first))
+            {
+                ++it;
+                continue;
+            }
+            midi::Event e;
+            e.target = it->second;
+            e.kind = midi::TargetKind::button;
+            e.pressed = false;
+            handleMidi (e);
+            it = heldKeys.erase (it);
+            handled = true;
         }
-        return false;
+        return handled;
     }
 
     // =========================================================================

@@ -16,6 +16,7 @@ add_executable(kb_tests
     FxTests.cpp
     LibraryTests.cpp
     MidiTests.cpp
+    LicenseTests.cpp
     SyncTests.cpp
     AppCoreTests.cpp
     I18nTests.cpp)
@@ -26,6 +27,7 @@ target_link_libraries(kb_tests PRIVATE
     kb::app_core
     kb::library
     kb::midi
+    kb::licensing
     kb::juce
     Catch2::Catch2)
 

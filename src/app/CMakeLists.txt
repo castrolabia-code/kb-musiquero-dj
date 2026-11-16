@@ -10,7 +10,9 @@ add_library(kb_app_core STATIC
     AnalysisCache.h
     AnalysisCache.cpp
     MidiController.h
-    MidiController.cpp)
+    MidiController.cpp
+    Keymap.h
+    Keymap.cpp)
 add_library(kb::app_core ALIAS kb_app_core)
 
 target_include_directories(kb_app_core PUBLIC "${PROJECT_SOURCE_DIR}/src")
@@ -38,6 +40,9 @@ target_sources(KBMusiqueroDJ PRIVATE
     AudioDeviceService.h    AudioDeviceService.cpp
     PlayerController.h      PlayerController.cpp
     PerformanceController.h PerformanceController.cpp
+    ActivationWindow.h      ActivationWindow.cpp
+    CrashReporter.h         CrashReporter.cpp
+    LicenseState.h
     TrackLibrary.h          TrackLibrary.cpp
     LibraryView.h           LibraryView.cpp
     ../ui/Palette.h
@@ -60,6 +65,7 @@ target_compile_definitions(KBMusiqueroDJ PRIVATE
 
 target_link_libraries(KBMusiqueroDJ PRIVATE
     kb::app_core
+    kb::licensing
     kb::library
     kb::midi
     kb::analysis
@@ -95,6 +101,9 @@ endif()
 install(FILES "${PROJECT_SOURCE_DIR}/third_party/licenses/TagLib-LGPL-2.1.txt"
               "${PROJECT_SOURCE_DIR}/third_party/licenses/utfcpp-BSL-1.0.txt"
         DESTINATION licenses COMPONENT app)
+
+# Manual de usuario (Ayuda > Manual) al lado del programa.
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/docs/manual/" DESTINATION manual COMPONENT app)
 
 # Componente "app": deja afuera los archivos que instalan JUCE y Catch2.
 install(TARGETS KBMusiqueroDJ

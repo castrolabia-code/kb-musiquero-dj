@@ -1,4 +1,5 @@
 #include "app/OptionsComponent.h"
+#include "app/Keymap.h"
 #include "app/MidiController.h"
 #include "app/MainComponent.h"
 
@@ -399,10 +400,116 @@ namespace kb::app
     };
 
     // =========================================================================
+    //  Pestaña Teclado (Fase 9)
+    // =========================================================================
+    class OptionsComponent::KeyboardPage final : public juce::Component,
+                                                 private juce::ListBoxModel
+    {
+    public:
+        KeyboardPage (Keymap& k, std::function<void()> whenChanged) : keymap (k), onChanged (std::move (whenChanged))
+        {
+            for (const auto& t : midi::allTargets())
+                if (t.kind == midi::TargetKind::button)
+                    targets.add (t.id);
+            list.setModel (this);
+            list.setRowHeight (26);
+            list.setColour (juce::ListBox::backgroundColourId, ui::palette::panel);
+            addAndMakeVisible (list);
+            hint.setColour (juce::Label::textColourId, ui::palette::textSecondary);
+            addAndMakeVisible (hint);
+            assignButton.onClick = [this]
+            {
+                if (list.getSelectedRow() < 0) return;
+                capturing = true;
+                refreshTexts();
+                grabKeyboardFocus();
+            };
+            removeButton.onClick = [this]
+            {
+                const auto row = list.getSelectedRow();
+                if (row < 0) return;
+                keymap.removeTarget (targets[row]);
+                changed();
+            };
+            defaultsButton.onClick = [this] { keymap.resetToDefaults(); changed(); };
+            for (auto* b : { &assignButton, &removeButton, &defaultsButton })
+                addAndMakeVisible (*b);
+            setWantsKeyboardFocus (true);
+            refreshTexts();
+        }
+
+        void refreshTexts()
+        {
+            hint.setText (tr (capturing ? "options.keys.press" : "options.keys.hint"), juce::dontSendNotification);
+            hint.setColour (juce::Label::textColourId, capturing ? ui::palette::cyan : ui::palette::textSecondary);
+            assignButton.setButtonText (tr ("options.keys.assign"));
+            removeButton.setButtonText (tr ("options.keys.remove"));
+            defaultsButton.setButtonText (tr ("options.keys.defaults"));
+            list.repaint();
+        }
+
+        bool keyPressed (const juce::KeyPress& key) override
+        {
+            if (! capturing)
+                return false;
+            capturing = false;
+            if (key != juce::KeyPress::escapeKey)
+                keymap.assign (key, targets[list.getSelectedRow()]);
+            changed();
+            return true;
+        }
+
+        void resized() override
+        {
+            auto b = getLocalBounds().reduced (16);
+            hint.setBounds (b.removeFromTop (44));
+            auto buttons = b.removeFromBottom (34);
+            b.removeFromBottom (8);
+            list.setBounds (b);
+            const auto w = buttons.getWidth() / 3;
+            for (auto* btn : { &assignButton, &removeButton, &defaultsButton })
+                btn->setBounds (buttons.removeFromLeft (w).reduced (3, 0));
+        }
+
+    private:
+        int getNumRows() override { return targets.size(); }
+
+        void paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected) override
+        {
+            if (selected)
+                g.fillAll (ui::palette::cyan.withAlpha (0.2f));
+            g.setColour (ui::palette::textPrimary);
+            g.setFont (ui::KbLookAndFeel::labelFont ((float) h * 0.5f, true));
+            g.drawText (MainComponent::midiTargetName (targets[row]), 8, 0, w * 2 / 3 - 8, h, juce::Justification::centredLeft, true);
+            const auto key = keymap.keyFor (targets[row]);
+            g.setColour (key.isValid() ? ui::palette::cyan : ui::palette::textSecondary.withAlpha (0.5f));
+            g.drawText (key.isValid() ? key.getTextDescriptionWithIcons() : juce::String ("--"), w * 2 / 3, 0, w / 3 - 8, h,
+                        juce::Justification::centredLeft, true);
+        }
+
+        void listBoxItemDoubleClicked (int, const juce::MouseEvent&) override { assignButton.onClick(); }
+
+        void changed()
+        {
+            if (onChanged) onChanged();
+            refreshTexts();
+        }
+
+        Keymap& keymap;
+        std::function<void()> onChanged;
+        juce::StringArray targets;
+        juce::ListBox list;
+        juce::Label hint;
+        juce::TextButton assignButton, removeButton, defaultsButton;
+        bool capturing = false;
+    };
+
+    // =========================================================================
     //  OptionsComponent
     // =========================================================================
     OptionsComponent::OptionsComponent (AudioDeviceService& audio, AppSettings& settings,
-                                        engine::AudioEngine& engine, MidiController* midi, Tab initialTab)
+                                        engine::AudioEngine& engine, MidiController* midi, Keymap* keymap,
+                                        std::function<void()> keymapChanged, Tab initialTab)
     {
         audioPage   = new AudioPage (audio);
         mixerPage   = new MixerPage (audio, settings, engine);
@@ -416,6 +523,11 @@ namespace kb::app
         {
             midiPage = new MidiPage (*midi);
             tabs.addTab (tr ("options.tab.midi"), bg, midiPage, true);
+        }
+        if (keymap != nullptr)
+        {
+            keyboardPage = new KeyboardPage (*keymap, std::move (keymapChanged));
+            tabs.addTab (tr ("options.tab.keys"), bg, keyboardPage, true);
         }
         tabs.setTabBarDepth (32);
         addAndMakeVisible (tabs);
@@ -457,6 +569,11 @@ namespace kb::app
         {
             tabs.setTabName (midiTab, tr ("options.tab.midi"));
             midiPage->refreshTexts();
+        }
+        if (keyboardPage != nullptr)
+        {
+            tabs.setTabName (tabs.getNumTabs() - 1, tr ("options.tab.keys"));
+            keyboardPage->refreshTexts();
         }
 
         if (auto* window = findParentComponentOfClass<juce::DialogWindow>())

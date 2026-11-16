@@ -1,0 +1,28 @@
+END USER LICENSE AGREEMENT (EULA)
+KB - MUSIQUERO DJ · by Castro Labs
+
+[DRAFT — must be reviewed by a lawyer before sale]
+
+IMPORTANT: read this agreement before installing or using the software. By installing or using it, you accept these terms. If you do not accept them, do not install or use the software.
+
+1. LICENSE. Castro Labs ("Licensor") grants you a personal, non-exclusive, non-transferable license to install and use KB - MUSIQUERO DJ ("the Software") according to the purchased product key, under the terms of this agreement. The Software is licensed, not sold.
+
+2. PRODUCT KEY. Use requires a valid product key issued by the Licensor. The key is personal; it may not be shared, published or resold. A key may be bound to a specific computer.
+
+3. RESTRICTIONS. You may not: (a) copy the Software except for backup; (b) decompile, disassemble or reverse engineer it, except as expressly permitted by applicable law; (c) rent, lend, sublicense or distribute the Software; (d) circumvent the license check; (e) remove proprietary notices.
+
+4. THIRD-PARTY COMPONENTS. The Software includes third-party components under their own licenses (for example TagLib under LGPL 2.1, SQLite in the public domain, and others listed in "Help > Credits and licenses" and in the "licenses" folder). Those licenses prevail over this agreement for those components; in particular, you may replace the tag.dll library as permitted by the LGPL.
+
+5. MUSIC AND CONTENT. The Software is a tool to play and mix audio files. You are solely responsible for holding the rights and licenses required for the music you use, including public performance licenses for live events.
+
+6. OWNERSHIP. The Software, its design, trademarks ("KB - MUSIQUERO DJ", "Castro Labs") and all other intellectual property rights belong to the Licensor.
+
+7. LIMITED WARRANTY. The Software is provided "as is". To the maximum extent permitted by law, the Licensor does not warrant uninterrupted or error-free operation, or fitness for a particular purpose.
+
+8. LIMITATION OF LIABILITY. To the maximum extent permitted by law, the Licensor shall not be liable for indirect damages, lost profits, data loss or interrupted performances arising from the use or inability to use the Software. Total liability shall not exceed the price paid for the license.
+
+9. TERMINATION. This license terminates automatically if you breach its terms. Upon termination you must stop using and uninstall the Software.
+
+10. GOVERNING LAW. This agreement is governed by the laws of [COUNTRY / JURISDICTION TO BE COMPLETED].
+
+Castro Labs
