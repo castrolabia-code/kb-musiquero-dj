@@ -3,6 +3,18 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.13.1] — Android: biblioteca visible y controles más fáciles de tocar
+
+### Corregido
+- Tablet: la biblioteca y el panel de FX no aparecían (al abrir, la ventana arranca chica un
+  instante, entraba en vista de teléfono y no los volvía a mostrar).
+- Táctil: un botón apretado ya no se suelta si el dedo se corre un poco fuera del borde
+  (PLAY no arrancaba y CUE se soltaba antes de tiempo).
+
+### Cambiado
+- Táctil: un toque en el espacio entre controles va al control más cercano (área de toque más grande).
+- Tablet: textos y filas más grandes y más lugar para la biblioteca.
+
 ## [0.13.0] — Fase 10: Android (tablets y teléfonos)
 
 ### Agregado

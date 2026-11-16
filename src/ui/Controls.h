@@ -57,6 +57,7 @@ namespace kb::ui
         void mouseDoubleClick (const juce::MouseEvent&) override;
         void mouseDown (const juce::MouseEvent&) override;
         void mouseUp (const juce::MouseEvent&) override;
+        void mouseDrag (const juce::MouseEvent&) override;
         juce::String label() const;
 
         juce::String labelKey, labelText, tooltipKey;
@@ -71,6 +72,32 @@ namespace kb::ui
         bool lit = false;
         bool wasDown = false;
     };
+
+    // =========================================================================
+    //  Pantallas táctiles (Fase 10)
+    // =========================================================================
+    namespace touch
+    {
+        /** Activado en Android/iOS (o simulado en la PC): los controles son más fáciles de tocar. */
+        void setEnabled (bool on) noexcept;
+        bool isEnabled() noexcept;
+        /** true si este evento viene de un dedo (o de la simulación táctil en la PC). */
+        bool isTouchEvent (const juce::MouseEvent& e) noexcept;
+
+        /** Un toque que cae en el espacio ENTRE controles va al control más cercano
+            (dentro de 'radius'), y lo sigue hasta que se levanta el dedo. Lo usan los
+            paneles (controlador, FX) en sus mouseDown/Drag/Up. */
+        class NearestControl
+        {
+        public:
+            bool down (juce::Component& container, const juce::MouseEvent& e, float radius);
+            void drag (const juce::MouseEvent& e);
+            void up (const juce::MouseEvent& e);
+
+        private:
+            juce::Component::SafePointer<juce::Component> target;
+        };
+    }
 
     class KbFader final : public juce::Slider
     {

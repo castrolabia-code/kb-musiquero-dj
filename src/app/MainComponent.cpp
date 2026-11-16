@@ -24,11 +24,11 @@ namespace kb::app
 
         // Visor del controlador para teléfonos (Fase 10): sin barras ni arrastre (los
         // gestos son de los platos y faders); se cambia de deck con el botón lateral.
-       #if JUCE_ANDROID || JUCE_IOS
-        longPressEnabled = true;
-       #else
-        longPressEnabled = juce::SystemStats::getEnvironmentVariable ("KB_DEV_LONGPRESS", {}).isNotEmpty();
-       #endif
+        // Pantalla táctil (o simulada en la PC con KB_DEV_TOUCH=1): mantener apretado = menú,
+        // y en tablet textos más grandes y más lugar para la biblioteca.
+        touchLayout = platform::isMobile() || juce::SystemStats::getEnvironmentVariable ("KB_DEV_TOUCH", {}).isNotEmpty();
+        ui::touch::setEnabled (touchLayout);
+        longPressEnabled = touchLayout || juce::SystemStats::getEnvironmentVariable ("KB_DEV_LONGPRESS", {}).isNotEmpty();
         controllerHolder.setScrollBarsShown (false, false, false, false);
         controllerHolder.setScrollOnDragMode (juce::Viewport::ScrollOnDragMode::never);
         deckSwitch.setComponentID ("deckSwitch");
@@ -285,11 +285,18 @@ namespace kb::app
             return;
         }
 
+        // La vista compacta oculta FX y biblioteca: al volver a la normal se muestran
+        // siempre (en Android la ventana arranca chica un instante y después crece).
+        controller.setVisible (true);
+        fxPanel.setVisible (true);
+        libraryView.setVisible (true);
+
         // Layout de la imagen de referencia: barra superior amarilla, controlador,
         // pantalla oscura con las dos waveforms lado a lado y la biblioteca, y pie.
         const auto H = getHeight();
         // Escala de la interfaz para pantallas grandes (4K al 100 %): base 1040 px de alto.
-        ui::KbLookAndFeel::setUiScale ((float) H / 1040.0f);
+        // Tablet (táctil): textos y filas más grandes para el dedo.
+        ui::KbLookAndFeel::setUiScale ((float) H / (touchLayout ? 860.0f : 1040.0f));
         const auto m = frameThickness();
         auto b = getLocalBounds().reduced (m + m / 2, m / 2);
 
@@ -297,13 +304,16 @@ namespace kb::app
         // Biblioteca grande: el controlador pasa de 46,5 % a 26 % del alto (animado).
         const auto mix = (double) libraryMix;
         topBar.setBounds     (b.removeFromTop (juce::roundToInt (H * 0.075)));
-        controller.setBounds (b.removeFromTop (juce::roundToInt (H * (0.465 - 0.205 * mix))));
+        const auto ctrlShare = touchLayout ? 0.43 : 0.465;
+        controller.setBounds (b.removeFromTop (juce::roundToInt (H * (ctrlShare - (ctrlShare - 0.26) * mix))));
         b.removeFromTop (m / 2);
         b.removeFromBottom (m / 3);
         screenArea = b;
 
         auto inner = b.reduced (m / 2 + 2);
-        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * (0.56 - 0.34 * mix)));
+        // En tablet la biblioteca es la forma principal de cargar temas: más lugar para la lista.
+        const auto wavesShare = touchLayout ? 0.33 : 0.56;
+        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * (wavesShare - (wavesShare - 0.22) * mix)));
         const auto gap = m / 2;
         deckDisplays[0].setBounds (waves.removeFromLeft ((waves.getWidth() - gap) / 2));
         waves.removeFromLeft (gap);

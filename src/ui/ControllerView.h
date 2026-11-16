@@ -138,11 +138,16 @@ namespace kb::ui
 
         void paint (juce::Graphics& g) override;
         void resized() override;
+        // Táctil (Fase 10): un toque entre controles va al más cercano.
+        void mouseDown (const juce::MouseEvent& e) override;
+        void mouseDrag (const juce::MouseEvent& e) override;
+        void mouseUp (const juce::MouseEvent& e) override;
 
         /** Ayuda para lo que está dibujado en el fondo (platos, pads, etc.). */
         juce::String getTooltip() override;
 
     private:
+        touch::NearestControl nearestTouch;
         struct DeckLayout
         {
             juce::Rectangle<float> area, tempoLabel, tempoSlot, tempoRange, header, platter, sync, cue, pause, play;

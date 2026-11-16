@@ -4,6 +4,8 @@
 #include "ui/DrawPrimitives.h"
 #include "ui/Palette.h"
 
+#include <atomic>
+
 namespace kb::ui
 {
     // =========================================================================
@@ -139,6 +141,64 @@ namespace kb::ui
                     r.getHeight() * 0.19f, ink);
     }
 
+    namespace touch
+    {
+        namespace { std::atomic<bool> touchOn { false }; }
+        void setEnabled (bool on) noexcept { touchOn = on; }
+        bool isEnabled() noexcept          { return touchOn; }
+        bool isTouchEvent (const juce::MouseEvent& e) noexcept
+        {
+            return e.source.isTouch() || e.source.isPen() || touchOn.load();
+        }
+
+        bool NearestControl::down (juce::Component& container, const juce::MouseEvent& e, float radius)
+        {
+            target = nullptr;
+            if (! isTouchEvent (e) || e.mods.isPopupMenu())
+                return false;
+
+            const auto p = e.getEventRelativeTo (&container).position;
+            juce::Component* best = nullptr;
+            float bestDist = radius;
+            for (auto* c : container.getChildren())
+            {
+                if (! c->isVisible() || ! c->isEnabled()
+                    || (dynamic_cast<juce::Button*> (c) == nullptr && dynamic_cast<juce::Slider*> (c) == nullptr))
+                    continue;
+                const auto b = c->getBounds().toFloat();
+                const auto nearest = juce::Point<float> (juce::jlimit (b.getX(), b.getRight(), p.x),
+                                                         juce::jlimit (b.getY(), b.getBottom(), p.y));
+                const auto d = nearest.getDistanceFrom (p);
+                if (d <= bestDist)
+                {
+                    bestDist = d;
+                    best = c;
+                }
+            }
+            if (best == nullptr)
+                return false;
+            target = best;
+            best->mouseDown (e.getEventRelativeTo (best));
+            return true;
+        }
+
+        void NearestControl::drag (const juce::MouseEvent& e)
+        {
+            if (auto* t = target.getComponent())
+                t->mouseDrag (e.getEventRelativeTo (t));
+        }
+
+        void NearestControl::up (const juce::MouseEvent& e)
+        {
+            if (auto* t = target.getComponent())
+            {
+                // El botón cuenta como "apretado y encima" (se apretó por cercanía): click.
+                t->mouseUp (e.getEventRelativeTo (t));
+            }
+            target = nullptr;
+        }
+    }
+
     juce::String GlowButton::label() const
     {
         return labelKey.isNotEmpty() ? tr (labelKey) : labelText;
@@ -154,6 +214,15 @@ namespace kb::ui
             return;
         }
         juce::Button::mouseDown (e);
+    }
+
+    void GlowButton::mouseDrag (const juce::MouseEvent& e)
+    {
+        // Con el dedo, un botón apretado sigue apretado aunque el dedo se corra un poco
+        // fuera del borde (si no, PLAY no arranca y CUE se suelta antes de tiempo).
+        if (touch::isTouchEvent (e))
+            return;
+        juce::Button::mouseDrag (e);
     }
 
     void GlowButton::mouseUp (const juce::MouseEvent& e)

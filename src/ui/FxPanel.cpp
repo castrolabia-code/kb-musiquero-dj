@@ -205,4 +205,7 @@ namespace kb::ui
             draw::text (g, beats, U.beatsArea, h * 0.27f, U.state.usesBeats ? cyan : textSecondary);
         }
     }
+    void FxPanel::mouseDown (const juce::MouseEvent& e) { nearestTouch.down (*this, e, (float) getHeight() * 0.35f); }
+    void FxPanel::mouseDrag (const juce::MouseEvent& e) { nearestTouch.drag (e); }
+    void FxPanel::mouseUp (const juce::MouseEvent& e)   { nearestTouch.up (e); }
 } // namespace kb::ui

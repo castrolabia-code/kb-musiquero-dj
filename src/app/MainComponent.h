@@ -159,6 +159,7 @@ namespace kb::app
             bool armed = false;
         } longPress;
         bool longPressEnabled = false;
+        bool touchLayout = false;   // Android/iOS (o KB_DEV_TOUCH=1 en la PC)
         void checkLongPress();
         juce::Rectangle<int> controllerArea() const;
         ui::DeckDisplay        deckDisplays[2] { ui::DeckDisplay (0), ui::DeckDisplay (1) };

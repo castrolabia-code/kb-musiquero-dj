@@ -901,4 +901,7 @@ namespace kb::ui
         draw::text (g, "1", M.meterL.withY (M.meterL.getBottom() + unit * 0.3f).withHeight (textH), textH * 0.8f, textSecondary);
         draw::text (g, "2", M.meterR.withY (M.meterR.getBottom() + unit * 0.3f).withHeight (textH), textH * 0.8f, textSecondary);
     }
+    void ControllerView::mouseDown (const juce::MouseEvent& e) { nearestTouch.down (*this, e, unit * 4.5f); }
+    void ControllerView::mouseDrag (const juce::MouseEvent& e) { nearestTouch.drag (e); }
+    void ControllerView::mouseUp (const juce::MouseEvent& e)   { nearestTouch.up (e); }
 } // namespace kb::ui

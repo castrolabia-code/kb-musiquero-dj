@@ -47,6 +47,10 @@ namespace kb::ui
 
         void paint (juce::Graphics& g) override;
         void resized() override;
+        // Táctil (Fase 10): un toque entre controles va al más cercano.
+        void mouseDown (const juce::MouseEvent& e) override;
+        void mouseDrag (const juce::MouseEvent& e) override;
+        void mouseUp (const juce::MouseEvent& e) override;
 
         /** Nombres de los efectos y de su parámetro (claves de traducción). */
         static const char* effectKey (int type);
@@ -54,6 +58,7 @@ namespace kb::ui
         static juce::String beatsText (int index);
 
     private:
+        touch::NearestControl nearestTouch;
         struct Unit
         {
             juce::ComboBox type;
