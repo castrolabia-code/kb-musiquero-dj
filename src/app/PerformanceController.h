@@ -40,7 +40,8 @@ namespace kb::app
         // --- Desde la vista ------------------------------------------------------------------
         void modeButton (int deck, int group);
         void pad (int deck, int padIndex, bool down);
-        void padMenu (int deck, int padIndex, juce::Component* target);
+        /** extra: agrega opciones al menú (p. ej. MIDI Learn). */
+        void padMenu (int deck, int padIndex, juce::Component* target, std::function<void (juce::PopupMenu&)> extra = {});
         void shift (int deck, bool down);
         void toggleSlip (int deck);
         void toggleVinyl (int deck);

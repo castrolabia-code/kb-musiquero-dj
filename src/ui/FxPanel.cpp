@@ -78,6 +78,12 @@ namespace kb::ui
             U.wet->setLabelSide (+1);
             U.param->setDoubleClickReturnValue (true, 0.5);
             U.wet->setDoubleClickReturnValue (true, 0.5);
+            const auto fxId = "fx" + juce::String (u + 1) + ".";
+            U.on->setComponentID (fxId + "on");
+            U.param->setComponentID (fxId + "param");
+            U.wet->setComponentID (fxId + "wet");
+            U.beatsDown->setComponentID (fxId + "beatsDown");
+            U.beatsUp->setComponentID (fxId + "beatsUp");
             U.param->onValueChange = [this, u] { if (onParam) onParam (u, (float) units[(size_t) u].param->getValue()); };
             U.wet->onValueChange   = [this, u] { if (onWet) onWet (u, (float) units[(size_t) u].wet->getValue()); };
             addAndMakeVisible (*U.param);
@@ -107,6 +113,7 @@ namespace kb::ui
             return;
         auto& U = units[(size_t) u];
         const auto beatsChanged = s.beatsIndex != U.state.beatsIndex || s.usesBeats != U.state.usesBeats;
+        const auto typeChanged = s.type != U.state.type || ! formatterSet[(size_t) u];
         U.state = s;
         if (U.type.getSelectedId() != s.type + 1)
             U.type.setSelectedId (s.type + 1, juce::dontSendNotification);
@@ -117,9 +124,13 @@ namespace kb::ui
             U.param->setValue (s.param, juce::dontSendNotification);
         if (! U.wet->isMouseButtonDown())
             U.wet->setValue (s.wet, juce::dontSendNotification);
-        const auto pk = juce::String (paramKey (s.type));
-        U.param->setLabelFormatter ([pk] (double) { return tr (pk); });
-        U.param->setEnabled (pk != "fx.p.none");
+        if (typeChanged)
+        {
+            const auto pk = juce::String (paramKey (s.type));
+            U.param->setLabelFormatter ([pk] (double) { return tr (pk); });
+            U.param->setEnabled (pk != "fx.p.none");
+            formatterSet[(size_t) u] = true;
+        }
         U.beatsDown->setEnabled (s.usesBeats);
         U.beatsUp->setEnabled (s.usesBeats);
         if (beatsChanged)

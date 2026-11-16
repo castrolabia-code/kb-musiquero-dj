@@ -307,6 +307,12 @@ namespace kb::ui
             platters[(size_t) d]->setArtwork (image);
     }
 
+    void ControllerView::cycleTempoRange (int d)
+    {
+        if (juce::isPositiveAndBelow (d, 2) && rangeButtons[(size_t) d]->onPress)
+            rangeButtons[(size_t) d]->onPress();
+    }
+
     void ControllerView::setPlatterBeatGrid (int d, double bpm, double first)
     {
         if (juce::isPositiveAndBelow (d, 2))
@@ -339,6 +345,47 @@ namespace kb::ui
     // =========================================================================
     //  Estado
     // =========================================================================
+    void ControllerView::assignMidiIds()
+    {
+        // Identificadores de función MIDI (click derecho -> MIDI Learn).
+        for (int d = 0; d < 2; ++d)
+        {
+            const auto p = "deck" + juce::String (d + 1) + ".";
+            playButtons[(size_t) d]->setComponentID (p + "play");
+            pauseButtons[(size_t) d]->setComponentID (p + "pause");
+            cueButtons[(size_t) d]->setComponentID (p + "cue");
+            syncButtons[(size_t) d]->setComponentID (p + "sync");
+            keyLockButtons[(size_t) d]->setComponentID (p + "keyLock");
+            keyDownButtons[(size_t) d]->setComponentID (p + "keyDown");
+            keyUpButtons[(size_t) d]->setComponentID (p + "keyUp");
+            slipButtons[(size_t) d]->setComponentID (p + "slip");
+            vinylButtons[(size_t) d]->setComponentID (p + "vinyl");
+            shiftButtons[(size_t) d]->setComponentID (p + "shift");
+            rangeButtons[(size_t) d]->setComponentID (p + "tempoRange");
+            tempoFaders[(size_t) d]->setComponentID (p + "tempo");
+            platters[(size_t) d]->setComponentID (p + "jog");
+            static const char* modes[] = { "modeHotCue", "modeFx", "modeSampler", "modeLoop" };
+            for (int i = 0; i < 4; ++i)
+            {
+                modeButtons[(size_t) d][(size_t) i]->setComponentID (p + modes[i]);
+                padButtons[(size_t) d][(size_t) i]->setComponentID (p + "pad" + juce::String (i + 1));
+            }
+            const auto c = "mixer.ch" + juce::String (d + 1) + ".";
+            volumeFaders[(size_t) d]->setComponentID (c + "volume");
+            static const char* strip[] = { "gain", "high", "mid", "low", "filter" };
+            for (int k = 0; k < 5; ++k)
+                stripKnobs[(size_t) d][(size_t) k]->setComponentID (c + strip[k]);
+            channelCueButtons[(size_t) d]->setComponentID (c + "cue");
+        }
+        crossfader.setComponentID ("mixer.crossfader");
+        masterKnob.setComponentID ("mixer.master");
+        phonesKnob.setComponentID ("mixer.phones");
+        cueMixKnob.setComponentID ("mixer.cueMix");
+        splitButton.setComponentID ("mixer.split");
+        autoMixButton.setComponentID ("mixer.autoMix");
+        mixTimeKnob.setComponentID ("mixer.mixTime");
+    }
+
     void ControllerView::setDeckLights (int deck, const DeckLights& l, bool blinkPhase)
     {
         if (! juce::isPositiveAndBelow (deck, 2))
@@ -454,6 +501,11 @@ namespace kb::ui
     // =========================================================================
     void ControllerView::resized()
     {
+        if (getComponentID().isEmpty())   // una sola vez (todos los controles ya existen)
+        {
+            setComponentID ("controller");
+            assignMidiIds();
+        }
         computeLayout();
         background = {};
 

@@ -122,6 +122,11 @@ namespace kb::ui
         void invalidateBackground();
 
         static constexpr float kTempoRanges[3] = { 8.0f, 16.0f, 50.0f };
+        /** Rango actual del fader de tempo del deck, en % (8, 16 o 50). */
+        float getTempoRange (int deck) const { return kTempoRanges[rangeIndex[(size_t) juce::jlimit (0, 1, deck)]]; }
+        /** Pasa al rango siguiente (como el botón ±8 %). */
+        void  cycleTempoRange (int deck);
+        void  setPhonesFromEngine (float v) { setPhones (v); }
 
         /** Vúmetro de canal: llamar a cada cuadro (60 fps). */
         void pushChannelMeter (int deck, const engine::MeterSource::Reading& reading, float dtSeconds);
@@ -164,6 +169,7 @@ namespace kb::ui
         };
 
         void computeLayout();
+        void assignMidiIds();
         void renderBackground (float scale);
         void paintBackground (juce::Graphics& g) const;
         void paintDropOverlay (juce::Graphics& g) const;

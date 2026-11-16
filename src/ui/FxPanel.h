@@ -64,5 +64,6 @@ namespace kb::ui
             UnitState state;
         };
         std::array<Unit, kNumUnits> units;
+        std::array<bool, kNumUnits> formatterSet {};
     };
 } // namespace kb::ui

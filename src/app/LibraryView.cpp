@@ -537,6 +537,22 @@ namespace kb::app
         table.repaint();
     }
 
+    void LibraryView::moveSelection (int delta)
+    {
+        if (order.empty())
+            return;
+        const auto current = table.getSelectedRow (0);
+        const auto next = juce::jlimit (0, (int) order.size() - 1, current < 0 ? 0 : current + delta);
+        table.selectRow (next);
+        table.scrollToEnsureRowIsOnscreen (next);
+    }
+
+    juce::File LibraryView::selectedFile() const
+    {
+        const auto item = itemForRow (table.getSelectedRow (0));
+        return item >= 0 ? library[item].file : juce::File();
+    }
+
     std::vector<juce::int64> LibraryView::selectedIds() const
     {
         std::vector<juce::int64> ids;

@@ -3,6 +3,19 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.11.0] — Fase 8: MIDI
+
+### Agregado
+- **Controladores MIDI**: se detectan solos al enchufarlos (y al desenchufarlos), sin reiniciar. Aparecen en el pie de la ventana.
+- **MIDI Learn**: click derecho sobre cualquier control de la pantalla > "MIDI Learn" > mover el control físico. Esc cancela. Funciona con botones, perillas, faders, crossfader, plato (jog), pads, FX y biblioteca. El click derecho nunca aprieta el botón.
+- **Más de 90 funciones mapeables**: transporte, SYNC, tempo (fader y rango), jog (scratch o pitch bend) y "jog touch", pads y modos, SHIFT, loops, todo el mixer, AUTO MIX, los dos FX y navegar la biblioteca + cargar en deck.
+- Valores: faders/perillas absolutos (CC o pitch bend de 14 bits) y jogs/encoders relativos (centro 64 o complemento a 2, detectado solo).
+- **Luces (LEDs)** del controlador: se prenden y apagan según el estado (PLAY, CUE, SYNC, pads, modos, FX ON...). Se apagan al cerrar.
+- **Opciones > Controladores MIDI**: dispositivos conectados, lista de asignaciones, quitar, **importar / exportar (JSON)** y borrar todo.
+- Lo que se mueve desde el controlador se ve en la pantalla (perillas, faders, FX).
+- Guía: `docs/MIDI.md`.
+- Pruebas: learn (botón, fader, jog en sus dos modos), conversión de valores, reasignación, LEDs, JSON y el circuito completo (aprender, despachar, guardar, exportar, importar).
+
 ## [0.10.1] — Ajustes de diseño pedidos
 
 ### Cambiado

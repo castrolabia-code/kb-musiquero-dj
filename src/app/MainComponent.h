@@ -11,6 +11,7 @@
 #include <juce_opengl/juce_opengl.h>
 
 #include "app/AppSettings.h"
+#include "app/MidiController.h"
 #include "library/ArtworkCache.h"
 #include "library/TagReader.h"
 #include "app/I18n.h"
@@ -46,6 +47,12 @@ namespace kb::app
         void setLargeLibrary (bool on);
         bool isLargeLibrary() const noexcept { return largeLibrary; }
         bool keyPressed (const juce::KeyPress& key) override;
+        void mouseDown (const juce::MouseEvent& e) override;
+
+        /** Controladores MIDI (Fase 8). */
+        MidiController& getMidi() noexcept { return *midiController; }
+        /** Nombre legible de una función MIDI ("Deck 1 · PLAY"). */
+        static juce::String midiTargetName (const juce::String& id);
 
         /** Abre el diálogo para elegir un archivo y cargarlo en un deck. */
         void openLoadDialog (int deck);
@@ -94,6 +101,15 @@ namespace kb::app
         std::array<juce::String, 2> deckFile;
         std::array<bool, 2> playedMarked { false, false };
         bool  largeLibrary = false;
+        // MIDI (Fase 8)
+        std::unique_ptr<MidiController> midiController;
+        juce::String midiStatus;
+        int midiStatusTicks = 0;
+        void handleMidi (const midi::Event& e);
+        bool midiLedState (const juce::String& target);
+        void showMidiLearnMenu (const juce::String& target, juce::Component* near);
+        void addMidiItems (juce::PopupMenu& menu, const juce::String& target);
+        void syncControlsFromEngine();
         // Dibujo con la GPU (Fase 7): toda la interfaz se compone con OpenGL.
         juce::OpenGLContext openGL;
         bool openGLAttached = false;

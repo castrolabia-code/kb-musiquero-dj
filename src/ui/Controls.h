@@ -56,6 +56,7 @@ namespace kb::ui
         void buttonStateChanged() override;
         void mouseDoubleClick (const juce::MouseEvent&) override;
         void mouseDown (const juce::MouseEvent&) override;
+        void mouseUp (const juce::MouseEvent&) override;
         juce::String label() const;
 
         juce::String labelKey, labelText, tooltipKey;

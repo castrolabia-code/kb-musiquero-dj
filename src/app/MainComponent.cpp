@@ -1,5 +1,7 @@
 #include "app/MainComponent.h"
 
+#include <map>
+
 #include "app/AudioDeviceService.h"
 #include "engine/AudioFileFormats.h"
 #include "analysis/KeyDetector.h"
@@ -57,7 +59,11 @@ namespace kb::app
         auto* perf = performance.get();
         controller.onPadMode  = [perf] (int d, int g) { perf->modeButton (d, g); };
         controller.onPad      = [perf] (int d, int i, bool down) { perf->pad (d, i, down); };
-        controller.onPadMenu  = [perf] (int d, int i, juce::Component* t) { perf->padMenu (d, i, t); };
+        controller.onPadMenu  = [this, perf] (int d, int i, juce::Component* t)
+        {
+            const auto target = "deck" + juce::String (d + 1) + ".pad" + juce::String (i + 1);
+            perf->padMenu (d, i, t, [this, target] (juce::PopupMenu& m) { addMidiItems (m, target); });
+        };
         controller.onShift    = [perf] (int d, bool down) { perf->shift (d, down); };
         controller.onSlip     = [perf] (int d) { perf->toggleSlip (d); };
         controller.onVinyl    = [perf] (int d) { perf->toggleVinyl (d); };
@@ -67,6 +73,20 @@ namespace kb::app
 
         // --- GPU (OpenGL), según Preferencias ---------------------------------------------
         updateRenderer();
+
+        // --- MIDI (Fase 8) ---------------------------------------------------------------------
+        midiController = std::make_unique<MidiController> (AppSettings::getAppDataDirectory().getChildFile ("midi_mapping.json"));
+        midiController->onEvent  = [this] (const midi::Event& e) { handleMidi (e); };
+        midiController->ledState = [this] (const juce::String& t) { return midiLedState (t); };
+        midiController->onLearned = [this] (const juce::String& t, const midi::Binding& b)
+        {
+            midiStatus = tr ("midi.learned", { { "name", midiTargetName (t) }, { "msg", b.describe() } });
+            midiStatusTicks = kUiRefreshHz * 4;
+            updateStatusBar();
+        };
+        midiController->onMappingChanged = [this] { updateStatusBar(); };
+        // Click derecho sobre cualquier control -> MIDI Learn (ver mouseDown).
+        addMouseListener (this, true);
 
         // --- Vista "Biblioteca grande" (Fase 7) --------------------------------------------
         largeLibrary = settings.getLargeLibrary();
@@ -334,12 +354,264 @@ namespace kb::app
 
     bool MainComponent::keyPressed (const juce::KeyPress& key)
     {
+        if (key == juce::KeyPress::escapeKey && midiController->isLearning())
+        {
+            midiController->cancelLearn();
+            return true;
+        }
         if (key == juce::KeyPress ('b', juce::ModifierKeys::commandModifier, 0))
         {
             setLargeLibrary (! largeLibrary);
             return true;
         }
         return false;
+    }
+
+    // =========================================================================
+    //  MIDI (Fase 8)
+    // =========================================================================
+    juce::String MainComponent::midiTargetName (const juce::String& id)
+    {
+        static const std::map<juce::String, juce::String> names {
+            { "play", "PLAY" }, { "pause", "PAUSE" }, { "playPause", "PLAY/PAUSE" }, { "cue", "CUE" }, { "sync", "SYNC" },
+            { "keyLock", "KEY LOCK" }, { "keyDown", "KEY -" }, { "keyUp", "KEY +" }, { "slip", "SLIP" }, { "vinyl", "VINYL" },
+            { "shift", "SHIFT" }, { "modeHotCue", "HOT CUE" }, { "modeFx", "FX" }, { "modeSampler", "SAMPLER" }, { "modeLoop", "LOOP" },
+            { "loopIn", "LOOP IN" }, { "loopOut", "LOOP OUT" }, { "loopHalve", "LOOP 1/2" }, { "loopDouble", "LOOP x2" },
+            { "pad1", "PAD 1" }, { "pad2", "PAD 2" }, { "pad3", "PAD 3" }, { "pad4", "PAD 4" }, { "jogTouch", "JOG TOUCH" },
+            { "jog", "JOG" }, { "load", "LOAD" }, { "tempo", "TEMPO" }, { "tempoRange", "TEMPO RANGE" }, { "tempoNudge", "PITCH BEND" },
+            { "volume", "VOLUME" }, { "gain", "GAIN" }, { "high", "HIGH" }, { "mid", "MID" }, { "low", "LOW" }, { "filter", "FILTER" },
+            { "crossfader", "CROSSFADER" }, { "master", "MASTER" }, { "phones", "PHONES" }, { "cueMix", "CUE MIX" },
+            { "mixTime", "MIX TIME" }, { "split", "SPLIT" }, { "autoMix", "AUTO MIX" }, { "on", "ON" }, { "wet", "WET" },
+            { "param", "PARAM" }, { "beatsDown", "BEAT <" }, { "beatsUp", "BEAT >" }, { "browse", "BROWSE" }, { "largeView", "BIBLIOTECA" } };
+        const auto parts = juce::StringArray::fromTokens (id, ".", "");
+        const auto last = parts[parts.size() - 1];
+        const auto it = names.find (last);
+        const auto func = it != names.end() ? it->second : last.toUpperCase();
+        const auto first = parts[0];
+        if (first.startsWith ("deck"))
+            return tr ("midi.deck", { { "n", first.getLastCharacters (1) } }) + " · " + func;
+        if (first.startsWith ("fx"))
+            return "FX " + first.getLastCharacters (1) + " · " + func;
+        if (first == "mixer")
+            return parts.size() == 3 ? tr ("midi.channel", { { "n", parts[1].getLastCharacters (1) } }) + " · " + func
+                                     : tr ("midi.mixer") + " · " + func;
+        return tr ("midi.library") + " · " + func;
+    }
+
+    void MainComponent::addMidiItems (juce::PopupMenu& menu, const juce::String& target)
+    {
+        if (! midi::findTarget (target).has_value())
+            return;
+        juce::Component::SafePointer<MainComponent> safe (this);
+        menu.addItem (tr ("midi.learnFor", { { "name", midiTargetName (target) } }), [safe, target]
+        {
+            if (safe == nullptr) return;
+            safe->midiController->startLearn (target);
+            safe->updateStatusBar();
+        });
+        for (const auto& b : midiController->getMap().bindingsFor (target))
+        {
+            menu.addItem (tr ("midi.forget", { { "msg", b.describe() } }), [safe, target]
+            {
+                if (safe != nullptr) safe->midiController->removeTarget (target);
+            });
+            break;
+        }
+    }
+
+    void MainComponent::showMidiLearnMenu (const juce::String& target, juce::Component* near)
+    {
+        juce::PopupMenu menu;
+        addMidiItems (menu, target);
+        if (menu.getNumItems() > 0)
+            menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (near));
+    }
+
+    void MainComponent::mouseDown (const juce::MouseEvent& e)
+    {
+        if (! e.mods.isPopupMenu() || e.eventComponent == nullptr)
+            return;
+        // El control (o un padre) con un id de función MIDI. Los pads tienen su propio menú.
+        for (auto* c = e.eventComponent; c != nullptr && c != this; c = c->getParentComponent())
+        {
+            const auto id = c->getComponentID();
+            if (id.isEmpty())
+                continue;
+            if (id.contains (".pad"))
+                return;
+            if (midi::findTarget (id).has_value())
+            {
+                showMidiLearnMenu (id, c);
+                return;
+            }
+        }
+    }
+
+    void MainComponent::handleMidi (const midi::Event& e)
+    {
+        auto& engine = player.getEngine();
+        auto* perf = performance.get();
+        const auto parts = juce::StringArray::fromTokens (e.target, ".", "");
+        const auto& head = parts[0];
+        const auto& func = parts[parts.size() - 1];
+        const bool press = e.kind == midi::TargetKind::button && e.pressed;
+
+        if (head.startsWith ("deck"))
+        {
+            const auto d = head.getLastCharacters (1).getIntValue() - 1;
+            if (! juce::isPositiveAndBelow (d, 2)) return;
+            if (func == "play")       { if (press) player.play (d); }
+            else if (func == "pause") { if (press) player.pause (d); }
+            else if (func == "playPause") { if (press) player.togglePlay (d); }
+            else if (func == "cue")   { if (press) player.cueDown (d); else player.cueUp (d); }
+            else if (func == "sync")  { if (press) player.toggleSync (d); }
+            else if (func == "keyLock") { if (press) engine.setKeyLock (d, ! engine.getKeyLock (d)); }
+            else if (func == "keyDown") { if (press) engine.setKeyShift (d, engine.getKeyShift (d) - 1); }
+            else if (func == "keyUp")   { if (press) engine.setKeyShift (d, engine.getKeyShift (d) + 1); }
+            else if (func == "slip")  { if (press) perf->toggleSlip (d); }
+            else if (func == "vinyl") { if (press) perf->toggleVinyl (d); }
+            else if (func == "shift") { perf->shift (d, e.pressed); }
+            else if (func == "modeHotCue")  { if (press) perf->modeButton (d, 0); }
+            else if (func == "modeFx")      { if (press) perf->modeButton (d, 1); }
+            else if (func == "modeSampler") { if (press) perf->modeButton (d, 2); }
+            else if (func == "modeLoop")    { if (press) perf->modeButton (d, 3); }
+            else if (func == "loopIn")     { if (press) engine.loopIn (d); }
+            else if (func == "loopOut")    { if (press) engine.loopOut (d); }
+            else if (func == "loopHalve")  { if (press) engine.loopHalve (d); }
+            else if (func == "loopDouble") { if (press) engine.loopDouble (d); }
+            else if (func.startsWith ("pad")) { perf->pad (d, func.getLastCharacters (1).getIntValue() - 1, e.pressed); }
+            else if (func == "jogTouch") { perf->jogTouch (d, e.pressed); }
+            else if (func == "jog")      { perf->jogMove (d, e.delta / 128.0); }      // 128 pasos = 1 vuelta
+            else if (func == "tempoNudge") { engine.nudge (d, juce::jlimit (-0.3, 0.3, e.delta * 0.02)); }
+            else if (func == "tempo")
+            {
+                // Abajo = más rápido (como un CDJ): 0 -> -rango, 1 -> +rango.
+                player.setTempo (d, (float) ((e.value * 2.0 - 1.0) * controller.getTempoRange (d)));
+            }
+            else if (func == "tempoRange") { if (press) controller.cycleTempoRange (d); }
+            else if (func == "load")
+            {
+                if (press)
+                    if (const auto f = libraryView.selectedFile(); f.existsAsFile())
+                        player.loadFile (d, f);
+            }
+            return;
+        }
+        if (head == "mixer")
+        {
+            if (parts.size() == 3)
+            {
+                const auto d = parts[1].getLastCharacters (1).getIntValue() - 1;
+                if (! juce::isPositiveAndBelow (d, 2)) return;
+                const auto v = (float) e.value;
+                if (func == "volume")      engine.setChannelVolume (d, v);
+                else if (func == "gain")   engine.setTrim (d, v);
+                else if (func == "high")   engine.setEq (d, engine::EqBand::high, v);
+                else if (func == "mid")    engine.setEq (d, engine::EqBand::mid, v);
+                else if (func == "low")    engine.setEq (d, engine::EqBand::low, v);
+                else if (func == "filter") engine.setFilter (d, v);
+                else if (func == "cue" && press) engine.setChannelCue (d, ! engine.getChannelCue (d));
+                return;
+            }
+            if (func == "crossfader")  engine.setCrossfader ((float) (e.value * 2.0 - 1.0));
+            else if (func == "master") engine.setMasterVolume ((float) e.value);
+            else if (func == "phones") engine.setHeadphoneVolume ((float) e.value);
+            else if (func == "cueMix") engine.setCueMix ((float) e.value);
+            else if (func == "mixTime")
+            {
+                autoMixSeconds = ui::ControllerView::knobToMixSeconds (e.value);
+                settings.setAutoMixSeconds (autoMixSeconds);
+                controller.setAutoMixSeconds (autoMixSeconds);
+            }
+            else if (func == "split" && press)   engine.setSplit (! engine.getSplit());
+            else if (func == "autoMix" && press) toggleAutoMix();
+            return;
+        }
+        if (head.startsWith ("fx"))
+        {
+            const auto u = head.getLastCharacters (1).getIntValue() - 1;
+            if (! juce::isPositiveAndBelow (u, engine::AudioEngine::kNumFxUnits)) return;
+            auto& unit = engine.getFxUnit (u);
+            if (func == "on" && press)             unit.setOn (! unit.isOn());
+            else if (func == "wet")                unit.setWet ((float) e.value);
+            else if (func == "param")              unit.setParam ((float) e.value);
+            else if (func == "beatsDown" && press) unit.setBeatsIndex (unit.getBeatsIndex() - 1);
+            else if (func == "beatsUp" && press)   unit.setBeatsIndex (unit.getBeatsIndex() + 1);
+            updateFxPanel();
+            return;
+        }
+        if (head == "library")
+        {
+            if (func == "browse" && ! juce::exactlyEqual (e.delta, 0.0))
+                libraryView.moveSelection (e.delta > 0.0 ? 1 : -1);
+            else if (func == "largeView" && press)
+                setLargeLibrary (! largeLibrary);
+        }
+    }
+
+    bool MainComponent::midiLedState (const juce::String& id)
+    {
+        auto& engine = player.getEngine();
+        const auto parts = juce::StringArray::fromTokens (id, ".", "");
+        const auto& head = parts[0];
+        const auto& func = parts[parts.size() - 1];
+        if (head.startsWith ("deck"))
+        {
+            const auto d = head.getLastCharacters (1).getIntValue() - 1;
+            if (! juce::isPositiveAndBelow (d, 2)) return false;
+            const auto st = engine.getDeckStatus (d);
+            const auto loaded = st.trackId != 0;
+            if (func == "play" || func == "playPause") return st.playing && ! st.cuePreview;
+            if (func == "pause")   return loaded && ! st.playing;
+            if (func == "cue")     return loaded && (st.cuePreview || (! st.playing && std::abs (st.positionSeconds - st.cueSeconds) < 0.001));
+            if (func == "sync")    return engine.getSync (d);
+            if (func == "keyLock") return engine.getKeyLock (d);
+            if (func == "keyDown") return engine.getKeyShift (d) < 0;
+            if (func == "keyUp")   return engine.getKeyShift (d) > 0;
+            if (func == "slip")    return performance->isSlip (d);
+            if (func == "vinyl")   return performance->isVinyl (d);
+            if (func == "shift")   return performance->isShift (d);
+            if (func == "loopOut") return st.loopActive;
+            if (func == "loopIn")  return st.loopActive;
+            const auto pv = performance->makePadView (d);
+            if (func == "modeHotCue")  return pv.group == 0;
+            if (func == "modeFx")      return pv.group == 1;
+            if (func == "modeSampler") return pv.group == 2;
+            if (func == "modeLoop")    return pv.group == 3;
+            if (func.startsWith ("pad")) return pv.lit[(size_t) juce::jlimit (0, 3, func.getLastCharacters (1).getIntValue() - 1)];
+            return false;
+        }
+        if (head == "mixer")
+        {
+            if (parts.size() == 3 && func == "cue")
+                return engine.getChannelCue (parts[1].getLastCharacters (1).getIntValue() - 1);
+            if (func == "split")   return engine.getSplit();
+            if (func == "autoMix") return engine.isAutoMixing();
+            return false;
+        }
+        if (head.startsWith ("fx") && func == "on")
+            return engine.getFxUnit (head.getLastCharacters (1).getIntValue() - 1).isOn();
+        if (head == "library" && func == "largeView")
+            return largeLibrary;
+        return false;
+    }
+
+    void MainComponent::syncControlsFromEngine()
+    {
+        // Lo que se mueve desde un controlador MIDI se ve en pantalla.
+        auto& engine = player.getEngine();
+        for (int d = 0; d < 2; ++d)
+        {
+            controller.setVolume (d, engine.getChannelVolume (d));
+            controller.setTrim (d, engine.getTrim (d));
+            controller.setFilter (d, engine.getFilter (d));
+            for (int band = 0; band < 3; ++band)
+                controller.setEq (d, band, engine.getEq (d, (engine::EqBand) band));
+            controller.setChannelCue (d, engine.getChannelCue (d));
+        }
+        controller.setMaster (engine.getMasterVolume());
+        controller.setPhones (engine.getHeadphoneVolume());
+        controller.setCueMix (engine.getCueMix());
     }
 
     void MainComponent::updateFxPanel()
@@ -629,6 +901,17 @@ namespace kb::app
         }
         libraryView.setReferenceKeys (playingKeys);
 
+        // MIDI: luces del controlador y controles en pantalla.
+        midiController->updateLeds();
+        syncControlsFromEngine();
+        if (tick % 3 == 0)
+            updateFxPanel();
+        if (midiStatusTicks > 0 && --midiStatusTicks == 0)
+        {
+            midiStatus.clear();
+            updateStatusBar();
+        }
+
         // El AUTO MIX mueve el crossfader solo: la perilla lo sigue.
         controller.setCrossfader (player.getEngine().getCrossfader());
         controller.setAutoMixState (player.getEngine().getAutoMixProgress());
@@ -716,6 +999,14 @@ namespace kb::app
         {
             left = tr ("audio.status.noDevice");
         }
+
+        // MIDI Learn: el pie avisa qué control se está esperando.
+        if (midiController != nullptr && midiController->isLearning())
+            left = tr ("midi.learning", { { "name", midiTargetName (midiController->getLearnTarget()) } });
+        else if (midiStatus.isNotEmpty())
+            left = midiStatus;
+        else if (midiController != nullptr && ! midiController->getConnectedDevices().isEmpty())
+            left << "  ·  MIDI: " << midiController->getConnectedDevices().joinIntoString (", ");
 
         statusBar.setText (left, "v" + juce::JUCEApplication::getInstance()->getApplicationVersion());
     }

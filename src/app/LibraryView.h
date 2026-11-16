@@ -54,6 +54,11 @@ namespace kb::app
         /** Tonalidades que están sonando: las compatibles se marcan en verde en la columna Key. */
         void setReferenceKeys (const std::vector<int>& keys);
 
+        /** Navegación desde un controlador MIDI: mueve la selección 'delta' filas. */
+        void moveSelection (int delta);
+        /** Archivo de la fila seleccionada (o inválido). */
+        juce::File selectedFile() const;
+
         /** Abre el selector para agregar canciones o una carpeta. */
         void showAddMenu();
 

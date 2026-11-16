@@ -1,4 +1,6 @@
 #include "app/OptionsComponent.h"
+#include "app/MidiController.h"
+#include "app/MainComponent.h"
 
 #include "app/AppSettings.h"
 #include "app/AudioDeviceService.h"
@@ -259,10 +261,148 @@ namespace kb::app
     };
 
     // =========================================================================
+    //  Pestaña MIDI (Fase 8)
+    // =========================================================================
+    class OptionsComponent::MidiPage final : public juce::Component,
+                                             private juce::ListBoxModel,
+                                             private juce::Timer
+    {
+    public:
+        explicit MidiPage (MidiController& m) : midi (m)
+        {
+            for (auto* l : { &devicesTitle, &devices, &mappingsTitle, &hint })
+                addAndMakeVisible (*l);
+            hint.setColour (juce::Label::textColourId, ui::palette::textSecondary);
+            devices.setColour (juce::Label::textColourId, ui::palette::cyan);
+            list.setModel (this);
+            list.setRowHeight (26);
+            list.setColour (juce::ListBox::backgroundColourId, ui::palette::panel);
+            addAndMakeVisible (list);
+
+            removeButton.onClick = [this]
+            {
+                const auto row = list.getSelectedRow();
+                if (row >= 0) midi.removeAt (row);
+                refresh();
+            };
+            importButton.onClick = [this]
+            {
+                chooser = std::make_unique<juce::FileChooser> (tr ("options.midi.import"), juce::File(), "*.json");
+                chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                                      [this] (const juce::FileChooser& fc)
+                                      {
+                                          if (fc.getResult().existsAsFile() && ! midi.importFrom (fc.getResult()))
+                                              juce::AlertWindow::showAsync (juce::MessageBoxOptions().withIconType (juce::MessageBoxIconType::WarningIcon)
+                                                                                .withTitle (tr ("options.midi.import")).withMessage (tr ("options.midi.importError"))
+                                                                                .withButton (tr ("common.ok")), nullptr);
+                                          refresh();
+                                      });
+            };
+            exportButton.onClick = [this]
+            {
+                chooser = std::make_unique<juce::FileChooser> (tr ("options.midi.export"),
+                                                               juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                                                                   .getChildFile ("KB Musiquero DJ - MIDI.json"), "*.json");
+                chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::warnAboutOverwriting,
+                                      [this] (const juce::FileChooser& fc)
+                                      {
+                                          if (fc.getResult() != juce::File())
+                                              midi.exportTo (fc.getResult().withFileExtension ("json"));
+                                      });
+            };
+            clearButton.onClick = [this]
+            {
+                juce::AlertWindow::showAsync (juce::MessageBoxOptions().withIconType (juce::MessageBoxIconType::QuestionIcon)
+                                                  .withTitle (tr ("options.midi.clear")).withMessage (tr ("options.midi.clearConfirm"))
+                                                  .withButton (tr ("options.midi.clear")).withButton (tr ("common.cancel")),
+                                              [this] (int r) { if (r == 1) { midi.clearAll(); refresh(); } });
+            };
+            for (auto* b : { &removeButton, &importButton, &exportButton, &clearButton })
+                addAndMakeVisible (*b);
+            refreshTexts();
+            startTimer (700);
+        }
+
+        void refreshTexts()
+        {
+            devicesTitle.setText (tr ("options.midi.devices"), juce::dontSendNotification);
+            mappingsTitle.setText (tr ("options.midi.mappings"), juce::dontSendNotification);
+            hint.setText (tr ("options.midi.hint"), juce::dontSendNotification);
+            removeButton.setButtonText (tr ("options.midi.remove"));
+            importButton.setButtonText (tr ("options.midi.import"));
+            exportButton.setButtonText (tr ("options.midi.export"));
+            clearButton.setButtonText (tr ("options.midi.clear"));
+            refresh();
+        }
+
+        void resized() override
+        {
+            auto b = getLocalBounds().reduced (16);
+            devicesTitle.setBounds (b.removeFromTop (26));
+            devices.setBounds (b.removeFromTop (28));
+            b.removeFromTop (10);
+            mappingsTitle.setBounds (b.removeFromTop (26));
+            hint.setBounds (b.removeFromBottom (44));
+            auto buttons = b.removeFromBottom (34);
+            b.removeFromBottom (8);
+            list.setBounds (b);
+            const auto w = buttons.getWidth() / 4;
+            for (auto* btn : { &removeButton, &importButton, &exportButton, &clearButton })
+                btn->setBounds (buttons.removeFromLeft (w).reduced (3, 0));
+        }
+
+    private:
+        int getNumRows() override { return (int) midi.getMap().getBindings().size(); }
+
+        void paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected) override
+        {
+            const auto& all = midi.getMap().getBindings();
+            if (! juce::isPositiveAndBelow (row, (int) all.size()))
+                return;
+            const auto& b = all[(size_t) row];
+            if (selected)
+                g.fillAll (ui::palette::cyan.withAlpha (0.2f));
+            g.setColour (ui::palette::textPrimary);
+            g.setFont (ui::KbLookAndFeel::labelFont ((float) h * 0.5f, true));
+            g.drawText (MainComponent::midiTargetName (b.target), 8, 0, w / 2 - 8, h, juce::Justification::centredLeft, true);
+            g.setColour (ui::palette::textSecondary);
+            g.setFont (ui::KbLookAndFeel::labelFont ((float) h * 0.5f, false));
+            g.drawText ((b.device.isNotEmpty() ? b.device + "  ·  " : juce::String()) + b.describe(), w / 2, 0, w / 2 - 8, h,
+                        juce::Justification::centredLeft, true);
+        }
+
+        void deleteKeyPressed (int) override { removeButton.onClick(); }
+
+        void timerCallback() override
+        {
+            const auto names = midi.getConnectedDevices();
+            const auto text = names.isEmpty() ? tr ("options.midi.none") : names.joinIntoString ("   ·   ");
+            if (devices.getText() != text)
+                devices.setText (text, juce::dontSendNotification);
+            if (getNumRows() != shownRows)
+                refresh();
+        }
+
+        void refresh()
+        {
+            shownRows = getNumRows();
+            list.updateContent();
+            list.repaint();
+        }
+
+        MidiController& midi;
+        juce::Label devicesTitle, devices, mappingsTitle, hint;
+        juce::ListBox list;
+        juce::TextButton removeButton, importButton, exportButton, clearButton;
+        std::unique_ptr<juce::FileChooser> chooser;
+        int shownRows = -1;
+    };
+
+    // =========================================================================
     //  OptionsComponent
     // =========================================================================
     OptionsComponent::OptionsComponent (AudioDeviceService& audio, AppSettings& settings,
-                                        engine::AudioEngine& engine, Tab initialTab)
+                                        engine::AudioEngine& engine, MidiController* midi, Tab initialTab)
     {
         audioPage   = new AudioPage (audio);
         mixerPage   = new MixerPage (audio, settings, engine);
@@ -272,11 +412,16 @@ namespace kb::app
         tabs.addTab (tr ("options.tab.audio"),   bg, audioPage,   true);
         tabs.addTab (tr ("options.tab.mixer"),   bg, mixerPage,   true);
         tabs.addTab (tr ("options.tab.general"), bg, generalPage, true);
+        if (midi != nullptr)
+        {
+            midiPage = new MidiPage (*midi);
+            tabs.addTab (tr ("options.tab.midi"), bg, midiPage, true);
+        }
         tabs.setTabBarDepth (32);
         addAndMakeVisible (tabs);
 
         showTab (initialTab);
-        setSize (640, 560);
+        setSize (720, 600);
         I18n::getInstance().addListener (this);
     }
 
@@ -308,6 +453,11 @@ namespace kb::app
         audioPage->rebuild();
         mixerPage->refreshTexts();
         generalPage->refreshTexts();
+        if (midiPage != nullptr)
+        {
+            tabs.setTabName (midiTab, tr ("options.tab.midi"));
+            midiPage->refreshTexts();
+        }
 
         if (auto* window = findParentComponentOfClass<juce::DialogWindow>())
             window->setName (getWindowTitle());

@@ -22,6 +22,7 @@ namespace kb::app
             idOptionsAudio,
             idOptionsMixer,
             idOptionsGeneral,
+            idOptionsMidi,
             idLanguageBase = 100,   // + índice del idioma
             idAbout = 200,
             idViewLargeLibrary = 300
@@ -132,6 +133,7 @@ namespace kb::app
                 menu.addItem (idOptionsAudio, tr ("menu.options.audio"));
                 menu.addItem (idOptionsMixer, tr ("menu.options.mixer"));
                 menu.addItem (idOptionsGeneral, tr ("menu.options.general"));
+                menu.addItem (idOptionsMidi, tr ("menu.options.midi"));
                 menu.addSeparator();
 
                 juce::PopupMenu languages;
@@ -185,6 +187,10 @@ namespace kb::app
         {
             showOptions (OptionsComponent::mixerTab);
         }
+        else if (menuItemID == idOptionsMidi)
+        {
+            showOptions (OptionsComponent::midiTab);
+        }
         else if (menuItemID == idOptionsGeneral)
         {
             showOptions (OptionsComponent::generalTab);
@@ -220,7 +226,9 @@ namespace kb::app
         }
 
         juce::DialogWindow::LaunchOptions o;
-        o.content.setOwned (new OptionsComponent (audio, settings, player.getEngine(), (OptionsComponent::Tab) tab));
+        o.content.setOwned (new OptionsComponent (audio, settings, player.getEngine(),
+                                                     mainComponent != nullptr ? &mainComponent->getMidi() : nullptr,
+                                                     (OptionsComponent::Tab) tab));
         o.dialogTitle                  = OptionsComponent::getWindowTitle();
         o.dialogBackgroundColour       = ui::palette::panelDark;
         o.componentToCentreAround      = this;

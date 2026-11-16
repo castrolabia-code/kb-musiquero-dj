@@ -39,6 +39,8 @@ namespace kb::ui
 
     void PlatterView::mouseDown (const juce::MouseEvent& e)
     {
+        if (e.mods.isPopupMenu())
+            return;   // click derecho: menú (MIDI Learn), no toca el disco
         grabbed = true;
         lastAngle = angleAt (e.position);
         if (onTouch) onTouch (true);

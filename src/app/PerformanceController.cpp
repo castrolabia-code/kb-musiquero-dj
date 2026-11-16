@@ -157,7 +157,7 @@ namespace kb::app
         }
     }
 
-    void PerformanceController::padMenu (int d, int i, juce::Component* target)
+    void PerformanceController::padMenu (int d, int i, juce::Component* target, std::function<void (juce::PopupMenu&)> extra)
     {
         juce::PopupMenu menu;
         juce::WeakReference<PerformanceController> weak (this);
@@ -191,11 +191,14 @@ namespace kb::app
             menu.addSeparator();
             menu.addItem (tr ("pad.clearSample"), loaded, false, [weak, slot] { if (auto* s = weak.get()) s->clearSample (slot); });
         }
-        else
+        if (extra)
         {
-            return;
+            if (menu.getNumItems() > 0)
+                menu.addSeparator();
+            extra (menu);
         }
-
+        if (menu.getNumItems() == 0)
+            return;
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (target));
     }
 

@@ -273,3 +273,7 @@ Así el motor se reutiliza tal cual en Android (Fase 10), donde solo cambia la c
 | D46 | OpenGL (juce::OpenGLContext) para toda la interfaz, opcional | Sección 6 pide GPU a 60 fps. Activado por defecto en Windows; se cambia en Preferencias al instante. Si el driver falla, JUCE sigue por software y el audio no se ve afectado (hilo aparte). |
 | D47 | Vista "Biblioteca grande" = interpolación del layout (200 ms) | Sin segundo layout que mantener: el controlador es proporcional y solo cambia su alto. |
 | D48 | Renders opcionales en `skin/` (chassis, platter, mixer @1x/@2x/@4x) | Enfoque híbrido de la sección 6: los renders finales se suman sin recompilar; sin ellos, todo se dibuja por código. |
+| D49 | Módulo `src/midi` sin dispositivos (MidiMap) + `MidiController` en la app | Todo el mapeo, el learn, la conversión de valores y los LEDs se prueban sin hardware; los dispositivos solo abren puertos. |
+| D50 | MIDI procesado en el hilo de mensajes (cola + AsyncUpdater) | El motor solo acepta un hilo de control; la latencia extra (~1 ms) no se nota. El hilo de audio nunca toca MIDI. |
+| D51 | Funciones MIDI identificadas por texto ("deck1.play") = componentID de cada control | El click derecho sobre cualquier control sabe qué asignar; el mapeo JSON es legible y estable entre versiones. |
+| D52 | LEDs por el mismo mensaje que el botón y solo cuando cambian | Funciona con la mayoría de los controladores sin perfiles; no satura el puerto MIDI. |

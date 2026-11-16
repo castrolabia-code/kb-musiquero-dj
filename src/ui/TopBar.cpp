@@ -19,6 +19,7 @@ namespace kb::ui
         addAndMakeVisible (meterL);
         addAndMakeVisible (meterR);
         libraryButton.setTooltipKey ("tip.largeLibrary");
+        libraryButton.setComponentID ("library.largeView");
         libraryButton.onPress = [this] { if (onLibraryView) onLibraryView(); };
         addAndMakeVisible (libraryButton);
     }

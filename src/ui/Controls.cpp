@@ -146,12 +146,21 @@ namespace kb::ui
 
     void GlowButton::mouseDown (const juce::MouseEvent& e)
     {
-        if (e.mods.isPopupMenu() && onRightClick)
+        if (e.mods.isPopupMenu())
         {
-            onRightClick();
+            // Click derecho: menú (pads) o MIDI Learn (lo maneja la ventana); nunca aprieta el botón.
+            if (onRightClick)
+                onRightClick();
             return;
         }
         juce::Button::mouseDown (e);
+    }
+
+    void GlowButton::mouseUp (const juce::MouseEvent& e)
+    {
+        if (e.mods.isPopupMenu())
+            return;
+        juce::Button::mouseUp (e);
     }
 
     void GlowButton::mouseDoubleClick (const juce::MouseEvent&)

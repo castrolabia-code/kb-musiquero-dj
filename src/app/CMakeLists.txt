@@ -8,11 +8,13 @@ add_library(kb_app_core STATIC
     AppSettings.h
     AppSettings.cpp
     AnalysisCache.h
-    AnalysisCache.cpp)
+    AnalysisCache.cpp
+    MidiController.h
+    MidiController.cpp)
 add_library(kb::app_core ALIAS kb_app_core)
 
 target_include_directories(kb_app_core PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(kb_app_core PUBLIC kb::juce kb::library kb_assets)
+target_link_libraries(kb_app_core PUBLIC kb::juce kb::library kb::midi kb_assets)
 set_target_properties(kb_app_core PROPERTIES FOLDER "KB")
 
 # =============================================================================
@@ -59,6 +61,7 @@ target_compile_definitions(KBMusiqueroDJ PRIVATE
 target_link_libraries(KBMusiqueroDJ PRIVATE
     kb::app_core
     kb::library
+    kb::midi
     kb::analysis
     kb::engine
     kb::juce)
