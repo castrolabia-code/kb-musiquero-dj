@@ -1,6 +1,7 @@
 #include "library/TagReader.h"
 
 #include "engine/TrackLoader.h"
+#include "library/ImageResize.h"
 
 #include <fileref.h>
 #include <tag.h>
@@ -127,18 +128,12 @@ namespace kb::library
             return {};
         img = juce::SoftwareImageType().convert (img);
 
-        // Recorte cuadrado al centro y achicado de calidad. Siempre imagen "software"
-        // (en memoria común): en Windows las imágenes nativas son de la GPU (Direct2D)
-        // y no se deben crear ni dibujar desde hilos de fondo.
+        // Recorte cuadrado al centro y achicado de calidad (por pasos, sin pixelado).
+        // Siempre imagen "software" (en memoria común): en Windows las imágenes
+        // nativas son de la GPU (Direct2D) y no se deben crear ni dibujar desde
+        // hilos de fondo.
         const auto side = juce::jmin (img.getWidth(), img.getHeight());
-        const auto size = juce::jmin (side, maxSize);
-        juce::Image out (juce::Image::RGB, size, size, true, juce::SoftwareImageType());
-        {
-            juce::Graphics g (out);
-            g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
-            g.drawImage (img, 0, 0, size, size, (img.getWidth() - side) / 2, (img.getHeight() - side) / 2, side, side);
-        }
-        return out;
+        return squareResize (img, juce::jmin (side, maxSize));
     }
 
     bool TagReader::writeForTest (const juce::File& file, const TrackTags& tags, const juce::MemoryBlock& image)

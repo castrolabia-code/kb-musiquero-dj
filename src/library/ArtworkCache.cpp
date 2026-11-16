@@ -1,5 +1,6 @@
 #include "library/ArtworkCache.h"
 
+#include "library/ImageResize.h"
 #include "library/TagReader.h"
 
 namespace kb::library
@@ -19,7 +20,8 @@ namespace kb::library
 
     juce::String ArtworkCache::keyFor (const juce::File& f)
     {
-        const auto id = f.getFullPathName() + "|" + juce::String (f.getSize()) + "|"
+        // "v2": carátulas de 1024 px (las de 512 de versiones viejas se regeneran).
+        const auto id = juce::String ("v2|") + f.getFullPathName() + "|" + juce::String (f.getSize()) + "|"
                       + juce::String (f.getLastModificationTime().toMilliseconds());
         // Dos hashes de 64 bits distintos (texto y texto invertido): colisión prácticamente imposible.
         auto reversed = juce::String();
@@ -72,7 +74,7 @@ namespace kb::library
                 if (img.isValid())
                 {
                     juce::JPEGImageFormat fmt;
-                    fmt.setQuality (0.88f);
+                    fmt.setQuality (0.93f);
                     juce::FileOutputStream out (jpg);
                     if (out.openedOk())
                         fmt.writeImageToStream (img, out);
@@ -129,10 +131,7 @@ namespace kb::library
         juce::Image thumb;
         if (full.isValid())
         {
-            thumb = juce::Image (juce::Image::RGB, size, size, true, juce::SoftwareImageType());
-            juce::Graphics g (thumb);
-            g.setImageResamplingQuality (juce::Graphics::mediumResamplingQuality);
-            g.drawImage (full, thumb.getBounds().toFloat());
+            thumb = squareResize (full, size);
         }
         if (thumbnails.size() > 400)
             thumbnails.clear();

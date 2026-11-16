@@ -23,7 +23,7 @@ namespace kb::library
     class ArtworkCache final
     {
     public:
-        static constexpr int kSize = 512;
+        static constexpr int kSize = 1024;   // nítida hasta en 4K
 
         explicit ArtworkCache (juce::File cacheDirectory);
         ~ArtworkCache();

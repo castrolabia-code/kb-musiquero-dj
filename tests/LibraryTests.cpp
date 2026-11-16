@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "library/ArtworkCache.h"
+#include "library/ImageResize.h"
 #include "library/TagReader.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -114,6 +115,27 @@ namespace
     };
 }
 
+TEST_CASE ("Caratulas: achicado por pasos sin aliasing", "[library][artwork]")
+{
+    // Tablero de ajedrez de 1 px (el peor caso): achicado 16 veces debe dar un gris
+    // parejo. Un solo paso bilineal saltea píxeles y deja manchas blancas/negras.
+    juce::Image board (juce::Image::RGB, 1024, 1024, false, juce::SoftwareImageType());
+    for (int y = 0; y < 1024; ++y)
+        for (int x = 0; x < 1024; ++x)
+            board.setPixelAt (x, y, ((x + y) & 1) ? juce::Colours::white : juce::Colours::black);
+    const auto small = kb::library::squareResize (board, 64);
+    REQUIRE (small.getWidth() == 64);
+    int worst = 0;
+    for (int y = 2; y < 62; ++y)
+        for (int x = 2; x < 62; ++x)
+            worst = juce::jmax (worst, std::abs ((int) small.getPixelAt (x, y).getRed() - 128));
+    CHECK (worst < 24);
+
+    const auto round = kb::library::squareResize (board, 64, true);
+    CHECK (round.getPixelAt (0, 0).getAlpha() == 0);         // esquina fuera del círculo
+    CHECK (round.getPixelAt (32, 32).getAlpha() == 255);
+}
+
 TEST_CASE ("Caratulas: el cache las guarda en disco y avisa en el hilo de mensajes", "[library][artwork]")
 {
     ManualQueue queue;
@@ -134,7 +156,7 @@ TEST_CASE ("Caratulas: el cache las guarda en disco y avisa en el hilo de mensaj
         for (int i = 0; i < 200 && ! called; ++i)
         { queue.drain(); juce::Thread::sleep (10); }
         REQUIRE (called);
-        CHECK (got.getWidth() == ArtworkCache::kSize);
+        CHECK (got.getWidth() == juce::jmin (800, ArtworkCache::kSize));   // nunca se agranda
         CHECK (cacheDir.getChildFile (ArtworkCache::keyFor (file) + ".jpg").existsAsFile());
         CHECK (cache.getThumbnail (file, 40).getWidth() == 40);
     }

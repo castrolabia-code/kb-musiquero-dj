@@ -1,5 +1,7 @@
 #include "ui/DeckDisplay.h"
 
+#include "library/ImageResize.h"
+
 #include "analysis/KeyDetector.h"
 #include "app/I18n.h"
 #include "ui/DrawPrimitives.h"
@@ -171,7 +173,10 @@ namespace kb::ui
             clip.addRoundedRectangle (art, 3.0f);
             g.reduceClipRegion (clip);
             g.setOpacity (1.0f);
-            g.drawImage (view.artwork, art, juce::RectanglePlacement::centred | juce::RectanglePlacement::fillDestination);
+            // Achicada a los píxeles reales de la pantalla (nítida, sin dientes).
+            const auto scale = g.getInternalContext().getPhysicalPixelScaleFactor();
+            const auto thumb = artThumb.get (view.artwork, juce::roundToInt (art.getWidth() * scale));
+            g.drawImage (thumb, art);
         }
         else
         {

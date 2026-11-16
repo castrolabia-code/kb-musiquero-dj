@@ -15,6 +15,8 @@
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include "library/ImageResize.h"
+
 #include "engine/Deck.h"
 #include "engine/TrackBuffer.h"
 
@@ -86,6 +88,7 @@ namespace kb::ui
         double zoomSeconds = 8.0;
 
         // Caché de la vista ampliada: cubre 3 ventanas de zoom alrededor del playhead.
+        kb::library::ScaledImageCache artThumb;   // carátula chica nítida
         juce::Image   detailImage;
         double        detailStart = 0.0;
         double        detailZoom  = 0.0;

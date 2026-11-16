@@ -1,6 +1,7 @@
 #include "ui/PlatterView.h"
 
 #include "app/I18n.h"
+#include "library/ImageResize.h"
 #include "ui/DrawPrimitives.h"
 #include "ui/Palette.h"
 
@@ -160,14 +161,19 @@ namespace kb::ui
         {
             {
                 juce::Graphics::ScopedSaveState save (g);
-                g.reduceClipRegion (labelPath);
-                const auto sc = (lr * 2.0f) / (float) juce::jmin (artwork.getWidth(), artwork.getHeight());
-                const auto t = juce::AffineTransform::translation (-artwork.getWidth() * 0.5f, -artwork.getHeight() * 0.5f)
-                                   .scaled (sc)
+                // La carátula se prepara UNA vez al tamaño exacto en píxeles reales
+                // (achicada por pasos, ya recortada en círculo antialiasado) y acá
+                // solo se gira 1:1: así no se pixela ni "tiembla" al girar.
+                const auto scale = g.getInternalContext().getPhysicalPixelScaleFactor();
+                const auto px = juce::jmax (8, juce::roundToInt (lr * 2.0f * scale));
+                const auto label = labelCache.get (artwork, px, true);
+                const auto t = juce::AffineTransform::translation (-px * 0.5f, -px * 0.5f)
+                                   .scaled (1.0f / scale)
                                    .rotated ((float) angle)
                                    .translated (c);
                 g.setOpacity (loaded ? 1.0f : 0.6f);
-                g.drawImageTransformed (artwork, t);
+                g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+                g.drawImageTransformed (label, t);
             }
             ring (lr, juce::jmax (2.0f, lr * (0.05f + 0.04f * pulse)), glow);
             // Agujero central (como un disco de verdad).

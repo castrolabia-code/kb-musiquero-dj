@@ -3,6 +3,20 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.12.1] — Carátulas nítidas
+
+### Corregido
+- Las carátulas ya no se pixelan: se achican por pasos de alta calidad
+  (`library/ImageResize.h`) en vez de un solo paso bilineal.
+- En el plato, la carátula se prepara una vez al tamaño exacto en píxeles reales
+  (recortada en círculo antialiasado) y solo se gira: nítida y sin "temblor".
+- Carátulas guardadas a 1024 px (antes 512) y JPG de mayor calidad; el caché se
+  regenera solo. La miniatura de cada deck también se achica sin dientes.
+- Prueba nueva: achicado sin aliasing.
+
+### Docs
+- Catálogo PDF rehecho: portada sin pixelar y carátulas de demostración nuevas.
+
 ## [0.12.0] — Fase 9: comercial (licencias, instalador, soporte)
 
 ### Agregado

@@ -10,6 +10,8 @@
 // =============================================================================
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include "library/ImageResize.h"
+
 #include <functional>
 
 namespace kb::ui
@@ -50,6 +52,7 @@ namespace kb::ui
         double lastAngle = 0.0;
         bool grabbed = false;
         juce::Image artwork;
+        kb::library::ScaledImageCache labelCache;   // carátula al tamaño real, en círculo
         double beatBpm = 0.0, beatFirst = 0.0, position = 0.0;
         int deck;
         double angle = 0.0;
