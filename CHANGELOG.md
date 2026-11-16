@@ -3,6 +3,12 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: `MAYOR.MENOR.PARCHE` (la versión vive solo en el `CMakeLists.txt` raíz).
 
+## [0.10.1] — Ajustes de diseño pedidos
+
+### Cambiado
+- Biblioteca más chica y waveforms más grandes en la vista normal (proporciones como en la captura de referencia del usuario).
+- Ícono: se agregó **DJ** en rojo con borde negro.
+
 ## [0.10.0] — Fase 7: diseño final (4K, GPU, Biblioteca grande, animaciones)
 
 ### Agregado

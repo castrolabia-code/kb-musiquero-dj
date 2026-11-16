@@ -219,7 +219,7 @@ namespace kb::app
         screenArea = b;
 
         auto inner = b.reduced (m / 2 + 2);
-        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * (0.42 - 0.2 * mix)));
+        auto waves = inner.removeFromTop (juce::roundToInt (inner.getHeight() * (0.56 - 0.34 * mix)));
         const auto gap = m / 2;
         deckDisplays[0].setBounds (waves.removeFromLeft ((waves.getWidth() - gap) / 2));
         waves.removeFromLeft (gap);
